@@ -8,13 +8,18 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { AuroraText } from "@/components/ui/aurora-text";
-import { Clock, Home, Share, Trash } from "lucide-react";
+import { Clock, FileText, LayoutDashboard, Share, Trash } from "lucide-react";
 
 const sidebarItems = [
   {
-    label: "Home",
-    href: "/home",
-    icon: <Home />,
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: <LayoutDashboard />,
+  },
+  {
+    label: "My diagrams",
+    href: "/my-diagrams",
+    icon: <FileText />,
   },
   {
     label: "Shared with me",
@@ -34,13 +39,13 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link
-          href="/home"
+          href="/dashboard"
           className="text-2xl font-bold inline-block group-data-[collapsible=icon]:hidden text-center cursor-pointer"
         >
           <AuroraText>Knovion</AuroraText>
         </Link>
         <Link
-          href="/home"
+          href="/dashboard"
           className="text-2xl font-bold hidden group-data-[collapsible=icon]:inline-block text-center cursor-pointer"
         >
           <AuroraText>K</AuroraText>

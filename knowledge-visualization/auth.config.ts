@@ -5,7 +5,7 @@ import Credentials from "next-auth/providers/credentials";
 // Check if the route is protected (requires authentication)
 function isProtectedRoute(pathname: string) {
   const protectedRoutes = [
-    "/home",
+    "/dashboard",
     "/recent",
     "/shared",
     "/trash",
@@ -43,7 +43,7 @@ export const authConfig = {
 
       // Redirect logged-in users away from auth pages
       if (isLoggedIn && (isAuthRoute(pathname) || pathname === "/")) {
-        return Response.redirect(new URL("/home", nextUrl));
+        return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
       // If the route is protected, check authentication and permissions
