@@ -29,37 +29,31 @@ export function AppSidebar() {
       label: "Dashboard",
       href: "/dashboard",
       icon: <LayoutDashboard />,
-      filled: <LayoutDashboard fill="currentColor" />,
     },
     {
       label: "My Diagrams",
       href: "/my-diagrams",
       icon: <FileText />,
-      filled: <FileText fill="currentColor" />,
     },
     {
       label: "Shared with me",
-      href: "/shared",
+      href: "/shared-with-me",
       icon: <Share />,
-      filled: <Share fill="currentColor" />,
     },
     {
       label: "Recent",
       href: "/recent",
       icon: <Clock />,
-      filled: <Clock fill="currentColor" />,
     },
     {
       label: "Starred",
       href: "/starred",
       icon: <Star />,
-      filled: <Star fill="currentColor" />,
     },
     {
       label: "Trash",
       href: "/trash",
       icon: <Trash />,
-      filled: <Trash fill="currentColor" />,
     },
   ];
 
@@ -91,7 +85,7 @@ export function AppSidebar() {
                 asChild
               >
                 <Link href={item.href}>
-                  {pathname === item.href ? item.filled : item.icon}
+                  {item.icon}
                   <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>

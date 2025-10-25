@@ -1,9 +1,13 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { useLocale } from "next-intl";
 import { FullDiagram } from "@/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Star } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
@@ -11,6 +15,8 @@ interface DiagramCardProps {
 }
 
 export function DiagramCard({ variant, diagram }: DiagramCardProps) {
+  const { data: session } = useSession();
+  const isStarred = session?.user?.id === diagram.ownerId;
   const locale = useLocale();
 
   if (variant === "list") {
@@ -33,12 +39,23 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
 
         {/* Date overlay - only visible on hover */}
         <div className="flex flex-col items-end gap-2">
-          <Avatar className="rounded-full">
-            <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
-            <AvatarFallback>
-              {diagram.owner.name?.charAt(0) ?? "U"}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-2">
+            <button>
+              <Star
+                className={`opacity-0 ${
+                  isStarred
+                    ? "opacity-100 fill-yellow-500 text-yellow-500"
+                    : "opacity-0"
+                } group-hover:opacity-100 hover:fill-yellow-300 hover:text-yellow-300 transition-opacity duration-500 size-6`}
+              />
+            </button>
+            <Avatar className="rounded-full">
+              <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
+              <AvatarFallback>
+                {diagram.owner.name?.charAt(0) ?? "U"}
+              </AvatarFallback>
+            </Avatar>
+          </div>
           <Badge variant="secondary" className="text-xs">
             {new Date(diagram.createdAt).toLocaleDateString(locale)}
           </Badge>
@@ -54,6 +71,15 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
           <CardTitle className="text-sm sm:text-base font-medium truncate">
             {diagram.title}
           </CardTitle>
+          <button>
+            <Star
+              className={`opacity-0 ${
+                isStarred
+                  ? "opacity-100 fill-yellow-500 text-yellow-500"
+                  : "opacity-0"
+              } group-hover:opacity-100 hover:fill-yellow-300 hover:text-yellow-300 transition-opacity duration-500 size-6`}
+            />
+          </button>
         </CardHeader>
         <CardContent className="flex-1 p-0 relative">
           <div className="relative w-full aspect-6/4">

@@ -7,7 +7,7 @@ function isProtectedRoute(pathname: string) {
   const protectedRoutes = [
     "/dashboard",
     "/recent",
-    "/shared",
+    "/shared-with-me",
     "/trash",
     "/settings",
   ];

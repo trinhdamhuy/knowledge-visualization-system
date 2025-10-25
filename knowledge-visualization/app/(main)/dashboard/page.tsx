@@ -14,7 +14,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "1",
     title: "Diagram1",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",
@@ -40,7 +40,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "2",
     title: "Mô tả về sản phẩm/giải pháp",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",
@@ -66,7 +66,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "3",
     title: "Flowchart",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",
@@ -92,7 +92,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "4",
     title: "Technical Specification",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",
@@ -118,7 +118,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "5",
     title: "Database Schema",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",
@@ -144,7 +144,7 @@ const sampleDiagrams: FullDiagram[] = [
   {
     id: "6",
     title: "User Journey Map",
-    imageUrl: "https://placehold.co/600x400",
+    imageUrl: null,
     folderId: "1",
     userId: "1",
     teamId: "1",

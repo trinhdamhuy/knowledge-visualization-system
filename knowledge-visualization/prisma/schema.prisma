@@ -77,7 +77,7 @@ model User {
     shares         Share[]
     recents        Recent[]
     trash          Trash[]
-    Diagram        Diagram[]
+    starreds       Starred[]
 }
 
 model VerificationToken {
@@ -166,14 +166,13 @@ model Diagram {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    folder  Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    owner   User?    @relation("DiagramOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-    team    Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    shares  Share[]
-    recents Recent[]
-    trash   Trash?
-    User    User?    @relation(fields: [userId], references: [id])
-    userId  String?
+    folder   Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    owner    User?     @relation("DiagramOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+    team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    shares   Share[]
+    recents  Recent[]
+    trash    Trash?
+    starreds Starred[]
 }
 
 model Trash {
@@ -197,10 +196,10 @@ model Share {
     permission Permission @default(VIEWER)
     sharedAt   DateTime   @default(now())
 
-    diagram  Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
-    folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    team     Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    diagram Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+    folder  Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team    Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 
 model Recent {
@@ -208,6 +207,18 @@ model Recent {
     userId    String
     diagramId String
     viewedAt  DateTime @default(now())
+
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, diagramId])
+}
+
+model Starred {
+    id        String   @id @default(cuid())
+    userId    String
+    diagramId String
+    starredAt DateTime @default(now())
 
     user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
     diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
