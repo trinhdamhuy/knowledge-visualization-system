@@ -1,9 +1,7 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useSession } from "next-auth/react";
 import { Bell, Search } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
 import { useEffect, useState, useRef } from "react";
@@ -12,12 +10,11 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { ModeToggle } from "./mode-toggle";
+import { ModeToggle } from "@/app/_components/buttons/mode-toggle";
 import { Button } from "@/components/ui/button";
+import { User } from "./buttons/user";
 
 export function Header() {
-  const { data: session } = useSession();
-
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
 
@@ -84,14 +81,7 @@ export function Header() {
           </Button>
           <ModeToggle />
         </div>
-        <div className="p-0.5 rounded-full hover:bg-conic/decreasing from-violet-700 via-lime-300 to-violet-700 transition-all duration-300 ease-linear">
-          <Avatar className="cursor-pointer">
-            <AvatarImage src={session?.user?.image ?? ""} alt="Avatar" />
-            <AvatarFallback>
-              {session?.user?.name?.charAt(0) ?? "User"}
-            </AvatarFallback>
-          </Avatar>
-        </div>
+        <User />
       </div>
     </header>
   );
