@@ -34,7 +34,11 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NextIntlClientProvider messages={messages}>
-          <DefaultProviders>{children}</DefaultProviders>
+          <DefaultProviders>
+            <main className="min-h-screen flex flex-col items-center justify-center">
+              {children}
+            </main>
+          </DefaultProviders>
         </NextIntlClientProvider>
       </body>
     </html>
