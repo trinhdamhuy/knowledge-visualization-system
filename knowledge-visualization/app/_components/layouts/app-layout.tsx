@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AppSidebar />
       <SidebarInset>
         <Header />
-        <main className="flex flex-col gap-4 p-4">
+        <main className="flex flex-col gap-4 py-4 px-8">
           <div className="flex flex-col gap-4 w-full">
             <h1 className="text-4xl font-bold">
               {title ? title.charAt(0).toUpperCase() + title.slice(1) : ""}

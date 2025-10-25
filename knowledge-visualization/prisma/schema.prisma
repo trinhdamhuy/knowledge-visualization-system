@@ -169,7 +169,7 @@ model Folder {
 model Diagram {
     id          String   @id @default(cuid())
     title       String
-    content     String?  @db.Text
+    imageUrl    String?
     folderId    String?  @map("folder_id")
     userId      String?  @map("user_id")
     teamId      String?  @map("team_id")

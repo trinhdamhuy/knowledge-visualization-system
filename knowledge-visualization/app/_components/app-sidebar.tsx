@@ -17,7 +17,7 @@ const sidebarItems = [
     icon: <LayoutDashboard />,
   },
   {
-    label: "My diagrams",
+    label: "My Diagrams",
     href: "/my-diagrams",
     icon: <FileText />,
   },

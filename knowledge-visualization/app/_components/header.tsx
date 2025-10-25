@@ -5,7 +5,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useSession } from "next-auth/react";
 import { Bell, Search } from "lucide-react";
-import { Button } from "@/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { useEffect, useState, useRef } from "react";
 import {
@@ -14,6 +13,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { ModeToggle } from "./mode-toggle";
+import { Button } from "@/components/ui/button";
 
 export function Header() {
   const { data: session } = useSession();
