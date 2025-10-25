@@ -1,0 +1,45 @@
+{
+  "auth": {
+    "login": {
+      "title": "ログイン",
+      "subtitle": "アカウントにアクセスするための認証情報を入力してください",
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "forgotPassword": "パスワードを忘れましたか？",
+      "emailRequired": "メールアドレスが必要です",
+      "passwordRequired": "パスワードが必要です",
+      "loginButton": "ログイン",
+      "loginLoading": "ログイン中...",
+      "or": "または",
+      "googleLogin": "Googleで続行",
+      "noAccount": "アカウントをお持ちでない場合",
+      "signUp": "アカウント作成",
+      "emailNotVerified": "ログイン前にメールアドレスを確認してください",
+      "loginFailed": "メールアドレスまたはパスワードが正しくありません",
+      "loginSuccess": "ログインに成功しました",
+      "loginError": "ログイン中にエラーが発生しました"
+    },
+    "sign-up": {
+      "title": "アカウント作成",
+      "subtitle": "アカウントを作成するための情報を入力してください",
+      "username": "ユーザー名",
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "confirmPassword": "パスワード確認",
+      "usernameRequired": "ユーザー名は2文字以上である必要があります",
+      "emailRequired": "有効なメールアドレスを入力してください",
+      "passwordRequired": "パスワードは6文字以上である必要があります",
+      "passwordMismatch": "パスワードが一致しません",
+      "signUpButton": "アカウント作成",
+      "signUpLoading": "アカウント作成中...",
+      "or": "または",
+      "googlesignUp": "Googleで続行",
+      "hasAccount": "すでにアカウントをお持ちの場合",
+      "login": "ログイン",
+      "signUpFailed": "アカウントの作成に失敗しました",
+      "signUpSuccess": "アカウントが正常に作成されました",
+      "signUpError": "サインアップ中にエラーが発生しました",
+      "googlesignUpError": "Googleサインアップに失敗しました"
+    }
+  }
+}

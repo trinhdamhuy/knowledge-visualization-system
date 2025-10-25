@@ -1,0 +1,45 @@
+{
+  "auth": {
+    "login": {
+      "title": "Login",
+      "subtitle": "Enter your credentials to access your account",
+      "email": "Email",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "emailRequired": "Email is required",
+      "passwordRequired": "Password is required",
+      "loginButton": "Login",
+      "loginLoading": "Logging in...",
+      "or": "or",
+      "googleLogin": "Continue with Google",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "emailNotVerified": "Please verify your email before signing in",
+      "loginFailed": "Invalid email or password",
+      "loginSuccess": "Successfully signed in",
+      "loginError": "An error occurred during sign in"
+    },
+    "sign-up": {
+      "title": "Create Account",
+      "subtitle": "Enter your information to create an account",
+      "username": "Username",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "usernameRequired": "Username must be at least 2 characters",
+      "emailRequired": "Please enter a valid email",
+      "passwordRequired": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords do not match",
+      "signUpButton": "Create Account",
+      "signUpLoading": "Creating account...",
+      "or": "or",
+      "googlesignUp": "Continue with Google",
+      "hasAccount": "Already have an account?",
+      "login": "Login",
+      "signUpFailed": "Failed to create account",
+      "signUpSuccess": "Account created successfully",
+      "signUpError": "An error occurred during sign up",
+      "googlesignUpError": "Google sign up failed"
+    }
+  }
+}
