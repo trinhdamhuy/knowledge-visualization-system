@@ -43,7 +43,7 @@ export const authConfig = {
 
       // Redirect logged-in users away from auth pages
       if (isLoggedIn && (isAuthRoute(pathname) || pathname === "/")) {
-        return Response.redirect(new URL("/dashboard", nextUrl));
+        return Response.redirect(new URL("/home", nextUrl));
       }
 
       // If the route is protected, check authentication and permissions
