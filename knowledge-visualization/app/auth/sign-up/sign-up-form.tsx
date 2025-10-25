@@ -10,12 +10,11 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
@@ -124,83 +123,127 @@ export function SignUpForm() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              form.handleSubmit(onSubmit);
+              form.handleSubmit();
             }}
             className="flex flex-col gap-4 sm:gap-6"
           >
-            <div className="flex flex-col gap-3 sm:gap-4">
-              <FormField
+            <FieldGroup className="flex flex-col gap-3 sm:gap-4">
+              <form.Field
                 name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("username")}
-                      <span className="text-red-500 text-xs">*</span>
-                    </FormLabel>
-                    <FormControl>
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        {t("username")}
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
                       <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
                         placeholder={t("username")}
-                        {...field}
                         disabled={isLoading}
+                        aria-invalid={isInvalid}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
               />
 
-              <FormField
+              <form.Field
                 name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("email")}
-                      <span className="text-red-500 text-xs">*</span>
-                    </FormLabel>
-                    <FormControl>
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        {t("email")}
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
                       <Input
+                        id={field.name}
+                        name={field.name}
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
                         placeholder={t("email")}
-                        {...field}
                         disabled={isLoading}
+                        aria-invalid={isInvalid}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
               />
 
-              <FormField
+              <form.Field
                 name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("password")}
-                      <span className="text-red-500 text-xs">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} disabled={isLoading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        {t("password")}
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        type="password"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        disabled={isLoading}
+                        aria-invalid={isInvalid}
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
               />
 
-              <FormField
+              <form.Field
                 name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t("confirmPassword")}
-                      <span className="text-red-500 text-xs">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} disabled={isLoading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                children={(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        {t("confirmPassword")}
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
+                      <Input
+                        id={field.name}
+                        name={field.name}
+                        type="password"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        disabled={isLoading}
+                        aria-invalid={isInvalid}
+                      />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
               />
-            </div>
+            </FieldGroup>
 
             <div className="flex flex-col gap-2">
               <Button type="submit" className="w-full" disabled={isLoading}>

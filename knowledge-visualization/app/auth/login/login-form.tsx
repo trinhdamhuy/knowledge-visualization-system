@@ -8,15 +8,14 @@ import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 import { useTranslations } from "next-intl";
 
-import { Button } from "../../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "../../../components/ui/form";
-import { Input } from "../../../components/ui/input";
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { signIn } from "next-auth/react";
 import {
@@ -26,7 +25,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "../../../components/ui/card";
+} from "@/components/ui/card";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
@@ -107,53 +106,77 @@ export function LoginForm() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            form.handleSubmit(onSubmit);
+            form.handleSubmit();
           }}
           className="space-y-3 sm:space-y-4"
         >
-          <FormField
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t("email")}
-                  <span className="text-red-500 text-xs">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="m@example.com"
-                    {...field}
-                    disabled={isLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FieldGroup>
+            <form.Field
+              name="email"
+              children={(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <FieldLabel htmlFor={field.name}>
+                      {t("email")}
+                      <span className="text-red-500 text-xs">*</span>
+                    </FieldLabel>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="m@example.com"
+                      disabled={isLoading}
+                      aria-invalid={isInvalid}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            />
 
-          <FormField
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center justify-between">
-                  <FormLabel>
-                    {t("password")}
-                    <span className="text-red-500 text-xs">*</span>
-                  </FormLabel>
-                  <Link
-                    href="/auth/reset-password"
-                    className="text-xs text-blue-500 hover:underline"
-                  >
-                    {t("forgotPassword")}
-                  </Link>
-                </div>
-                <FormControl>
-                  <Input type="password" {...field} disabled={isLoading} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <form.Field
+              name="password"
+              children={(field) => {
+                const isInvalid =
+                  field.state.meta.isTouched && !field.state.meta.isValid;
+                return (
+                  <Field data-invalid={isInvalid}>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel htmlFor={field.name}>
+                        {t("password")}
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
+                      <Link
+                        href="/auth/reset-password"
+                        className="text-xs text-blue-500 hover:underline"
+                      >
+                        {t("forgotPassword")}
+                      </Link>
+                    </div>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type="password"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      disabled={isLoading}
+                      aria-invalid={isInvalid}
+                    />
+                    {isInvalid && (
+                      <FieldError errors={field.state.meta.errors} />
+                    )}
+                  </Field>
+                );
+              }}
+            />
+          </FieldGroup>
           <div className="flex flex-col gap-2">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? t("loginLoading") : t("loginButton")}

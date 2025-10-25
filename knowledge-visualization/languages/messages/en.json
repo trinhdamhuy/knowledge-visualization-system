@@ -1,15 +1,15 @@
 {
   "auth": {
     "login": {
-      "title": "Sign In",
+      "title": "Login",
       "subtitle": "Enter your credentials to access your account",
       "email": "Email",
       "password": "Password",
       "forgotPassword": "Forgot password?",
       "emailRequired": "Email is required",
       "passwordRequired": "Password is required",
-      "loginButton": "Sign In",
-      "loginLoading": "Signing in...",
+      "loginButton": "Login",
+      "loginLoading": "Logging in...",
       "or": "or",
       "googleLogin": "Continue with Google",
       "noAccount": "Don't have an account?",
@@ -35,7 +35,7 @@
       "or": "or",
       "googlesignUp": "Continue with Google",
       "hasAccount": "Already have an account?",
-      "login": "Sign in",
+      "login": "Login",
       "signUpFailed": "Failed to create account",
       "signUpSuccess": "Account created successfully",
       "signUpError": "An error occurred during sign up",
