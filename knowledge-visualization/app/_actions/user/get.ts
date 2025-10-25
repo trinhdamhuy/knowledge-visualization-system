@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../lib/prisma";
 import { User } from "@prisma/client";
 
 const UserExceptPasswordQuery = {
@@ -14,16 +14,6 @@ const UserExceptPasswordQuery = {
   createdAt: true,
   updatedAt: true,
 };
-
-async function createUser(name: string, email: string, password: string) {
-  return await prisma.user.create({
-    data: {
-      name: name,
-      email: email,
-      password: password,
-    },
-  });
-}
 
 async function getUserByEmail(
   email: string
@@ -58,4 +48,4 @@ async function getCurrentUser(): Promise<User | null> {
   return data?.user as User | null;
 }
 
-export { createUser, getUserByEmail, getUserById, getCurrentUser };
+export { getUserByEmail, getUserById, getCurrentUser };

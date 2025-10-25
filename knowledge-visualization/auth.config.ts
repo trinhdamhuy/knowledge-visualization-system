@@ -4,17 +4,16 @@ import Credentials from "next-auth/providers/credentials";
 
 // Check if the route is protected (requires authentication)
 function isProtectedRoute(pathname: string) {
-  const protectedRoutes = ["/dashboard", "/profile", "/settings", "/design"];
+  const protectedRoutes = ["/dashboard", "/settings"];
   return protectedRoutes.some((route) => pathname.startsWith(route));
 }
 
-// Check if the route is an authentication route (login/auth/register)
+// Check if the route is an authentication route (login/auth/sign-up)
 function isAuthRoute(pathname: string) {
   const authRoutes = "/auth/";
   return (
     pathname.startsWith(authRoutes) &&
-    pathname !== "/auth/verify-email" &&
-    !pathname.startsWith("/auth/project-share-accept")
+    pathname !== "/auth/verify-email"
   );
 }
 
@@ -31,7 +30,7 @@ function isAuthRoute(pathname: string) {
 export const authConfig = {
   pages: {
     signIn: "/auth/login",
-    newUser: "/auth/register",
+    newUser: "/auth/sign-up",
   },
   callbacks: {
     // Authorization callback for NextAuth middleware

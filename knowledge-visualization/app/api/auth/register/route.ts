@@ -1,5 +1,5 @@
-import { createUser, getUserByEmail } from "@/app/_actions";
-import { RegisterErrors } from "@/enums/errors";
+import { createUser, getUserByEmail } from "../../../_actions";
+import { SignUpErrors } from "../../../../enums/errors";
 import bcrypt from "bcrypt";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: RegisterErrors.email_already_in_use },
+        { error: SignUpErrors.email_already_in_use },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Registration Error:", error);
     return NextResponse.json(
-      { error: RegisterErrors.fields_required },
+      { error: "An error occurred while registering the user." },
       { status: 500 }
     );
   }

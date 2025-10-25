@@ -1,7 +1,7 @@
 "use server";
 
-import { PasswordChangeErrors } from "@/enums/errors";
-import { prisma } from "@/lib/prisma";
+import { PasswordChangeErrors } from "../../../enums/errors";
+import { prisma } from "../../../lib/prisma";
 import { getCurrentUser } from "./get";
 import { User } from "@prisma/client";
 import bcrypt from "bcrypt";

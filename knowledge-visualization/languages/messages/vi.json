@@ -1,0 +1,45 @@
+{
+  "auth": {
+    "login": {
+      "title": "Đăng nhập",
+      "subtitle": "Nhập thông tin đăng nhập để truy cập tài khoản của bạn",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "forgotPassword": "Quên mật khẩu?",
+      "emailRequired": "Email là bắt buộc",
+      "passwordRequired": "Mật khẩu là bắt buộc",
+      "loginButton": "Đăng nhập",
+      "loginLoading": "Đang đăng nhập...",
+      "or": "hoặc",
+      "googleLogin": "Tiếp tục với Google",
+      "noAccount": "Chưa có tài khoản?",
+      "signUp": "Đăng ký",
+      "emailNotVerified": "Vui lòng xác thực email trước khi đăng nhập",
+      "loginFailed": "Email hoặc mật khẩu không đúng",
+      "loginSuccess": "Đăng nhập thành công",
+      "loginError": "Đã xảy ra lỗi trong quá trình đăng nhập"
+    },
+    "sign-up": {
+      "title": "Tạo tài khoản",
+      "subtitle": "Nhập thông tin để tạo tài khoản mới",
+      "username": "Tên người dùng",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "confirmPassword": "Xác nhận mật khẩu",
+      "usernameRequired": "Tên người dùng phải có ít nhất 2 ký tự",
+      "emailRequired": "Vui lòng nhập email hợp lệ",
+      "passwordRequired": "Mật khẩu phải có ít nhất 6 ký tự",
+      "passwordMismatch": "Mật khẩu không khớp",
+      "signUpButton": "Tạo tài khoản",
+      "signUpLoading": "Đang tạo tài khoản...",
+      "or": "hoặc",
+      "googlesignUp": "Tiếp tục với Google",
+      "hasAccount": "Đã có tài khoản?",
+      "login": "Đăng nhập",
+      "signUpFailed": "Tạo tài khoản thất bại",
+      "signUpSuccess": "Tạo tài khoản thành công",
+      "signUpError": "Đã xảy ra lỗi trong quá trình đăng ký",
+      "googlesignUpError": "Đăng ký bằng Google thất bại"
+    }
+  }
+}
