@@ -81,11 +81,12 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarSeparator className="max-w-[90%] mx-auto" />
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="gap-1">
           {sidebarItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 size="lg"
+                className="rounded-2xl px-4"
                 isActive={pathname === item.href}
                 asChild
               >

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { useLocale } from "next-intl";
 import { FullDiagram } from "@/types";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
@@ -14,31 +15,34 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
 
   if (variant === "list") {
     return (
-      <Card className="flex flex-row items-center gap-4 p-2 hover:bg-secondary transition-colors w-full relative group">
-        {/* File Icon */}
-        <div className="relative w-16 aspect-6/4">
-          <Image
-            src={diagram.imageUrl ?? "https://placehold.co/600x400"}
-            alt={diagram.title}
-            fill
-            className="object-cover rounded-md select-none pointer-events-none"
-          />
+      <Card className="flex flex-row items-center justify-between gap-4 p-2 hover:bg-secondary transition-colors w-full relative group">
+        <div className="flex items-center gap-4">
+          <div className="relative w-16 aspect-square">
+            <Image
+              src={diagram.imageUrl ?? "https://placehold.co/600x600"}
+              alt={diagram.title}
+              fill
+              className="object-cover rounded-md select-none pointer-events-none"
+            />
+          </div>
+
+          <CardTitle className="text-sm sm:text-base font-medium truncate">
+            {diagram.title}
+          </CardTitle>
         </div>
 
-        {/* Content */}
-        <CardTitle className="text-sm sm:text-base font-medium truncate">
-          {diagram.title}
-        </CardTitle>
-
         {/* Date overlay - only visible on hover */}
-        <Badge
-          variant="secondary"
-          className="absolute bottom-2 right-2 text-xs"
-        >
-          {new Date(diagram.createdAt).toLocaleDateString(locale)}
-        </Badge>
-
-
+        <div className="flex flex-col items-end gap-2">
+          <Avatar className="rounded-full">
+            <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
+            <AvatarFallback>
+              {diagram.owner.name?.charAt(0) ?? "U"}
+            </AvatarFallback>
+          </Avatar>
+          <Badge variant="secondary" className="text-xs">
+            {new Date(diagram.createdAt).toLocaleDateString(locale)}
+          </Badge>
+        </div>
       </Card>
     );
   }
@@ -60,7 +64,13 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
               className="object-cover rounded-md select-none pointer-events-none"
             />
 
-            {/* Date overlay - only visible on hover */}
+            <Avatar className="rounded-full absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 top-2 right-2">
+              <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
+              <AvatarFallback>
+                {diagram.owner.name?.charAt(0) ?? "U"}
+              </AvatarFallback>
+            </Avatar>
+
             <Badge
               variant="secondary"
               className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs"

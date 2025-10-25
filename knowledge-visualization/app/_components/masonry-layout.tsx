@@ -1,7 +1,26 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Masonry, { ResponsiveMasonry } from "react-responsive-masonry";
+import { Spinner } from "@/components/ui/spinner";
 
 export function MasonryLayout({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setIsClient(true);
+    }, 100);
+  }, []);
+
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    );
+  }
+
   return (
     <ResponsiveMasonry
       columnsCountBreakPoints={{
