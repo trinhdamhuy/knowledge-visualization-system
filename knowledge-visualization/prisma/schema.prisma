@@ -20,6 +20,12 @@ enum Language {
     en
 }
 
+enum Permission {
+    OWNER
+    EDITOR
+    VIEWER
+}
+
 model Account {
     id                String  @id @default(cuid())
     userId            String  @map("user_id")
@@ -65,6 +71,18 @@ model User {
     accounts Account[]
     sessions Session[]
 
+    // New relations for team and diagram management
+    ownedTeams      Team[]       @relation("TeamOwner")
+    teamMembers     TeamMember[]
+    folders         Folder[]
+    createdFolders  Folder[]     @relation("FolderCreator")
+    diagrams        Diagram[]
+    createdDiagrams Diagram[]    @relation("DiagramCreator")
+    shares          Share[]
+    createdShares   Share[]      @relation("ShareCreator")
+    recents         Recent[]
+    trash           Trash[]
+
     @@map("users")
 }
 
@@ -94,4 +112,124 @@ model PasswordChangeToken {
     expires     DateTime
 
     @@unique([email, token])
+}
+
+model Team {
+    id        String   @id @default(cuid())
+    name      String
+    ownerId   String   @map("owner_id")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    owner    User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+    members  TeamMember[]
+    folders  Folder[]
+    diagrams Diagram[]
+    Share    Share[]
+
+    @@map("teams")
+}
+
+model TeamMember {
+    id         String     @id @default(cuid())
+    teamId     String     @map("team_id")
+    userId     String     @map("user_id")
+    permission Permission @default(VIEWER)
+    joinedAt   DateTime   @default(now())
+
+    team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([teamId, userId])
+    @@map("team_members")
+}
+
+model Folder {
+    id          String   @id @default(cuid())
+    name        String
+    parentId    String?  @map("parent_id")
+    userId      String?  @map("user_id")
+    teamId      String?  @map("team_id")
+    createdById String   @map("created_by_id")
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    parent    Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+    children  Folder[]  @relation("FolderHierarchy")
+    user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    createdBy User      @relation("FolderCreator", fields: [createdById], references: [id])
+    diagrams  Diagram[]
+    shares    Share[]
+    Trash     Trash?
+
+    @@map("folders")
+}
+
+model Diagram {
+    id          String   @id @default(cuid())
+    title       String
+    content     String?  @db.Text
+    folderId    String?  @map("folder_id")
+    userId      String?  @map("user_id")
+    teamId      String?  @map("team_id")
+    createdById String   @map("created_by_id")
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    createdBy User     @relation("DiagramCreator", fields: [createdById], references: [id])
+    shares    Share[]
+    recents   Recent[]
+    trash     Trash?
+
+    @@map("diagrams")
+}
+
+model Trash {
+    id          String   @id @default(cuid())
+    diagramId   String   @unique @map("diagram_id")
+    folderId    String?  @unique @map("folder_id")
+    deletedById String   @map("deleted_by_id")
+    deletedAt   DateTime @default(now())
+
+    diagram   Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+    folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    deletedBy User     @relation(fields: [deletedById], references: [id])
+
+    @@map("trash")
+}
+
+model Share {
+    id         String     @id @default(cuid())
+    diagramId  String?    @map("diagram_id")
+    folderId   String?    @map("folder_id")
+    userId     String?    @map("user_id")
+    teamId     String?    @map("team_id")
+    permission Permission @default(VIEWER)
+    sharedById String     @map("shared_by_id")
+    sharedAt   DateTime   @default(now())
+
+    diagram  Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+    folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team     Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    sharedBy User     @relation("ShareCreator", fields: [sharedById], references: [id])
+
+    @@map("shares")
+}
+
+model Recent {
+    id        String   @id @default(cuid())
+    userId    String   @map("user_id")
+    diagramId String   @map("diagram_id")
+    viewedAt  DateTime @default(now())
+
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, diagramId])
+    @@map("recents")
 }

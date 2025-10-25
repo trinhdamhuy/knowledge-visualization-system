@@ -17,14 +17,14 @@ const sidebarItems = [
     icon: <Home />,
   },
   {
+    label: "Shared with me",
+    href: "/shared",
+    icon: <Share />,
+  },
+  {
     label: "Recent",
     href: "/recent",
     icon: <Clock />,
-  },
-  {
-    label: "Shared",
-    href: "/shared",
-    icon: <Share />,
   },
   { label: "Trash", href: "/trash", icon: <Trash /> },
 ];
