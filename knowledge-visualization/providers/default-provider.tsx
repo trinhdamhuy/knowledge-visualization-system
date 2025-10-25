@@ -38,15 +38,10 @@ const TeamAndLanguageSync = () => {
 const DefaultProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <SessionProvider refetchOnWindowFocus={false}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <QueryClientProvider client={queryClient}>
           <NextTopLoader
-            color="#2299DD"
+            color="#000080"
             initialPosition={0.08}
             crawlSpeed={200}
             height={3}

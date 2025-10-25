@@ -4,7 +4,13 @@ import Credentials from "next-auth/providers/credentials";
 
 // Check if the route is protected (requires authentication)
 function isProtectedRoute(pathname: string) {
-  const protectedRoutes = ["/dashboard", "/settings"];
+  const protectedRoutes = [
+    "/home",
+    "/recent",
+    "/shared",
+    "/trash",
+    "/settings",
+  ];
   return protectedRoutes.some((route) => pathname.startsWith(route));
 }
 

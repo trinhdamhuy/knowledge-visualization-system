@@ -1,23 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Merriweather, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import DefaultProviders from "../providers/default-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const merriweather = Merriweather({
+  weight: ["300", "700", "900"],
   subsets: ["latin"],
+  variable: "--font-merriweather",
+});
+
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  variable: "--font-noto-sans-jp",
 });
 
 export const metadata: Metadata = {
-  title: "Knowledge Visualization",
-  description: "Knowledge Visualization",
+  title: "Knovion",
+  description: "Knowledge Visualization Platform",
 };
 
 export default async function RootLayout({
@@ -31,7 +37,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${merriweather.variable} ${notoSansJP.variable} antialiased`}
       >
         <NextIntlClientProvider messages={messages}>
           <DefaultProviders>
