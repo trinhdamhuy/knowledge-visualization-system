@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: "Dashboard page of Knovion",
 };
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;

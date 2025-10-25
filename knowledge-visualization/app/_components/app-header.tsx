@@ -14,7 +14,7 @@ import { ModeToggle } from "@/app/_components/buttons/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { User } from "./buttons/user";
 
-export function Header() {
+export function AppHeader() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
 

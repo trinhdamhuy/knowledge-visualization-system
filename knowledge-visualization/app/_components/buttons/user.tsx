@@ -25,14 +25,14 @@ export function User() {
           <Avatar className="cursor-pointer">
             <AvatarImage src={session?.user?.image ?? ""} alt="Avatar" />
             <AvatarFallback>
-              {session?.user?.name?.charAt(0) ?? "User"}
+              {session?.user?.name?.charAt(0) ?? "U"}
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
-              <p className="font-medium">{session?.user?.name ?? "User"}</p>
+              <p className="font-medium">{session?.user?.name ?? "U"}</p>
               <p className="w-[200px] truncate text-sm text-muted-foreground">
                 {session?.user?.email}
               </p>

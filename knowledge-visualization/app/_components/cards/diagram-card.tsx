@@ -1,13 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
 import Image from "next/image";
-import { Diagram } from "@prisma/client";
 import { useLocale } from "next-intl";
+import { FullDiagram } from "@/types";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
-  diagram: Diagram;
+  diagram: FullDiagram;
 }
 
 export function DiagramCard({ variant, diagram }: DiagramCardProps) {
@@ -15,16 +14,21 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
 
   if (variant === "list") {
     return (
-      <Card className="flex flex-row items-center gap-4 p-4 hover:bg-secondary transition-colors w-full relative group">
+      <Card className="flex flex-row items-center gap-4 p-2 hover:bg-secondary transition-colors w-full relative group">
         {/* File Icon */}
-        <div className="flex-shrink-0">
-          <FileText className="size-10" />
+        <div className="relative w-16 aspect-6/4">
+          <Image
+            src={diagram.imageUrl ?? "https://placehold.co/600x400"}
+            alt={diagram.title}
+            fill
+            className="object-cover rounded-md select-none pointer-events-none"
+          />
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium truncate">{diagram.title}</h3>
-        </div>
+        <CardTitle className="text-sm sm:text-base font-medium truncate">
+          {diagram.title}
+        </CardTitle>
 
         {/* Date overlay - only visible on hover */}
         <Badge
@@ -33,6 +37,8 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
         >
           {new Date(diagram.createdAt).toLocaleDateString(locale)}
         </Badge>
+
+
       </Card>
     );
   }

@@ -69,17 +69,15 @@ model User {
     sessions Session[]
 
     // New relations for team and diagram management
-    ownedTeams      Team[]       @relation("TeamOwner")
-    teamMembers     TeamMember[]
-    folders         Folder[]
-    createdFolders  Folder[]     @relation("FolderCreator")
-    diagrams        Diagram[]
-    createdDiagrams Diagram[]    @relation("DiagramCreator")
-    shares          Share[]
-    createdShares   Share[]      @relation("ShareCreator")
-    recents         Recent[]
-    trash           Trash[]
-
+    ownedTeams     Team[]       @relation("TeamOwner")
+    teamMembers    TeamMember[]
+    folders        Folder[]
+    createdFolders Folder[]     @relation("FolderCreator")
+    diagrams       Diagram[]    @relation("DiagramOwner")
+    shares         Share[]
+    recents        Recent[]
+    trash          Trash[]
+    Diagram        Diagram[]
 }
 
 model VerificationToken {
@@ -113,6 +111,7 @@ model PasswordChangeToken {
 model Team {
     id        String   @id @default(cuid())
     name      String
+    imageUrl  String?
     ownerId   String
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -158,23 +157,23 @@ model Folder {
 }
 
 model Diagram {
-    id          String   @id @default(cuid())
-    title       String
-    imageUrl    String?
-    folderId    String?
-    userId      String?
-    teamId      String?
-    createdById String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id        String   @id @default(cuid())
+    title     String
+    imageUrl  String?
+    folderId  String?
+    ownerId   String?
+    teamId    String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-    folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    createdBy User     @relation("DiagramCreator", fields: [createdById], references: [id])
-    shares    Share[]
-    recents   Recent[]
-    trash     Trash?
+    folder  Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    owner   User?    @relation("DiagramOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+    team    Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    shares  Share[]
+    recents Recent[]
+    trash   Trash?
+    User    User?    @relation(fields: [userId], references: [id])
+    userId  String?
 }
 
 model Trash {
@@ -196,14 +195,12 @@ model Share {
     userId     String?
     teamId     String?
     permission Permission @default(VIEWER)
-    sharedById String
     sharedAt   DateTime   @default(now())
 
     diagram  Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
     folder   Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
     user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
     team     Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    sharedBy User     @relation("ShareCreator", fields: [sharedById], references: [id])
 }
 
 model Recent {
