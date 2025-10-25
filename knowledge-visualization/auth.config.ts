@@ -11,10 +11,7 @@ function isProtectedRoute(pathname: string) {
 // Check if the route is an authentication route (login/auth/sign-up)
 function isAuthRoute(pathname: string) {
   const authRoutes = "/auth/";
-  return (
-    pathname.startsWith(authRoutes) &&
-    pathname !== "/auth/verify-email"
-  );
+  return pathname.startsWith(authRoutes) && pathname !== "/auth/verify-email";
 }
 
 // function isPublicRoute(pathname: string) {
@@ -40,7 +37,7 @@ export const authConfig = {
 
       // Redirect logged-in users away from auth pages
       if (isLoggedIn && (isAuthRoute(pathname) || pathname === "/")) {
-        return Response.redirect(new URL("/dashboard/recents", nextUrl));
+        return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
       // If the route is protected, check authentication and permissions
