@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "../../../lib/prisma";
-import { User } from "@prisma/client";
+import { User } from "next-auth";
 
 const UserExceptPasswordQuery = {
   id: true,
@@ -44,8 +44,17 @@ async function getUserById(id: string): Promise<Omit<User, "password"> | null> {
 }
 
 async function getCurrentUser(): Promise<User | null> {
-  const data = await auth();
-  return data?.user as User | null;
+  try {
+    const data = await auth();
+    if (!data?.user) {
+      console.error("User not found");
+      return null;
+    }
+    return data.user;
+  } catch {
+    console.error("Failed to get current user");
+    return null;
+  }
 }
 
 export { getUserByEmail, getUserById, getCurrentUser };

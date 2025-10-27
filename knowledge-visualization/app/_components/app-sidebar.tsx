@@ -11,8 +11,11 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import {
+  AudioWaveform,
   Clock,
+  Command,
   FileText,
+  GalleryVerticalEnd,
   LayoutDashboard,
   Share,
   Star,
@@ -20,6 +23,25 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Logo } from "./logo";
+import { TeamSwitcher } from "./team-switcher";
+
+const teams = [
+  {
+    name: "Acme Inc",
+    logo: GalleryVerticalEnd,
+    plan: "Enterprise",
+  },
+  {
+    name: "Acme Corp.",
+    logo: AudioWaveform,
+    plan: "Startup",
+  },
+  {
+    name: "Evil Corp.",
+    logo: Command,
+    plan: "Free",
+  },
+];
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -28,32 +50,32 @@ export function AppSidebar() {
     {
       label: "Dashboard",
       href: "/dashboard",
-      icon: <LayoutDashboard />,
+      icon: LayoutDashboard,
     },
     {
       label: "My Diagrams",
       href: "/my-diagrams",
-      icon: <FileText />,
+      icon: FileText,
     },
     {
       label: "Shared with me",
       href: "/shared-with-me",
-      icon: <Share />,
+      icon: Share,
     },
     {
       label: "Recent",
       href: "/recent",
-      icon: <Clock />,
+      icon: Clock,
     },
     {
       label: "Starred",
       href: "/starred",
-      icon: <Star />,
+      icon: Star,
     },
     {
       label: "Trash",
       href: "/trash",
-      icon: <Trash />,
+      icon: Trash,
     },
   ];
 
@@ -66,19 +88,20 @@ export function AppSidebar() {
           text="K"
         />
       </SidebarHeader>
-      <SidebarSeparator className="max-w-[90%] mx-auto" />
+      <SidebarSeparator className="max-w-[90%] mx-auto my-2" />
       <SidebarContent>
         <SidebarGroup className="gap-1">
+          <TeamSwitcher teams={teams} />
           {sidebarItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 size="lg"
-                className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center rounded-2xl px-4"
+                className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center px-4"
                 isActive={pathname === item.href}
                 asChild
               >
                 <Link href={item.href}>
-                  {item.icon}
+                  <item.icon />
                   <span className="group-data-[collapsible=icon]:hidden">
                     {item.label}
                   </span>
