@@ -111,9 +111,8 @@ export function LoginForm() {
           className="space-y-3 sm:space-y-4"
         >
           <FieldGroup>
-            <form.Field
-              name="email"
-              children={(field) => {
+            <form.Field name="email">
+              {(field) => {
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid;
                 return (
@@ -138,11 +137,10 @@ export function LoginForm() {
                   </Field>
                 );
               }}
-            />
+            </form.Field>
 
-            <form.Field
-              name="password"
-              children={(field) => {
+            <form.Field name="password">
+              {(field) => {
                 const isInvalid =
                   field.state.meta.isTouched && !field.state.meta.isValid;
                 return (
@@ -153,7 +151,7 @@ export function LoginForm() {
                         <span className="text-red-500 text-xs">*</span>
                       </FieldLabel>
                       <Link
-                        href="/auth/reset-password"
+                        href="/reset-password"
                         className="text-xs text-blue-500 hover:underline"
                       >
                         {t("forgotPassword")}
@@ -175,7 +173,7 @@ export function LoginForm() {
                   </Field>
                 );
               }}
-            />
+            </form.Field>
           </FieldGroup>
           <div className="flex flex-col gap-2">
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -208,8 +206,8 @@ export function LoginForm() {
       </CardContent>
       <CardFooter className="flex items-center justify-center text-xs sm:text-sm">
         <span>
-          {t("noAccount")}
-          <Link href="/auth/sign-up" className="text-blue-500 hover:underline">
+          {t("noAccount")} {""}
+          <Link href="/sign-up" className="text-blue-500 hover:underline">
             {t("signUp")}
           </Link>
         </span>

@@ -41,7 +41,7 @@ const DefaultProviders = ({ children }: { children: React.ReactNode }) => {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <QueryClientProvider client={queryClient}>
           <NextTopLoader
-            color="#000080"
+            color="#142850"
             initialPosition={0.08}
             crawlSpeed={200}
             height={3}

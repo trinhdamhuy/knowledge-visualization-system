@@ -71,7 +71,7 @@ export function SignUpForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/sign-up", {
+      const response = await fetch("/api/sign-up", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,7 +90,7 @@ export function SignUpForm() {
       } else {
         toast.success(t("signUpSuccess"));
         form.reset();
-        router.push("/auth/login");
+        router.push("/login");
       }
     } catch {
       toast.error(t("signUpError"));
@@ -128,9 +128,8 @@ export function SignUpForm() {
             className="flex flex-col gap-4 sm:gap-6"
           >
             <FieldGroup className="flex flex-col gap-3 sm:gap-4">
-              <form.Field
-                name="username"
-                children={(field) => {
+              <form.Field name="username">
+                {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
@@ -155,11 +154,10 @@ export function SignUpForm() {
                     </Field>
                   );
                 }}
-              />
+              </form.Field>
 
-              <form.Field
-                name="email"
-                children={(field) => {
+              <form.Field name="email">
+                {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
@@ -184,11 +182,10 @@ export function SignUpForm() {
                     </Field>
                   );
                 }}
-              />
+              </form.Field>
 
-              <form.Field
-                name="password"
-                children={(field) => {
+              <form.Field name="password">
+                {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
@@ -213,11 +210,10 @@ export function SignUpForm() {
                     </Field>
                   );
                 }}
-              />
+              </form.Field>
 
-              <form.Field
-                name="confirmPassword"
-                children={(field) => {
+              <form.Field name="confirmPassword">
+                {(field) => {
                   const isInvalid =
                     field.state.meta.isTouched && !field.state.meta.isValid;
                   return (
@@ -242,7 +238,7 @@ export function SignUpForm() {
                     </Field>
                   );
                 }}
-              />
+              </form.Field>
             </FieldGroup>
 
             <div className="flex flex-col gap-2">
@@ -277,8 +273,8 @@ export function SignUpForm() {
       </CardContent>
       <CardFooter className="flex items-center justify-center text-xs sm:text-sm">
         <span>
-          {t("hasAccount")}
-          <Link href="/auth/login" className="text-blue-500 hover:underline">
+          {t("hasAccount")}{" "}
+          <Link href="/login" className="text-blue-500 hover:underline">
             {t("login")}
           </Link>
         </span>

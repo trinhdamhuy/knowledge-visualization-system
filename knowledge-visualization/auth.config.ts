@@ -14,10 +14,10 @@ function isProtectedRoute(pathname: string) {
   return protectedRoutes.some((route) => pathname.startsWith(route));
 }
 
-// Check if the route is an authentication route (login/auth/sign-up)
+// Check if the route is an authentication route (login/sign-up)
 function isAuthRoute(pathname: string) {
-  const authRoutes = "/auth/";
-  return pathname.startsWith(authRoutes) && pathname !== "/auth/verify-email";
+  const authRoutes = ["/login", "/sign-up"];
+  return authRoutes.includes(pathname);
 }
 
 // function isPublicRoute(pathname: string) {
@@ -32,8 +32,8 @@ function isAuthRoute(pathname: string) {
 
 export const authConfig = {
   pages: {
-    signIn: "/auth/login",
-    newUser: "/auth/sign-up",
+    signIn: "/login",
+    newUser: "/sign-up",
   },
   callbacks: {
     // Authorization callback for NextAuth middleware
@@ -49,7 +49,7 @@ export const authConfig = {
       // If the route is protected, check authentication and permissions
       if (isProtectedRoute(pathname)) {
         if (!isLoggedIn) {
-          return Response.redirect(new URL("/auth/login", nextUrl));
+          return Response.redirect(new URL("/login", nextUrl));
         }
         // Check user permissions (extend as needed)
         // if (!hasPermission(auth.user, pathname)) {
