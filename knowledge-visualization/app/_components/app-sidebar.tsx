@@ -60,10 +60,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Logo
-          className="py-2 group-data-[collapsible=icon]:hidden"
-          text="Knovion"
-        />
+        <Logo className="group-data-[collapsible=icon]:hidden" text="Knovion" />
         <Logo
           className="hidden group-data-[collapsible=icon]:inline-block"
           text="K"

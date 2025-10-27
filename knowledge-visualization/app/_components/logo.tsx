@@ -11,7 +11,9 @@ export function Logo({ text, className }: { text: string; className: string }) {
         className
       )}
     >
-      <AuroraText>{text}</AuroraText>
+      <AuroraText colors={["#FF0080", "#7928CA", "#0070F3", "#38bdf8"]}>
+        {text}
+      </AuroraText>
     </Link>
   );
 }

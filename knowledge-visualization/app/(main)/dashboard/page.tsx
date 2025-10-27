@@ -16,9 +16,8 @@ const sampleDiagrams: FullDiagram[] = [
     title: "Diagram1",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
@@ -39,12 +38,11 @@ const sampleDiagrams: FullDiagram[] = [
   },
   {
     id: "2",
-    title: "Mô tả về sản phẩm/giải pháp",
+    title: "Diagram2",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
@@ -65,12 +63,11 @@ const sampleDiagrams: FullDiagram[] = [
   },
   {
     id: "3",
-    title: "Flowchart",
+    title: "Diagram3",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
@@ -91,12 +88,11 @@ const sampleDiagrams: FullDiagram[] = [
   },
   {
     id: "4",
-    title: "Technical Specification",
+    title: "Diagram4",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
@@ -117,12 +113,11 @@ const sampleDiagrams: FullDiagram[] = [
   },
   {
     id: "5",
-    title: "Database Schema",
+    title: "Diagram5",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
@@ -143,12 +138,11 @@ const sampleDiagrams: FullDiagram[] = [
   },
   {
     id: "6",
-    title: "User Journey Map",
+    title: "Diagram6",
     imageUrl: null,
     folderId: "1",
-    userId: "1",
+    ownerId: "1",
     teamId: "1",
-    createdById: "1",
     createdAt: new Date(),
     updatedAt: new Date(),
     team: {
