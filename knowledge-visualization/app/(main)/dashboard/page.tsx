@@ -1,13 +1,9 @@
 "use client";
 
 import { CreateButton } from "@/app/_components/buttons/create-button";
-import { DiagramCard } from "@/app/_components/cards/diagram-card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Plus, Sparkles, Grid3X3, List } from "lucide-react";
-import { useState } from "react";
-import { MasonryLayout } from "@/app/_components/masonry-layout";
+import { Plus, Sparkles } from "lucide-react";
 import { FullDiagram } from "@/types";
+import { ItemsLayout } from "@/app/_components/layouts/items-layout";
 
 // Sample data for diagram cards
 const sampleDiagrams: FullDiagram[] = [
@@ -164,51 +160,10 @@ const sampleDiagrams: FullDiagram[] = [
 ];
 
 export default function DashboardPage() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex gap-2">
-        <CreateButton label="Create Diagram" icon={<Plus />} />
-        <CreateButton label="Create Diagram with AI" icon={<Sparkles />} />
-      </div>
-      <Separator />
-
-      <div className="flex flex-col w-full px-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">All Diagrams</h2>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setViewMode("grid")}
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="icon"
-            >
-              <Grid3X3 />
-            </Button>
-            <Button
-              onClick={() => setViewMode("list")}
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="icon"
-            >
-              <List />
-            </Button>
-          </div>
-        </div>
-
-        {viewMode === "list" ? (
-          <div className="flex flex-col w-full items-center justify-center space-y-2">
-            {sampleDiagrams.map((diagram) => (
-              <DiagramCard key={diagram.id} variant="list" diagram={diagram} />
-            ))}
-          </div>
-        ) : (
-          <MasonryLayout>
-            {sampleDiagrams.map((diagram) => (
-              <DiagramCard key={diagram.id} variant="grid" diagram={diagram} />
-            ))}
-          </MasonryLayout>
-        )}
-      </div>
-    </div>
+    <ItemsLayout diagrams={sampleDiagrams}>
+      <CreateButton label="Create Diagram" icon={<Plus />} />
+      <CreateButton label="Create Diagram with AI" icon={<Sparkles />} />
+    </ItemsLayout>
   );
 }
