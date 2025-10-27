@@ -10,7 +10,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { AuroraText } from "@/components/ui/aurora-text";
 import {
   Clock,
   FileText,
@@ -20,6 +19,7 @@ import {
   Trash,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { Logo } from "./logo";
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -60,18 +60,14 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link
-          href="/dashboard"
-          className="text-2xl font-bold inline-block group-data-[collapsible=icon]:hidden text-center cursor-pointer"
-        >
-          <AuroraText>Knovion</AuroraText>
-        </Link>
-        <Link
-          href="/dashboard"
-          className="text-2xl font-bold hidden group-data-[collapsible=icon]:inline-block text-center cursor-pointer"
-        >
-          <AuroraText>K</AuroraText>
-        </Link>
+        <Logo
+          className="py-2 group-data-[collapsible=icon]:hidden"
+          text="Knovion"
+        />
+        <Logo
+          className="hidden group-data-[collapsible=icon]:inline-block"
+          text="K"
+        />
       </SidebarHeader>
       <SidebarSeparator className="max-w-[90%] mx-auto" />
       <SidebarContent>
@@ -80,13 +76,15 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 size="lg"
-                className="rounded-2xl px-4"
+                className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center rounded-2xl px-4"
                 isActive={pathname === item.href}
                 asChild
               >
                 <Link href={item.href}>
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span className="group-data-[collapsible=icon]:hidden">
+                    {item.label}
+                  </span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

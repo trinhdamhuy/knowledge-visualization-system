@@ -26,6 +26,13 @@ enum Permission {
     VIEWER
 }
 
+enum NotificationType {
+    DIAGRAM_SHARED
+    FOLDER_SHARED
+    TEAM_SHARED
+    USER_INVITED
+}
+
 model Account {
     id                String  @id @default(cuid())
     userId            String  @map("user_id")
@@ -68,16 +75,15 @@ model User {
     accounts Account[]
     sessions Session[]
 
-    // New relations for team and diagram management
-    ownedTeams     Team[]       @relation("TeamOwner")
+    ownedTeams     Team[]         @relation("TeamOwner")
     teamMembers    TeamMember[]
-    folders        Folder[]
-    createdFolders Folder[]     @relation("FolderCreator")
-    diagrams       Diagram[]    @relation("DiagramOwner")
+    createdFolders Folder[]       @relation("FolderOwner")
+    diagrams       Diagram[]      @relation("DiagramOwner")
     shares         Share[]
     recents        Recent[]
-    trash          Trash[]
+    trashes        Trash[]
     starreds       Starred[]
+    notifications  Notification[]
 }
 
 model VerificationToken {
@@ -120,7 +126,6 @@ model Team {
     members  TeamMember[]
     folders  Folder[]
     diagrams Diagram[]
-    Share    Share[]
 }
 
 model TeamMember {
@@ -137,23 +142,22 @@ model TeamMember {
 }
 
 model Folder {
-    id          String   @id @default(cuid())
-    name        String
-    parentId    String?
-    userId      String?
-    teamId      String?
-    createdById String
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+    id        String   @id @default(cuid())
+    name      String
+    ownerId   String   @map("owner_id")
+    parentId  String?
+    teamId    String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
-    parent    Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-    children  Folder[]  @relation("FolderHierarchy")
-    user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    createdBy User      @relation("FolderCreator", fields: [createdById], references: [id])
-    diagrams  Diagram[]
-    shares    Share[]
-    Trash     Trash?
+    parent Folder? @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+    owner  User    @relation("FolderOwner", fields: [ownerId], references: [id])
+    team   Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    trash  Trash?
+
+    children Folder[]  @relation("FolderHierarchy")
+    diagrams Diagram[]
+    shares   Share[]
 }
 
 model Diagram {
@@ -177,8 +181,8 @@ model Diagram {
 
 model Trash {
     id          String   @id @default(cuid())
-    diagramId   String   @unique
     folderId    String?  @unique
+    diagramId   String?  @unique
     deletedById String   @map("deleted_by_id")
     deletedAt   DateTime @default(now())
 
@@ -189,17 +193,15 @@ model Trash {
 
 model Share {
     id         String     @id @default(cuid())
-    diagramId  String?
     folderId   String?
+    diagramId  String?
     userId     String?
-    teamId     String?
     permission Permission @default(VIEWER)
     sharedAt   DateTime   @default(now())
 
     diagram Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
     folder  Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
     user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    team    Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 
 model Recent {
@@ -224,4 +226,18 @@ model Starred {
     diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)
 
     @@unique([userId, diagramId])
+}
+
+model Notification {
+    id        String           @id @default(cuid())
+    userId    String
+    title     String
+    content   String
+    type      NotificationType
+    relatedId String?          @map("related_id")
+    read      Boolean          @default(false)
+    createdAt DateTime         @default(now())
+    updatedAt DateTime         @updatedAt
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
