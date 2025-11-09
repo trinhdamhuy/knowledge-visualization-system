@@ -3,7 +3,6 @@
 import { useCallback, useState } from "react";
 import { useUpdateMyPresence } from "@/lib/liveblocks.config";
 import { CollaborationCursors } from "./CollaborationCursors";
-import { ChatBotPanel } from "./ChatBotPanel";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import {
@@ -21,10 +20,7 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-
-interface DiagramCanvasProps {
-  diagramId: string;
-}
+import { ChatBotPanel } from "./ChatBotPanel";
 
 const initialNodes: Node[] = [
   { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
@@ -32,7 +28,7 @@ const initialNodes: Node[] = [
 ];
 const initialEdges: Edge[] = [{ id: "n1-n2", source: "n1", target: "n2" }];
 
-export function DiagramCanvas({ diagramId }: DiagramCanvasProps) {
+export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
 
   const onPointerMove = useCallback(
@@ -105,7 +101,7 @@ export function DiagramCanvas({ diagramId }: DiagramCanvasProps) {
         <CollaborationCursors />
       </div>
 
-      <ChatBotPanel diagramId={diagramId} />
+      <ChatBotPanel />
     </main>
   );
 }

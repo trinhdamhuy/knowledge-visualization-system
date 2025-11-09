@@ -36,7 +36,7 @@ export default function EditorPage({ params }: EditorPageProps) {
             </div>
           }
         >
-          <DiagramCanvas diagramId={diagramId} />
+          <DiagramCanvas />
         </ClientSideSuspense>
       </Room>
     </div>

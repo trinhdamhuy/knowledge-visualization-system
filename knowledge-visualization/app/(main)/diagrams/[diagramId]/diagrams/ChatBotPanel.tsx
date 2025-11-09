@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Bot, Check, ChevronDown, Paperclip } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Paperclip, X } from "lucide-react";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "motion/react";
+import { Bot } from "@/components/animate-ui/icons/bot";
+import { AnimateIcon } from "@/components/animate-ui/icons/icon";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  MorphingPopover,
+  MorphingPopoverTrigger,
+  MorphingPopoverContent,
+} from "@/components/ui/morphing-popover";
 
 const OPENAI_SVG = (
   <div>
@@ -46,7 +54,7 @@ const OPENAI_SVG = (
   </div>
 );
 
-export function ChatBotPanel({ diagramId }: { diagramId: string }) {
+export function ChatBotPanel() {
   const [value, setValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
@@ -134,48 +142,39 @@ export function ChatBotPanel({ diagramId }: { diagramId: string }) {
   };
 
   return (
-    <>
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-4 right-4 z-50 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition"
-          aria-label="Open Chat"
+    <MorphingPopover
+      className="fixed bottom-3  right-3 z-50"
+      open={isOpen}
+      onOpenChange={setIsOpen}
+    >
+      <MorphingPopoverTrigger asChild>
+        <AnimateIcon
+          className="size-12 rounded-full bg-primary hover: flex items-center justify-center"
+          animateOnHover
         >
-          Chat
-        </button>
-      )}
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="fixed bottom-4 right-4 z-50 w-2/3 max-w-lg bg-white dark:bg-black p-4 rounded-2xl shadow-lg"
-            initial={{ opacity: 0, scale: 0.9, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 50 }}
-            transition={{ duration: 0.25 }}
-          >
-            <div className="flex justify-end p-2">
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Close Chat"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-1.5 pt-4">
-              <div className="flex items-center gap-2 mb-2.5 mx-2">
-                <div className="flex-1 flex items-center gap-2">
-                  <h3 className="text-black dark:text-white/90 text-xs tracking-tighter">
-                    is free this weekend!
-                  </h3>
-                </div>
-                <p className="text-black dark:text-white/90 text-xs tracking-tighter">
-                  Ship Now!
-                </p>
-              </div>
-              <div className="relative">
+          <Bot />
+        </AnimateIcon>
+      </MorphingPopoverTrigger>
+      <MorphingPopoverContent
+        className={cn(
+          "bottom-1 right-1 w-xl p-0 border-none shadow-lg",
+          "bg-white dark:bg-neutral-900"
+        )}
+      >
+        <Card className="w-full gap-2 border-none shadow-none">
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle>Chat Bot</CardTitle>
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => setIsOpen(false)}
+            >
+              <X />
+            </Button>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <div className="relative">
+              <div className="relative flex flex-col">
                 <div className="overflow-y-auto" style={{ maxHeight: "400px" }}>
                   <Textarea
                     id="ai-input-15"
@@ -206,10 +205,21 @@ export function ChatBotPanel({ diagramId }: { diagramId: string }) {
                             <AnimatePresence mode="wait">
                               <motion.div
                                 key={selectedModel}
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 5 }}
-                                transition={{ duration: 0.15 }}
+                                initial={{
+                                  opacity: 0,
+                                  y: -5,
+                                }}
+                                animate={{
+                                  opacity: 1,
+                                  y: 0,
+                                }}
+                                exit={{
+                                  opacity: 0,
+                                  y: 5,
+                                }}
+                                transition={{
+                                  duration: 0.15,
+                                }}
                                 className="flex items-center gap-1"
                               >
                                 {MODEL_ICONS[selectedModel]}
@@ -236,6 +246,7 @@ export function ChatBotPanel({ diagramId }: { diagramId: string }) {
                                 {MODEL_ICONS[model] || (
                                   <Bot className="w-4 h-4 opacity-50" />
                                 )}{" "}
+                                {/* Use mapped SVG or fallback */}
                                 <span>{model}</span>
                               </div>
                               {selectedModel === model && (
@@ -278,9 +289,9 @@ export function ChatBotPanel({ diagramId }: { diagramId: string }) {
                 </div>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+          </CardContent>
+        </Card>
+      </MorphingPopoverContent>
+    </MorphingPopover>
   );
 }
