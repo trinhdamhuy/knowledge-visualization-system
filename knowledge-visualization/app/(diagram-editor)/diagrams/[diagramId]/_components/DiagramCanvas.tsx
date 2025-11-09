@@ -72,7 +72,7 @@ export function DiagramCanvas() {
   );
 
   return (
-    <main className="h-screen w-screen relative bg-white touch-none overflow-hidden">
+    <main className="h-screen w-screen relative touch-none overflow-hidden">
       <DiagramHeader />
 
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
