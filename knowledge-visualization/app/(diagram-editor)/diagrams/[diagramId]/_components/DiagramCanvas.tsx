@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useUpdateMyPresence } from "@/lib/liveblocks.config";
-import { CollaborationCursors } from "./CollaborationCursors";
+import { CollaboratorCursors } from "./CollaboratorCursors";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import {
@@ -10,7 +10,6 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
-  Controls,
   Background,
   NodeChange,
   EdgeChange,
@@ -18,19 +17,36 @@ import {
   BackgroundVariant,
   Edge,
   Node,
+  Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ChatBotPanel } from "./ChatBotPanel";
+import { useTheme } from "next-themes";
+
+const nodeDefaults = {
+  sourcePosition: Position.Right,
+  targetPosition: Position.Left,
+};
 
 const initialNodes: Node[] = [
-  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
-  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
+  {
+    id: "n1",
+    position: { x: 0, y: 0 },
+    data: { label: "Node 1" },
+    ...nodeDefaults,
+  },
+  {
+    id: "n2",
+    position: { x: 200, y: 0 },
+    data: { label: "Node 2" },
+    ...nodeDefaults,
+  },
 ];
 const initialEdges: Edge[] = [{ id: "n1-n2", source: "n1", target: "n2" }];
 
 export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
-
+  const theme = useTheme();
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       const current = e.currentTarget;
@@ -72,36 +88,31 @@ export function DiagramCanvas() {
   );
 
   return (
-    <main className="h-screen w-screen relative touch-none overflow-hidden">
+    <ReactFlow
+      colorMode={
+        theme.resolvedTheme === "dark"
+          ? "dark"
+          : theme.theme === "light"
+          ? "light"
+          : "system"
+      }
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      fitView
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+    >
       <DiagramHeader />
-
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
         <DiagramToolBar />
       </div>
-
-      <div
-        style={{ width: "100vw", height: "100vh" }}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          fitView
-        >
-          <Controls />
-          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-        </ReactFlow>
-      </div>
-
-      <div className="h-full w-full absolute inset-0 pointer-events-none">
-        <CollaborationCursors />
-      </div>
+      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+      <CollaboratorCursors />
 
       <ChatBotPanel />
-    </main>
+    </ReactFlow>
   );
 }

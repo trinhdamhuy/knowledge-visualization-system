@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { ZoomSelect } from "@/components/zoom-select";
 
 const MAX_SHOWN_USERS = 3;
 
@@ -34,6 +35,8 @@ export function DiagramHeader() {
           <CardTitle>Diagram Editor</CardTitle>
         </CardContent>
       </Card>
+
+      <ZoomSelect position="top-center" className="z-999" />
 
       {/* Right: Participants */}
       <Card className="flex items-center gap-2 p-2 w-fit">

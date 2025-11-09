@@ -1,9 +1,7 @@
 "use client";
 
-import { CreateButton } from "@/app/_components/buttons/create-button";
-import { ItemsLayout } from "@/app/_components/layouts/items-layout";
+import { ItemsList } from "@/app/_components/layouts/items-list";
 import { FullDiagram } from "@/types";
-import { Plus, Sparkles } from "lucide-react";
 
 const sampleDiagrams: FullDiagram[] = [
   {
@@ -34,10 +32,5 @@ const sampleDiagrams: FullDiagram[] = [
 ];
 
 export default function MyDiagramsPage() {
-  return (
-    <ItemsLayout diagrams={sampleDiagrams}>
-      <CreateButton label="Create Diagram" icon={<Plus />} />
-      <CreateButton label="Create Diagram with AI" icon={<Sparkles />} />
-    </ItemsLayout>
-  );
+  return <ItemsList diagrams={sampleDiagrams} />;
 }

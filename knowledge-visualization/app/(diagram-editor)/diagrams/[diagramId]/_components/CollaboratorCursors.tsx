@@ -16,11 +16,11 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
   const { x, y } = cursor;
 
   const colors = [
-    "rgb(59, 130, 246)",   // blue
-    "rgb(236, 72, 153)",   // pink
-    "rgb(34, 197, 94)",    // green
-    "rgb(251, 146, 60)",   // orange
-    "rgb(168, 85, 247)",   // purple
+    "rgb(59, 130, 246)", // blue
+    "rgb(236, 72, 153)", // pink
+    "rgb(34, 197, 94)", // green
+    "rgb(251, 146, 60)", // orange
+    "rgb(168, 85, 247)", // purple
   ];
 
   const color = colors[connectionId % colors.length];
@@ -80,7 +80,7 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
 
 Cursor.displayName = "Cursor";
 
-export const CollaborationCursors = memo(() => {
+export const CollaboratorCursors = memo(() => {
   const ids = useOthersConnectionIds();
   return (
     <div
@@ -98,4 +98,4 @@ export const CollaborationCursors = memo(() => {
   );
 });
 
-CollaborationCursors.displayName = "CollaborationCursors";
+CollaboratorCursors.displayName = "CollaboratorCursors";

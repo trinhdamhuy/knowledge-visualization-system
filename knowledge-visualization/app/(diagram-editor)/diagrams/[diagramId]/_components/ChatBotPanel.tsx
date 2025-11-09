@@ -16,11 +16,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { Bot } from "@/components/animate-ui/icons/bot";
 import { AnimateIcon } from "@/components/animate-ui/icons/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  MorphingPopover,
-  MorphingPopoverTrigger,
-  MorphingPopoverContent,
-} from "@/components/ui/morphing-popover";
 
 const OPENAI_SVG = (
   <div>
@@ -142,156 +137,175 @@ export function ChatBotPanel() {
   };
 
   return (
-    <MorphingPopover
-      className="fixed bottom-3  right-3 z-50"
-      open={isOpen}
-      onOpenChange={setIsOpen}
-    >
-      <MorphingPopoverTrigger asChild>
-        <AnimateIcon
-          className="size-12 rounded-full bg-primary hover: flex items-center justify-center"
-          animateOnHover
-        >
-          <Bot />
-        </AnimateIcon>
-      </MorphingPopoverTrigger>
-      <MorphingPopoverContent
-        className={cn(
-          "bottom-1 right-1 w-xl p-0 border-none shadow-lg",
-          "bg-white dark:bg-neutral-900"
-        )}
-      >
-        <Card className="w-full gap-2 border-none shadow-none">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Chat Bot</CardTitle>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={() => setIsOpen(false)}
+    <>
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <AnimateIcon
+              className="size-12 fixed bottom-3 right-3 rounded-full z-50 bg-secondary hover:bg-secondary/80 flex items-center justify-center"
+              animateOnHover
+              onClick={() => setIsOpen(true)}
             >
-              <X />
-            </Button>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <div className="relative">
-              <div className="relative flex flex-col">
-                <div className="overflow-y-auto" style={{ maxHeight: "400px" }}>
-                  <Textarea
-                    id="ai-input-15"
-                    value={value}
-                    placeholder={"What can I do for you?"}
-                    className={cn(
-                      "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-white/5 border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-white/70 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                      "min-h-[72px]"
-                    )}
-                    ref={textareaRef}
-                    onKeyDown={handleKeyDown}
-                    onChange={(e) => {
-                      setValue(e.target.value);
-                      adjustHeight();
-                    }}
-                  />
-                </div>
+              <Bot />
+            </AnimateIcon>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                <div className="h-14 bg-black/5 dark:bg-white/5 rounded-b-xl flex items-center">
-                  <div className="absolute left-3 right-3 bottom-3 flex items-center justify-between w-[calc(100%-24px)]">
-                    <div className="flex items-center gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="flex items-center gap-1 h-8 pl-1 pr-2 text-xs rounded-md dark:text-white hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
-                          >
-                            <AnimatePresence mode="wait">
-                              <motion.div
-                                key={selectedModel}
-                                initial={{
-                                  opacity: 0,
-                                  y: -5,
-                                }}
-                                animate={{
-                                  opacity: 1,
-                                  y: 0,
-                                }}
-                                exit={{
-                                  opacity: 0,
-                                  y: 5,
-                                }}
-                                transition={{
-                                  duration: 0.15,
-                                }}
-                                className="flex items-center gap-1"
-                              >
-                                {MODEL_ICONS[selectedModel]}
-                                {selectedModel}
-                                <ChevronDown className="w-3 h-3 opacity-50" />
-                              </motion.div>
-                            </AnimatePresence>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          className={cn(
-                            "min-w-[10rem]",
-                            "border-black/10 dark:border-white/10",
-                            "bg-gradient-to-b from-white via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-800"
-                          )}
-                        >
-                          {AI_MODELS.map((model) => (
-                            <DropdownMenuItem
-                              key={model}
-                              onSelect={() => setSelectedModel(model)}
-                              className="flex items-center justify-between gap-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                {MODEL_ICONS[model] || (
-                                  <Bot className="w-4 h-4 opacity-50" />
-                                )}{" "}
-                                {/* Use mapped SVG or fallback */}
-                                <span>{model}</span>
-                              </div>
-                              {selectedModel === model && (
-                                <Check className="w-4 h-4 text-blue-500" />
-                              )}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-0.5" />
-                      <label
-                        className={cn(
-                          "rounded-lg p-2 bg-black/5 dark:bg-white/5 cursor-pointer",
-                          "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500",
-                          "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
-                        )}
-                        aria-label="Attach file"
-                      >
-                        <input type="file" className="hidden" />
-                        <Paperclip className="w-4 h-4 transition-colors" />
-                      </label>
-                    </div>
-                    <button
-                      type="button"
-                      className={cn(
-                        "rounded-lg p-2 bg-black/5 dark:bg-white/5",
-                        "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
-                      )}
-                      aria-label="Send message"
-                      disabled={!value.trim()}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.16, 1, 0.3, 1], // Custom easing for smooth animation
+            }}
+            className="fixed bottom-3 right-3 w-xl z-50"
+          >
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <Bot animate="blink" loop loopDelay={5000} animateOnHover />
+                <CardTitle>Chat Bot</CardTitle>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <X />
+                </Button>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <div className="relative">
+                  <div className="relative flex flex-col">
+                    <div
+                      className="overflow-y-auto"
+                      style={{ maxHeight: "400px" }}
                     >
-                      <ArrowRight
+                      <Textarea
+                        id="ai-input-15"
+                        value={value}
+                        placeholder={"What can I do for you?"}
                         className={cn(
-                          "w-4 h-4 dark:text-white transition-opacity duration-200",
-                          value.trim() ? "opacity-100" : "opacity-30"
+                          "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-white/5 border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-white/70 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                          "min-h-[72px]"
                         )}
+                        ref={textareaRef}
+                        onKeyDown={handleKeyDown}
+                        onChange={(e) => {
+                          setValue(e.target.value);
+                          adjustHeight();
+                        }}
                       />
-                    </button>
+                    </div>
+
+                    <div className="h-14 bg-black/5 dark:bg-white/5 rounded-b-xl flex items-center">
+                      <div className="absolute left-3 right-3 bottom-3 flex items-center justify-between w-[calc(100%-24px)]">
+                        <div className="flex items-center gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="flex items-center gap-1 h-8 pl-1 pr-2 text-xs rounded-md dark:text-white hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
+                              >
+                                <AnimatePresence mode="wait">
+                                  <motion.div
+                                    key={selectedModel}
+                                    initial={{
+                                      opacity: 0,
+                                      y: -5,
+                                    }}
+                                    animate={{
+                                      opacity: 1,
+                                      y: 0,
+                                    }}
+                                    exit={{
+                                      opacity: 0,
+                                      y: 5,
+                                    }}
+                                    transition={{
+                                      duration: 0.15,
+                                    }}
+                                    className="flex items-center gap-1"
+                                  >
+                                    {MODEL_ICONS[selectedModel]}
+                                    {selectedModel}
+                                    <ChevronDown className="w-3 h-3 opacity-50" />
+                                  </motion.div>
+                                </AnimatePresence>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              className={cn(
+                                "min-w-40",
+                                "border-black/10 dark:border-white/10",
+                                "bg-linear-to-b from-white via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-800"
+                              )}
+                            >
+                              {AI_MODELS.map((model) => (
+                                <DropdownMenuItem
+                                  key={model}
+                                  onSelect={() => setSelectedModel(model)}
+                                  className="flex items-center justify-between gap-2"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {MODEL_ICONS[model] || (
+                                      <Bot className="w-4 h-4 opacity-50" />
+                                    )}{" "}
+                                    {/* Use mapped SVG or fallback */}
+                                    <span>{model}</span>
+                                  </div>
+                                  {selectedModel === model && (
+                                    <Check className="w-4 h-4 text-blue-500" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <div className="h-4 w-px bg-black/10 dark:bg-white/10 mx-0.5" />
+                          <label
+                            className={cn(
+                              "rounded-lg p-2 bg-black/5 dark:bg-white/5 cursor-pointer",
+                              "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500",
+                              "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white"
+                            )}
+                            aria-label="Attach file"
+                          >
+                            <input type="file" className="hidden" />
+                            <Paperclip className="w-4 h-4 transition-colors" />
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          className={cn(
+                            "rounded-lg p-2 bg-black/5 dark:bg-white/5",
+                            "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500"
+                          )}
+                          aria-label="Send message"
+                          disabled={!value.trim()}
+                        >
+                          <ArrowRight
+                            className={cn(
+                              "w-4 h-4 dark:text-white transition-opacity duration-200",
+                              value.trim() ? "opacity-100" : "opacity-30"
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </MorphingPopoverContent>
-    </MorphingPopover>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
