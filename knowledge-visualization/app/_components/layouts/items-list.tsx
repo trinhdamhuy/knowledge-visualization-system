@@ -1,26 +1,28 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Grid3X3, List } from "lucide-react";
+import { Grid3X3, List, Plus } from "lucide-react";
 import { useState } from "react";
 import { MasonryLayout } from "./masonry-layout";
 import { DiagramCard } from "../cards/diagram-card";
 import { FullDiagram } from "@/types";
 import { Separator } from "@/components/ui/separator";
 import { SortDropdown } from "../buttons/sort-dropdown";
+import CreateButton from "../buttons/create-button";
+import { Sparkles } from "@/components/animate-ui/icons/sparkles";
 
-export function ItemsLayout({
-  diagrams,
-  children,
-}: {
-  diagrams: FullDiagram[];
-  children?: React.ReactNode;
-}) {
+export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-2">{children}</div>
+      <div className="flex gap-4">
+        <CreateButton label="Create Diagram" icon={<Plus />} />
+        <CreateButton
+          label="Create Diagram with AI"
+          icon={<Sparkles animate loop loopDelay={1000} initialOnAnimateEnd />}
+        />
+      </div>
 
       <Separator />
 

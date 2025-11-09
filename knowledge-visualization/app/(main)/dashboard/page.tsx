@@ -1,9 +1,7 @@
 "use client";
 
-import { CreateButton } from "@/app/_components/buttons/create-button";
-import { Plus, Sparkles } from "lucide-react";
+import { ItemsList } from "@/app/_components/layouts/items-list";
 import { FullDiagram } from "@/types";
-import { ItemsLayout } from "@/app/_components/layouts/items-layout";
 
 // Sample data for diagram cards
 const sampleDiagrams: FullDiagram[] = [
@@ -161,9 +159,6 @@ const sampleDiagrams: FullDiagram[] = [
 
 export default function DashboardPage() {
   return (
-    <ItemsLayout diagrams={sampleDiagrams}>
-      <CreateButton label="Create Diagram" icon={<Plus />} />
-      <CreateButton label="Create Diagram with AI" icon={<Sparkles />} />
-    </ItemsLayout>
+    <ItemsList diagrams={sampleDiagrams}/>
   );
 }

@@ -1,15 +1,27 @@
-import { Button } from "@/components/ui/button";
+import {
+  RippleButton,
+  RippleButtonRipples,
+  type RippleButtonProps,
+} from "@/components/animate-ui/components/buttons/ripple";
 
 interface CreateButtonProps {
   label: string;
   icon: React.ReactNode;
+  variant?: RippleButtonProps["variant"];
+  size?: RippleButtonProps["size"];
 }
 
-export function CreateButton({ label, icon }: CreateButtonProps) {
+export default function CreateButton({
+  label,
+  variant = "secondary",
+  size = "default",
+  icon,
+}: CreateButtonProps) {
   return (
-    <Button variant="ghost">
+    <RippleButton variant={variant} size={size}>
       {label}
       {icon}
-    </Button>
+      <RippleButtonRipples />
+    </RippleButton>
   );
 }

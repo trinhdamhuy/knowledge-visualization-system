@@ -88,7 +88,7 @@ export function AppSidebar() {
           text="K"
         />
       </SidebarHeader>
-      <SidebarSeparator className="max-w-[90%] mx-auto my-2" />
+      <SidebarSeparator className="w-[90%] mx-auto" />
       <SidebarContent>
         <SidebarGroup className="gap-1">
           <TeamSwitcher teams={teams} />
