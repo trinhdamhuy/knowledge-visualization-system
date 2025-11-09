@@ -18,14 +18,14 @@ export default function EditorPage({ params }: EditorPageProps) {
       diagramId={diagramId}
       fallback={
         <div className="flex h-full w-full items-center justify-center bg-card">
-          <Spinner className="size-10" />
+          <Spinner className="size-8" />
         </div>
       }
     >
       <ClientSideSuspense
         fallback={
           <div className="flex h-full w-full items-center justify-center bg-card">
-            <Spinner className="size-10" />
+            <Spinner className="size-8" />
           </div>
         }
       >
