@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useUpdateMyPresence } from "@/lib/liveblocks.config";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { DiagramHeader } from "./DiagramHeader";
@@ -18,6 +18,7 @@ import {
   Edge,
   Node,
   Position,
+  ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ChatBotPanel } from "./ChatBotPanel";
@@ -47,15 +48,24 @@ const initialEdges: Edge[] = [{ id: "n1-n2", source: "n1", target: "n2" }];
 export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
   const theme = useTheme();
+  const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    reactFlowInstance.current = instance;
+  }, []);
+
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      const current = e.currentTarget;
-      const rect = current.getBoundingClientRect();
+      if (!reactFlowInstance.current) return;
 
-      const x = Math.round(e.clientX - rect.left);
-      const y = Math.round(e.clientY - rect.top);
+      const position = reactFlowInstance.current.screenToFlowPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
 
-      updateMyPresence({ cursor: { x, y } });
+      updateMyPresence({
+        cursor: { x: Math.round(position.x), y: Math.round(position.y) },
+      });
     },
     [updateMyPresence]
   );
@@ -102,6 +112,7 @@ export function DiagramCanvas() {
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       fitView
+      onInit={onInit}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
     >

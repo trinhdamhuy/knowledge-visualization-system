@@ -2,10 +2,12 @@
 
 import { memo } from "react";
 import { useOthersConnectionIds, useOther } from "@/lib/liveblocks.config";
+import { useReactFlow } from "@xyflow/react";
 
 const Cursor = memo(({ connectionId }: { connectionId: number }) => {
   const info = useOther(connectionId, (user) => user?.info);
   const cursor = useOther(connectionId, (user) => user?.presence?.cursor);
+  const { flowToScreenPosition } = useReactFlow();
 
   const name = info?.name || "Anonymous";
 
@@ -13,7 +15,13 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
     return null;
   }
 
-  const { x, y } = cursor;
+  // Convert canvas coordinates to screen coordinates for display
+  const screenPosition = flowToScreenPosition({
+    x: cursor.x,
+    y: cursor.y,
+  });
+
+  const { x, y } = screenPosition;
 
   const colors = [
     "rgb(59, 130, 246)", // blue
@@ -49,7 +57,7 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
         }}
       >
         <path
-          d="M5.65376 12.3673L5.46026 12.4973L5.65376 12.3673L17.6538 4.36729L17.8473 4.23729L17.6538 4.10729L5.65376 12.3673Z"
+          d="M5.65376 12.3673H5.46026L5.31717 12.4976L0.500002 16.8829L0.500002 1.19841L11.7841 12.3673H5.65376Z"
           fill={color}
           stroke="white"
           strokeWidth="1.5"
@@ -60,8 +68,8 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
       <div
         style={{
           position: "absolute",
-          left: "20px",
-          top: "8px",
+          left: "7px",
+          top: "18px",
           backgroundColor: color,
           padding: "4px 8px",
           borderRadius: "4px",
