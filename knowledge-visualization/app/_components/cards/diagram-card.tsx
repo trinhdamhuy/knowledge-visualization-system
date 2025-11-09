@@ -8,6 +8,7 @@ import { FullDiagram } from "@/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
@@ -16,12 +17,20 @@ interface DiagramCardProps {
 
 export function DiagramCard({ variant, diagram }: DiagramCardProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const isStarred = session?.user?.id === diagram.ownerId;
   const locale = useLocale();
 
+  const handleCardClick = () => {
+    router.push(`/diagrams/${diagram.id}`);
+  };
+
   if (variant === "list") {
     return (
-      <Card className="flex flex-row items-center justify-between gap-4 p-2 hover:bg-secondary transition-colors w-full relative group">
+      <Card
+        onClick={handleCardClick}
+        className="flex flex-row items-center justify-between gap-4 p-2 hover:bg-secondary transition-colors w-full relative group cursor-pointer"
+      >
         <div className="flex items-center gap-4">
           <div className="relative w-16 aspect-square">
             <Image
@@ -66,7 +75,10 @@ export function DiagramCard({ variant, diagram }: DiagramCardProps) {
 
   if (variant === "grid") {
     return (
-      <Card className="p-4 overflow-hidden hover:bg-secondary hover:shadow-md transition-shadow w-full h-full flex flex-col cursor-default relative group">
+      <Card
+        onClick={handleCardClick}
+        className="p-4 overflow-hidden hover:bg-secondary hover:shadow-md transition-shadow w-full h-full flex flex-col cursor-pointer relative group"
+      >
         <CardHeader className="flex items-center justify-between px-0">
           <CardTitle className="text-sm sm:text-base font-medium truncate">
             {diagram.title}
