@@ -21,6 +21,7 @@
   "registries": {
     "@magicui": "https://magicui.design/r/{name}.json",
     "@kokonutui": "https://kokonutui.com/r/{name}.json",
-    "@intentui": "https://intentui.com/r/{name}"
+    "@intentui": "https://intentui.com/r/{name}",
+    "@animate-ui": "https://animate-ui.com/r/{name}.json"
   }
 }

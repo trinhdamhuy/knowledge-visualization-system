@@ -13,6 +13,12 @@ import {
   addEdge,
   Controls,
   Background,
+  NodeChange,
+  EdgeChange,
+  Connection,
+  BackgroundVariant,
+  Edge,
+  Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -20,11 +26,11 @@ interface DiagramCanvasProps {
   diagramId: string;
 }
 
-const initialNodes = [
+const initialNodes: Node[] = [
   { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
   { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
 ];
-const initialEdges = [{ id: "n1-n2", source: "n1", target: "n2" }];
+const initialEdges: Edge[] = [{ id: "n1-n2", source: "n1", target: "n2" }];
 
 export function DiagramCanvas({ diagramId }: DiagramCanvasProps) {
   const updateMyPresence = useUpdateMyPresence();
@@ -50,24 +56,28 @@ export function DiagramCanvas({ diagramId }: DiagramCanvasProps) {
   const [edges, setEdges] = useState(initialEdges);
 
   const onNodesChange = useCallback(
-    (changes: any) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
+    (changes: NodeChange[]) =>
+      setNodes(
+        (nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot) as Node[]
+      ),
     []
   );
   const onEdgesChange = useCallback(
-    (changes: any) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
+    (changes: EdgeChange[]) =>
+      setEdges((edgesSnapshot: Edge[]) =>
+        applyEdgeChanges(changes, edgesSnapshot)
+      ),
     []
   );
   const onConnect = useCallback(
-    (params: any) =>
-      setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
+    (params: Connection) =>
+      setEdges((edgesSnapshot: Edge[]) => addEdge(params, edgesSnapshot)),
     []
   );
 
   return (
     <main className="h-screen w-screen relative bg-white touch-none overflow-hidden">
-      <DiagramHeader diagramId={diagramId} />
+      <DiagramHeader />
 
       <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
         <DiagramToolBar />
@@ -87,8 +97,7 @@ export function DiagramCanvas({ diagramId }: DiagramCanvasProps) {
           fitView
         >
           <Controls />
-          {/* @ts-ignore */}
-          <Background variant="dots" gap={12} size={1} />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
 

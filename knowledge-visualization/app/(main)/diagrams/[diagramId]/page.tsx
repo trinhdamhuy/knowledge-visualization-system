@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { ClientSideSuspense } from "@liveblocks/react/suspense";
-import { DiagramCanvas } from "@/app/_components/diagrams/DiagramCanvas";
+import { DiagramCanvas } from "@/app/(main)/diagrams/[diagramId]/diagrams/DiagramCanvas";
 import { Loader2 } from "lucide-react";
 import { Room } from "@/app/_components/room";
 
