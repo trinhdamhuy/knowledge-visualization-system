@@ -8,6 +8,7 @@ import { Language } from "@prisma/client";
 
 import { authConfig } from "./auth.config";
 import bcrypt from "bcrypt";
+import { createDefaultTeam } from "./app/_actions/team/create";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -64,6 +65,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           ...token,
           ...user,
         };
+
+        // Tạo team mặc định cho user nếu họ chưa có team
+        // Chạy bất đồng bộ để không block quá trình đăng nhập
+        createDefaultTeam(user.id!, user.name, user.image).catch((error) => {
+          console.error("Failed to create default team:", error);
+        });
       }
 
       return token;

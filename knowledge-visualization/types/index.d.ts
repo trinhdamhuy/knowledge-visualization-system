@@ -1,4 +1,4 @@
-import { Diagram, Share, Team } from "@prisma/client";
+import { Diagram, Share, Team, TeamMember, User } from "@prisma/client";
 
 type FullDiagram = Diagram & {
   team: Team;
@@ -18,4 +18,10 @@ type FullDiagram = Diagram & {
   })[];
 };
 
-export { FullDiagram };
+type FullTeam = Team & {
+  members: (TeamMember & {
+    user: Pick<User, "id" | "name" | "image" | "email">;
+  })[];
+};
+
+export { FullTeam, FullDiagram };

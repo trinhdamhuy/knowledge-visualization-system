@@ -8,6 +8,8 @@ import { SessionProvider, useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useLanguage } from "../hooks/use-language";
 import { useLocale } from "next-intl";
+import { TeamProvider } from "../contexts/team-context";
+import { useTeamStore } from "../stores/team-store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,17 +22,17 @@ const queryClient = new QueryClient({
 const TeamAndLanguageSync = () => {
   const { data: session, status } = useSession();
   const locale = useLocale();
-  //   const { clearCurrentTeam } = useTeamStore();
+  const { clearCurrentTeam } = useTeamStore();
   const changeLanguage = useLanguage();
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      //   clearCurrentTeam();
+      clearCurrentTeam();
     }
     if (session && locale !== session.user.language) {
       changeLanguage(session.user.language);
     }
-  }, [session, status, locale, changeLanguage]);
+  }, [session, status, locale, changeLanguage, clearCurrentTeam]);
 
   return null;
 };
@@ -40,27 +42,29 @@ const DefaultProviders = ({ children }: { children: React.ReactNode }) => {
     <SessionProvider refetchOnWindowFocus={false}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <QueryClientProvider client={queryClient}>
-          <NextTopLoader
-            color="#142850"
-            initialPosition={0.08}
-            crawlSpeed={200}
-            height={3}
-            crawl={true}
-            showSpinner={false}
-            easing="ease"
-            speed={200}
-            shadow="0 0 10px #2299DD,0 0 5px #2299DD"
-            zIndex={1600}
-            showAtBottom={false}
-          />
-          <TeamAndLanguageSync />
-          {children}
-          <Toaster
-            position="bottom-right"
-            richColors
-            closeButton
-            duration={2000}
-          />
+          <TeamProvider>
+            <NextTopLoader
+              color="#142850"
+              initialPosition={0.08}
+              crawlSpeed={200}
+              height={3}
+              crawl={true}
+              showSpinner={false}
+              easing="ease"
+              speed={200}
+              shadow="0 0 10px #2299DD,0 0 5px #2299DD"
+              zIndex={1600}
+              showAtBottom={false}
+            />
+            <TeamAndLanguageSync />
+            {children}
+            <Toaster
+              position="bottom-right"
+              richColors
+              closeButton
+              duration={2000}
+            />
+          </TeamProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </SessionProvider>

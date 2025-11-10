@@ -11,11 +11,8 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 import {
-  AudioWaveform,
   Clock,
-  Command,
   FileText,
-  GalleryVerticalEnd,
   LayoutDashboard,
   Share,
   Star,
@@ -24,24 +21,6 @@ import {
 import { usePathname } from "next/navigation";
 import { Logo } from "./logo";
 import { TeamSwitcher } from "./team-switcher";
-
-const teams = [
-  {
-    name: "Acme Inc",
-    logo: GalleryVerticalEnd,
-    plan: "Enterprise",
-  },
-  {
-    name: "Acme Corp.",
-    logo: AudioWaveform,
-    plan: "Startup",
-  },
-  {
-    name: "Evil Corp.",
-    logo: Command,
-    plan: "Free",
-  },
-];
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -91,7 +70,7 @@ export function AppSidebar() {
       <SidebarSeparator className="w-[90%] mx-auto" />
       <SidebarContent>
         <SidebarGroup className="gap-1">
-          <TeamSwitcher teams={teams} />
+          <TeamSwitcher />
           {sidebarItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton

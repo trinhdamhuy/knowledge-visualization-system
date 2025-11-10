@@ -50,7 +50,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
               onDragStart={(e) => e.preventDefault()}
               draggable={false}
               className={`flex flex-row items-center justify-between gap-4 p-2 hover:bg-secondary transition-colors w-full relative group ${
-                isSelected ? "ring-2 ring-primary bg-primary/10" : ""
+                isSelected ? "ring-2 ring-blue-500 bg-blue-500/10" : ""
               }`}
             >
               <div className="flex items-center gap-4">
@@ -99,7 +99,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
               onDragStart={(e) => e.preventDefault()}
               draggable={false}
               className={`p-4 overflow-hidden hover:bg-secondary hover:shadow-md transition-shadow w-full h-full flex flex-col relative group ${
-                isSelected ? "ring-2 ring-primary bg-primary/10" : ""
+                isSelected ? "ring-2 ring-blue-500 bg-blue-500/10" : ""
               }`}
             >
               <CardHeader className="flex items-center justify-between px-0">

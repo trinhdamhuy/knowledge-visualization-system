@@ -1,6 +1,5 @@
 "use client";
 
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Bell, Search } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
@@ -50,12 +49,8 @@ export function AppHeader() {
 
   return (
     <header className="flex h-16 px-4 shrink-0 items-center justify-between gap-2 transition-[width,height] ease-linear border-b">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center h-full gap-4">
         <SidebarTrigger />
-        <Separator
-          orientation="vertical"
-          className="data-[orientation=vertical]:h-4"
-        />
         <InputGroup className="relative w-96">
           <InputGroupInput
             ref={searchInputRef}
