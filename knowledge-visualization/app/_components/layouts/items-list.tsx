@@ -16,9 +16,20 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { useItemSelection } from "@/app/(main)/_hooks/use-item-selection";
 
 export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const {
+    selectedItems,
+    isSelecting,
+    selectionBox,
+    selectionRef,
+    handleCardClick,
+    handleMouseDown,
+    setCardRef,
+  } = useItemSelection();
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-4 px-8">
@@ -33,7 +44,16 @@ export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
 
       <ContextMenu>
         <ContextMenuTrigger>
-          <div className="flex flex-col w-full px-8">
+          <div
+            ref={selectionRef}
+            className="flex flex-col w-full min-h-[74.5vh] px-8 relative"
+            onMouseDown={handleMouseDown}
+            onDragStart={(e) => e.preventDefault()}
+            style={{
+              userSelect: isSelecting ? "none" : undefined,
+              WebkitUserSelect: isSelecting ? "none" : undefined,
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
               <SortDropdown />
               <div className="flex gap-2">
@@ -59,8 +79,11 @@ export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
                 {diagrams.map((diagram) => (
                   <DiagramCard
                     key={diagram.id}
+                    ref={(el) => setCardRef(diagram.id, el)}
                     variant="list"
                     diagram={diagram}
+                    isSelected={selectedItems.has(diagram.id)}
+                    onCardClick={handleCardClick}
                   />
                 ))}
               </div>
@@ -69,11 +92,31 @@ export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
                 {diagrams.map((diagram) => (
                   <DiagramCard
                     key={diagram.id}
+                    ref={(el) => setCardRef(diagram.id, el)}
                     variant="grid"
                     diagram={diagram}
+                    isSelected={selectedItems.has(diagram.id)}
+                    onCardClick={handleCardClick}
                   />
                 ))}
               </MasonryLayout>
+            )}
+
+            {/* Selection box overlay */}
+            {isSelecting && selectionBox && (
+              <div
+                className="absolute border-2 border-primary bg-primary/10 pointer-events-none z-50"
+                style={{
+                  left: `${Math.min(selectionBox.startX, selectionBox.endX)}px`,
+                  top: `${Math.min(selectionBox.startY, selectionBox.endY)}px`,
+                  width: `${Math.abs(
+                    selectionBox.endX - selectionBox.startX
+                  )}px`,
+                  height: `${Math.abs(
+                    selectionBox.endY - selectionBox.startY
+                  )}px`,
+                }}
+              />
             )}
           </div>
         </ContextMenuTrigger>

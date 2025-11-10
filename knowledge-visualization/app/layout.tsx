@@ -41,7 +41,12 @@ export default async function RootLayout({
       >
         <NextIntlClientProvider messages={messages}>
           <DefaultProviders>
-            <main className="min-h-screen flex flex-col items-center justify-center">
+            <main
+              className="min-h-screen flex flex-col items-center justify-center"
+              style={{
+                WebkitUserSelect: "none",
+              }}
+            >
               {children}
             </main>
           </DefaultProviders>
