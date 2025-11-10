@@ -29,9 +29,9 @@ import {
 } from "@/components/ui/toolbar";
 import {
   Tooltip,
+  TooltipContent,
   TooltipTrigger,
-  TooltipPanel,
-} from "@/components/animate-ui/components/base/tooltip";
+} from "@/components/ui/tooltip";
 
 export function DiagramToolBar() {
   // Define toolbar items with default and selected states
@@ -100,9 +100,9 @@ export function DiagramToolBar() {
                 )}
               </ToolbarItem>
             </TooltipTrigger>
-            <TooltipPanel side="right" sideOffset={12}>
+            <TooltipContent side="right" sideOffset={10}>
               {item.label}
-            </TooltipPanel>
+            </TooltipContent>
           </Tooltip>
         ))}
       </ToolbarGroup>
@@ -117,9 +117,9 @@ export function DiagramToolBar() {
                 )}
               </ToolbarItem>
             </TooltipTrigger>
-            <TooltipPanel side="right" sideOffset={12}>
+            <TooltipContent side="right" sideOffset={10}>
               {item.label}
-            </TooltipPanel>
+            </TooltipContent>
           </Tooltip>
         ))}
       </ToolbarGroup>

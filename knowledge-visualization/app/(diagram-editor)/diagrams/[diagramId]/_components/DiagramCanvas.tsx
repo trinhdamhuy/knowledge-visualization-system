@@ -18,6 +18,7 @@ import {
   Node,
   Position,
   ReactFlowInstance,
+  MiniMap,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { ChatBotPanel } from "./ChatBotPanel";
@@ -122,7 +123,7 @@ export function DiagramCanvas() {
       </div>
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
       <CollaboratorCursors />
-
+      <MiniMap />
       <ChatBotPanel />
     </ReactFlow>
   );
