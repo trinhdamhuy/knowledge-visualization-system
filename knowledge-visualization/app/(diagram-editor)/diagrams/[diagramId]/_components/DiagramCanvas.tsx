@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState, useRef } from "react";
-import { useUpdateMyPresence } from "@/lib/liveblocks.config";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
@@ -23,6 +22,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { ChatBotPanel } from "./ChatBotPanel";
 import { useTheme } from "next-themes";
+import { useUpdateMyPresence } from "@liveblocks/react";
 
 const nodeDefaults = {
   sourcePosition: Position.Right,

@@ -27,8 +27,60 @@ import {
   ToolbarItem,
   ToolbarSeparator,
 } from "@/components/ui/toolbar";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipPanel,
+} from "@/components/animate-ui/components/base/tooltip";
 
 export function DiagramToolBar() {
+  // Define toolbar items with default and selected states
+  const formattingItems = [
+    {
+      label: "Bold",
+      default: <BoltOutline />,
+      selected: <BoltSolid />,
+    },
+    {
+      label: "Italic",
+      default: <PencilOutline />,
+      selected: <PencilSolid />,
+    },
+    {
+      label: "Underline",
+      default: <CursorArrowRaysOutline />,
+      selected: <CursorArrowRaysSolid />,
+    },
+    {
+      label: "Strikethrough",
+      default: <NoSymbolOutline />,
+      selected: <NoSymbolSolid />,
+    },
+  ];
+
+  const alignmentItems = [
+    {
+      label: "Align Left",
+      default: <Bars3BottomLeftIcon />,
+      selected: <Bars3BottomLeftSolid />,
+    },
+    {
+      label: "Align Center",
+      default: <AdjustmentsHorizontalOutline />,
+      selected: <AdjustmentsHorizontalSolid />,
+    },
+    {
+      label: "Align Right",
+      default: <Bars3BottomRightIcon />,
+      selected: <Bars3BottomRightSolid />,
+    },
+    {
+      label: "Align Justify",
+      default: <Bars3Icon />,
+      selected: <Bars3Solid />,
+    },
+  ];
+
   return (
     <Toolbar
       orientation="vertical"
@@ -39,69 +91,37 @@ export function DiagramToolBar() {
         aria-label="Text Formatting Options"
         className="flex flex-col gap-1"
       >
-        <ToolbarItem aria-label="Bold" size="sq-lg">
-          {({ isSelected }) => (
-            <>{isSelected ? <BoltSolid /> : <BoltOutline />}</>
-          )}
-        </ToolbarItem>
-        <ToolbarItem aria-label="Italic" size="sq-lg">
-          {({ isSelected }) => (
-            <>{isSelected ? <PencilSolid /> : <PencilOutline />}</>
-          )}
-        </ToolbarItem>
-        <ToolbarItem aria-label="Underline" size="sq-lg">
-          {({ isSelected }) => (
-            <>
-              {isSelected ? (
-                <CursorArrowRaysSolid />
-              ) : (
-                <CursorArrowRaysOutline />
-              )}
-            </>
-          )}
-        </ToolbarItem>
-        <ToolbarItem aria-label="Strikethrough" size="sq-lg">
-          {({ isSelected }) => (
-            <>{isSelected ? <NoSymbolSolid /> : <NoSymbolOutline />}</>
-          )}
-        </ToolbarItem>
+        {formattingItems.map((item) => (
+          <Tooltip key={item.label}>
+            <TooltipTrigger asChild>
+              <ToolbarItem aria-label={item.label} size="sq-lg">
+                {({ isSelected }) => (
+                  <>{isSelected ? item.selected : item.default}</>
+                )}
+              </ToolbarItem>
+            </TooltipTrigger>
+            <TooltipPanel side="right" sideOffset={12}>
+              {item.label}
+            </TooltipPanel>
+          </Tooltip>
+        ))}
       </ToolbarGroup>
       <ToolbarSeparator className="my-1 w-full" />
       <ToolbarGroup aria-label="Alignment" className="flex flex-col gap-1">
-        <ToolbarItem aria-label="Align Left" size="sq-lg">
-          {({ isSelected }) => (
-            <>
-              {isSelected ? <Bars3BottomLeftSolid /> : <Bars3BottomLeftIcon />}
-            </>
-          )}
-        </ToolbarItem>
-        <ToolbarItem size="sq-lg" aria-label="Align Center">
-          {({ isSelected }) => (
-            <>
-              {isSelected ? (
-                <AdjustmentsHorizontalSolid />
-              ) : (
-                <AdjustmentsHorizontalOutline />
-              )}
-            </>
-          )}
-        </ToolbarItem>
-        <ToolbarItem size="sq-lg" aria-label="Align Right">
-          {({ isSelected }) => (
-            <>
-              {isSelected ? (
-                <Bars3BottomRightSolid />
-              ) : (
-                <Bars3BottomRightIcon />
-              )}
-            </>
-          )}
-        </ToolbarItem>
-        <ToolbarItem size="sq-lg" aria-label="Align Justify">
-          {({ isSelected }) => (
-            <>{isSelected ? <Bars3Solid /> : <Bars3Icon />}</>
-          )}
-        </ToolbarItem>
+        {alignmentItems.map((item) => (
+          <Tooltip key={item.label}>
+            <TooltipTrigger asChild>
+              <ToolbarItem aria-label={item.label} size="sq-lg">
+                {({ isSelected }) => (
+                  <>{isSelected ? item.selected : item.default}</>
+                )}
+              </ToolbarItem>
+            </TooltipTrigger>
+            <TooltipPanel side="right" sideOffset={12}>
+              {item.label}
+            </TooltipPanel>
+          </Tooltip>
+        ))}
       </ToolbarGroup>
     </Toolbar>
   );

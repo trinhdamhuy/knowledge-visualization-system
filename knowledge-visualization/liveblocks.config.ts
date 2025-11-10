@@ -1,0 +1,24 @@
+import { LiveMap, LiveObject, LsonObject } from "@liveblocks/client";
+
+declare global {
+  interface Liveblocks {
+    Presence: {
+      cursor: { x: number; y: number } | null;
+      selection: string[];
+    };
+
+    Storage: {
+      nodes: LiveMap<string, LiveObject<LsonObject>>;
+      edges: LiveMap<string, LiveObject<LsonObject>>;
+    };
+
+    UserMeta: {
+      id: string;
+      info: {
+        name: string;
+        avatar: string;
+      };
+    };
+  }
+}
+export {};

@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { useOthersConnectionIds, useOther } from "@/lib/liveblocks.config";
 import { useReactFlow } from "@xyflow/react";
+import { useOther, useOthersConnectionIds } from "@liveblocks/react/suspense";
 
 const Cursor = memo(({ connectionId }: { connectionId: number }) => {
   const info = useOther(connectionId, (user) => user?.info);

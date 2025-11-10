@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useOthers, useSelf } from "@/lib/liveblocks.config";
 import {
   Card,
   CardContent,
@@ -17,6 +16,7 @@ import {
   AvatarGroup,
   AvatarGroupTooltip,
 } from "@/components/animate-ui/components/animate/avatar-group";
+import { useOthers, useSelf } from "@liveblocks/react/suspense";
 
 const MAX_SHOWN_USERS = 3;
 
@@ -46,7 +46,12 @@ export function DiagramHeader() {
       {/* Right: Participants */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
-          <AvatarGroup translate="0%" className="h-full">
+          <AvatarGroup
+            translate="0%"
+            className="h-full"
+            sideOffset={10}
+            tooltipTransition={{ type: "tween", duration: 0.2 }}
+          >
             {allUsers
               .slice(0, MAX_SHOWN_USERS)
               .map(({ connectionId, info }) => (

@@ -1,11 +1,8 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
-import {
-  LiveblocksProvider,
-  RoomProvider,
-} from "@liveblocks/react";
-import { LiveMap, LiveObject } from "@liveblocks/client";
+import { LiveblocksProvider, RoomProvider } from "@liveblocks/react";
+import { LiveMap, LiveObject, LsonObject } from "@liveblocks/client";
 
 interface RoomProps {
   children: ReactNode;
@@ -13,29 +10,8 @@ interface RoomProps {
   fallback: NonNullable<ReactNode> | null;
 }
 
-interface SafeNode {
-  [key: string]: any;
-  id: string;
-  type: string;
-  position: { x: number; y: number };
-  data: Record<string, any>;
-}
-
-interface SafeEdge {
-  [key: string]: any;
-  id: string;
-  source: string;
-  target: string;
-  type?: string;
-  arrowHeadType?: string;
-  label?: string;
-  animated?: boolean;
-}
-
 export const Room = ({ children, diagramId, fallback }: RoomProps) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
-    null
-  );
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
     const authenticate = async () => {
@@ -60,18 +36,22 @@ export const Room = ({ children, diagramId, fallback }: RoomProps) => {
   }
 
   return (
-    <LiveblocksProvider authEndpoint="/api/liveblocks-auth" throttle={16}>
+    <LiveblocksProvider
+      authEndpoint="/api/liveblocks-auth"
+      throttle={16}
+      preventUnsavedChanges
+      lostConnectionTimeout={10000}
+      backgroundKeepAliveTimeout={15 * 60 * 1000}
+    >
       <RoomProvider
         id={diagramId}
         initialPresence={{
           cursor: null,
           selection: [],
-          pencilDraft: null,
-          penColor: null,
         }}
         initialStorage={{
-          nodes: new LiveMap<string, LiveObject<SafeNode>>(),
-          edges: new LiveMap<string, LiveObject<SafeEdge>>(),
+          nodes: new LiveMap<string, LiveObject<LsonObject>>(),
+          edges: new LiveMap<string, LiveObject<LsonObject>>(),
         }}
       >
         {children}
