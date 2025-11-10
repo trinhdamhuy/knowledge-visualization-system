@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Team } from "@prisma/client";
+import { Team, Permission } from "@prisma/client";
 
 async function createTeam(
   name: string,
@@ -20,8 +20,15 @@ async function createTeam(
         name: name,
         imageUrl: imageUrl ? imageUrl : user.image || null,
         ownerId: user.id!,
+        members: {
+          create: {
+            userId: user.id!,
+            permission: Permission.OWNER,
+          },
+        },
       },
     });
+
     return team;
   } catch (error) {
     console.error("Failed to create team:", error);
@@ -30,10 +37,10 @@ async function createTeam(
 }
 
 /**
- * Tạo team mặc định cho user nếu họ chưa có team nào
- * @param userId - ID của user
- * @param userName - Tên của user (dùng làm tên team mặc định)
- * @param userImage - Ảnh của user (dùng làm ảnh team mặc định)
+ * Create a default team for user if they don't have any team yet
+ * @param userId - User ID
+ * @param userName - User name (used as default team name)
+ * @param userImage - User image (used as default team image)
  * @returns Team | null
  */
 async function createDefaultTeam(
@@ -42,7 +49,7 @@ async function createDefaultTeam(
   userImage?: string | null
 ): Promise<Team | null> {
   try {
-    // Kiểm tra xem user đã có team nào chưa
+    // Check if user already has any teams
     const existingTeams = await prisma.team.findMany({
       where: {
         members: {
@@ -53,12 +60,12 @@ async function createDefaultTeam(
       },
     });
 
-    // Nếu đã có team thì không tạo team mặc định
+    // If user already has teams, don't create default team
     if (existingTeams.length > 0) {
       return null;
     }
 
-    // Tạo team mặc định
+    // Create default team
     const defaultTeamName = userName ? `${userName}'s Team` : "My Team";
 
     const team = await prisma.team.create({
@@ -66,15 +73,12 @@ async function createDefaultTeam(
         name: defaultTeamName,
         imageUrl: userImage || null,
         ownerId: userId,
-      },
-    });
-
-    // Thêm user vào team với quyền OWNER
-    await prisma.teamMember.create({
-      data: {
-        teamId: team.id,
-        userId: userId,
-        permission: "OWNER",
+        members: {
+          create: {
+            userId: userId,
+            permission: Permission.OWNER,
+          },
+        },
       },
     });
 

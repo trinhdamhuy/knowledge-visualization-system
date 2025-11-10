@@ -28,6 +28,7 @@ import {
 import Image from "next/image";
 import { useTeamContext } from "@/contexts/team-context";
 import { useTeam } from "@/hooks/use-team";
+import { CreateTeamDialog } from "./create-team-dialog";
 
 const defaultLogos = [
   AudioWaveform,
@@ -41,10 +42,16 @@ export function TeamSwitcher() {
   const { isMobile } = useSidebar();
   const { teams } = useTeam();
   const { activeTeam, setActiveTeam, isLoading } = useTeamContext();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
-  if (isLoading || !activeTeam || !teams.length) {
+  // Only hide when loading initially (no teams yet) or no teams exist
+  // Don't hide when refetching after creating new team (had teams before)
+  if ((isLoading && !teams.length) || (!isLoading && !teams.length)) {
     return null;
   }
+
+  // If no activeTeam but teams exist, display first team
+  const displayTeam = activeTeam || teams[0];
 
   return (
     <SidebarMenu>
@@ -56,24 +63,28 @@ export function TeamSwitcher() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="bg-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-auto">
-                {activeTeam.imageUrl ? (
+                {displayTeam.imageUrl ? (
                   <div>
                     <Image
-                      src={activeTeam.imageUrl}
-                      alt={activeTeam.name}
+                      src={displayTeam.imageUrl}
+                      alt={displayTeam.name}
                       width={32}
                       height={32}
                     />
                   </div>
                 ) : (
                   <>
-                    {defaultLogos[activeTeam.name.length % defaultLogos.length]}
+                    {
+                      defaultLogos[
+                        displayTeam.name.length % defaultLogos.length
+                      ]
+                    }
                   </>
                 )}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
+                <span className="truncate font-medium">{displayTeam.name}</span>
+                <span className="truncate text-xs">{displayTeam.plan}</span>
               </div>
               <ChevronsUpDown />
             </SidebarMenuButton>
@@ -90,7 +101,9 @@ export function TeamSwitcher() {
             {teams.map((team) => (
               <DropdownMenuItem
                 key={team.id}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => {
+                  setActiveTeam(team);
+                }}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md overflow-auto border">
@@ -109,7 +122,12 @@ export function TeamSwitcher() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem
+              className="gap-2 p-2"
+              onClick={() => {
+                setIsCreateDialogOpen(true);
+              }}
+            >
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>
@@ -117,6 +135,10 @@ export function TeamSwitcher() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <CreateTeamDialog
+          open={isCreateDialogOpen}
+          onOpenChange={setIsCreateDialogOpen}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   );

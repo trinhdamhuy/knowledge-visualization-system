@@ -1,10 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { getStrictContext } from "@/lib/get-strict-context";
 import { useTeamStore } from "@/stores/team-store";
 import { useTeam } from "@/hooks/use-team";
 import { Team } from "@prisma/client";
+import { useCallback, useEffect, useMemo } from "react";
 
 interface TeamContextValue {
   activeTeam: Team | null;
@@ -19,20 +19,20 @@ function TeamProvider({ children }: { children: React.ReactNode }) {
   const { teams, isLoadingTeams } = useTeam();
   const { currentTeam, setCurrentTeam } = useTeamStore();
 
-  // Tìm team object từ teamId trong store
-  const activeTeam = React.useMemo(() => {
+  // Find team object from teamId in store
+  const activeTeam = useMemo(() => {
     if (!currentTeam || !teams.length) return null;
     return teams.find((team) => team.id === currentTeam) ?? null;
   }, [currentTeam, teams]);
 
-  // Tự động set team đầu tiên nếu chưa có team nào được chọn
-  React.useEffect(() => {
+  // Automatically set first team if no team is selected
+  useEffect(() => {
     if (!currentTeam && teams.length > 0 && !isLoadingTeams) {
       setCurrentTeam(teams[0].id);
     }
   }, [currentTeam, teams, isLoadingTeams, setCurrentTeam]);
 
-  const setActiveTeam = React.useCallback(
+  const setActiveTeam = useCallback(
     (team: Team | null) => {
       if (team) {
         setCurrentTeam(team.id);
