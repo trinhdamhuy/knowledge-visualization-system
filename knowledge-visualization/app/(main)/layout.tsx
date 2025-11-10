@@ -3,6 +3,7 @@ import { AppSidebar } from "@/app/_components/app-sidebar";
 import { AppHeader } from "@/app/_components/app-header";
 import PageTitle from "../_components/page-title";
 import { cookies } from "next/headers";
+import { MainWrapper } from "./_components/main-wrapper";
 
 export default async function Layout({
   children,
@@ -17,12 +18,10 @@ export default async function Layout({
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex flex-col gap-4 py-4 px-8">
-          <div className="flex flex-col gap-4 w-full">
-            <PageTitle />
-            {children}
-          </div>
-        </main>
+        <MainWrapper>
+          <PageTitle />
+          {children}
+        </MainWrapper>
       </SidebarInset>
     </SidebarProvider>
   );

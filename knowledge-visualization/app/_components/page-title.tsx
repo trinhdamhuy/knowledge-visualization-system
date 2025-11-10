@@ -7,7 +7,7 @@ export default function PageTitle() {
   const title = pathname.split("/").pop();
 
   return (
-    <h1 className="text-4xl font-bold">
+    <h1 className="text-4xl font-bold px-8">
       {title ? title.charAt(0).toUpperCase() + title.slice(1) : ""}
     </h1>
   );

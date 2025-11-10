@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { ClientSideSuspense } from "@liveblocks/react/suspense";
-import { DiagramCanvas } from "./_components/DiagramCanvas";
+import { DiagramCanvas } from "../../_components/DiagramCanvas";
 import { Room } from "@/app/_components/room";
 import { Spinner } from "@/components/ui/spinner";
 

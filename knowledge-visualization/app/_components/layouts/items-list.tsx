@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Grid3X3, List, Plus } from "lucide-react";
+import { Copy, Grid3X3, List, Plus } from "lucide-react";
 import { useState } from "react";
 import { MasonryLayout } from "./masonry-layout";
 import { DiagramCard } from "../cards/diagram-card";
@@ -10,13 +10,18 @@ import { Separator } from "@/components/ui/separator";
 import { SortDropdown } from "../buttons/sort-dropdown";
 import CreateButton from "../buttons/create-button";
 import { Sparkles } from "@/components/animate-ui/icons/sparkles";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-4">
+      <div className="flex gap-4 px-8">
         <CreateButton label="Create Diagram" icon={<Plus />} />
         <CreateButton
           label="Create Diagram with AI"
@@ -24,43 +29,61 @@ export function ItemsList({ diagrams }: { diagrams: FullDiagram[] }) {
         />
       </div>
 
-      <Separator />
+      <Separator className="w-[95%] mx-auto" />
 
-      <div className="flex flex-col w-full px-4">
-        <div className="flex items-center justify-between mb-4">
-          <SortDropdown />
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setViewMode("grid")}
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="icon"
-            >
-              <Grid3X3 />
-            </Button>
-            <Button
-              onClick={() => setViewMode("list")}
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="icon"
-            >
-              <List />
-            </Button>
-          </div>
-        </div>
+      <ContextMenu>
+        <ContextMenuTrigger>
+          <div className="flex flex-col w-full px-8">
+            <div className="flex items-center justify-between mb-4">
+              <SortDropdown />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setViewMode("grid")}
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="icon"
+                >
+                  <Grid3X3 />
+                </Button>
+                <Button
+                  onClick={() => setViewMode("list")}
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="icon"
+                >
+                  <List />
+                </Button>
+              </div>
+            </div>
 
-        {viewMode === "list" ? (
-          <div className="flex flex-col w-full items-center justify-center space-y-2">
-            {diagrams.map((diagram) => (
-              <DiagramCard key={diagram.id} variant="list" diagram={diagram} />
-            ))}
+            {viewMode === "list" ? (
+              <div className="flex flex-col w-full items-center justify-center space-y-2">
+                {diagrams.map((diagram) => (
+                  <DiagramCard
+                    key={diagram.id}
+                    variant="list"
+                    diagram={diagram}
+                  />
+                ))}
+              </div>
+            ) : (
+              <MasonryLayout>
+                {diagrams.map((diagram) => (
+                  <DiagramCard
+                    key={diagram.id}
+                    variant="grid"
+                    diagram={diagram}
+                  />
+                ))}
+              </MasonryLayout>
+            )}
           </div>
-        ) : (
-          <MasonryLayout>
-            {diagrams.map((diagram) => (
-              <DiagramCard key={diagram.id} variant="grid" diagram={diagram} />
-            ))}
-          </MasonryLayout>
-        )}
-      </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem>
+            <Copy />
+            Copy
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }

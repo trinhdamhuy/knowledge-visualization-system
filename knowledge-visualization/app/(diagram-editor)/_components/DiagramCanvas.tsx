@@ -118,12 +118,10 @@ export function DiagramCanvas() {
       onPointerLeave={onPointerLeave}
     >
       <DiagramHeader />
-      <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
-        <DiagramToolBar />
-      </div>
+      <DiagramToolBar />
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
       <CollaboratorCursors />
-      <MiniMap />
+      <MiniMap position="bottom-left" />
       <ChatBotPanel />
     </ReactFlow>
   );

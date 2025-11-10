@@ -85,7 +85,7 @@ export function DiagramToolBar() {
     <Toolbar
       orientation="vertical"
       aria-label="Toolbars"
-      className="flex flex-col gap-1 bg-card"
+      className="fixed left-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1 bg-card"
     >
       <ToolbarGroup
         aria-label="Text Formatting Options"

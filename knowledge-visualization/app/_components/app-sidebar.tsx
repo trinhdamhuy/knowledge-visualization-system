@@ -80,7 +80,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
         <Logo className="group-data-[collapsible=icon]:hidden" text="Knovion" />
         <Logo
