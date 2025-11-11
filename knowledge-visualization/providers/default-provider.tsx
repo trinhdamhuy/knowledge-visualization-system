@@ -10,11 +10,17 @@ import { useLanguage } from "../hooks/use-language";
 import { useLocale } from "next-intl";
 import { TeamProvider } from "../contexts/team-context";
 import { useTeamStore } from "../stores/team-store";
+import { teamKeys } from "@/hooks/use-team";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
+      },
     },
   },
 });

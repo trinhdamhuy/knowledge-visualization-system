@@ -7,7 +7,7 @@ import { getCurrentUser } from "../user";
 async function getTeams(): Promise<Team[] | null> {
   const user = await getCurrentUser();
 
-  if (!user) {
+  if (!user || !user.id) {
     return null;
   }
 
@@ -16,7 +16,7 @@ async function getTeams(): Promise<Team[] | null> {
       where: {
         members: {
           some: {
-            userId: user.id!,
+            userId: user.id,
           },
         },
       },

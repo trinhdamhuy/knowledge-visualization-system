@@ -25,6 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { useTeamContext } from "@/contexts/team-context";
 import { useTeam } from "@/hooks/use-team";
@@ -44,10 +45,51 @@ export function TeamSwitcher() {
   const { activeTeam, setActiveTeam, isLoading } = useTeamContext();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
-  // Only hide when loading initially (no teams yet) or no teams exist
-  // Don't hide when refetching after creating new team (had teams before)
-  if ((isLoading && !teams.length) || (!isLoading && !teams.length)) {
-    return null;
+  // Show skeleton when loading initially (no teams yet)
+  if (isLoading && !teams.length) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" className="w-full" disabled>
+            <Skeleton className="aspect-square size-8 rounded-lg" />
+            <div className="grid flex-1 text-left text-sm leading-tight gap-1">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="size-4 rounded" />
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  // Show create team button when no teams exist
+  if (!isLoading && !teams.length) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="lg"
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="w-full"
+          >
+            <div className="bg-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+              <Plus />
+            </div>
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">Create Team</span>
+              <span className="truncate text-xs text-muted-foreground">
+                Create your first team
+              </span>
+            </div>
+          </SidebarMenuButton>
+          <CreateTeamDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          />
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
   }
 
   // If no activeTeam but teams exist, display first team

@@ -10,7 +10,7 @@ async function createTeam(
 ): Promise<Team | null> {
   const user = await getCurrentUser();
 
-  if (!user) {
+  if (!user || !user.id) {
     return null;
   }
 
@@ -19,13 +19,12 @@ async function createTeam(
       data: {
         name: name,
         imageUrl: imageUrl ? imageUrl : user.image || null,
-        ownerId: user.id!,
         members: {
           create: {
-            userId: user.id!,
+            userId: user.id,
             permission: Permission.OWNER,
           },
-        },
+        },  
       },
     });
 
@@ -72,7 +71,6 @@ async function createDefaultTeam(
       data: {
         name: defaultTeamName,
         imageUrl: userImage || null,
-        ownerId: userId,
         members: {
           create: {
             userId: userId,

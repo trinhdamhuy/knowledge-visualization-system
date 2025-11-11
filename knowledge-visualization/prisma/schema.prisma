@@ -82,7 +82,6 @@ model User {
     accounts Account[]
     sessions Session[]
 
-    ownedTeams     Team[]         @relation("TeamOwner")
     teamMembers    TeamMember[]
     createdFolders Folder[]       @relation("FolderOwner")
     diagrams       Diagram[]      @relation("DiagramOwner")
@@ -125,12 +124,10 @@ model Team {
     id        String   @id @default(cuid())
     name      String
     imageUrl  String?
-    ownerId   String
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     plan      Plan     @default(Free)
 
-    owner    User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
     members  TeamMember[]
     folders  Folder[]
     diagrams Diagram[]
