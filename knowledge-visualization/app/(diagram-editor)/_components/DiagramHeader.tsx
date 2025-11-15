@@ -2,12 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import ZoomSelect from "@/components/zoom-select";
@@ -17,27 +12,74 @@ import {
   AvatarGroupTooltip,
 } from "@/components/animate-ui/components/animate/avatar-group";
 import { useOthers, useSelf } from "@liveblocks/react/suspense";
+import { useParams } from "next/navigation";
+import { useDiagramById, useDiagram } from "@/hooks/use-diagram";
+import { EditableTitle } from "@/app/_components/editable-title";
+import { toast } from "sonner";
+import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
 
 const MAX_SHOWN_USERS = 3;
 
 export function DiagramHeader() {
+  const params = useParams();
+  const diagramId = params?.diagramId as string | undefined;
+  const { data: diagram, isLoading } = useDiagramById(diagramId);
+  const { updateDiagram, isUpdatingDiagram } = useDiagram();
+  const { data: canEdit = false, isLoading: isLoadingPermission } =
+    useCanEditDiagram(diagramId);
+
   const users = useOthers();
   const currentUser = useSelf();
   const allUsers = [...users, currentUser];
   const hasMoreUsers = allUsers.length > MAX_SHOWN_USERS;
+
+  const handleSaveTitle = async (newTitle: string) => {
+    if (!diagramId || !newTitle.trim()) {
+      toast.error("Title cannot be empty");
+      return;
+    }
+
+    try {
+      const success = await updateDiagram({
+        diagramId,
+        data: { title: newTitle },
+      });
+
+      if (success) {
+        toast.success("Diagram title updated");
+      } else {
+        toast.error("Failed to update diagram title");
+      }
+    } catch (error) {
+      console.error("Error updating diagram title:", error);
+      toast.error("An error occurred while updating the title");
+      throw error;
+    }
+  };
 
   return (
     <div className="absolute top-3 px-3 w-full flex items-center justify-between z-50">
       {/* Left: Back button and title */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
-          <Link href="/dashboard">
+          <Link href="/home">
             <Button variant="secondary" size="icon">
               <ArrowLeft className="size-4" />
             </Button>
           </Link>
           <Separator orientation="vertical" className="min-h-6" />
-          <CardTitle>Diagram Editor</CardTitle>
+          {isLoading || isLoadingPermission ? (
+            <span className="text-sm font-medium text-muted-foreground">
+              Loading...
+            </span>
+          ) : (
+            <EditableTitle
+              value={diagram?.title || "Untitled Diagram"}
+              onSave={handleSaveTitle}
+              disabled={isUpdatingDiagram || !diagram || !canEdit}
+              className="text-sm font-medium"
+            />
+          )}
         </CardContent>
       </Card>
 

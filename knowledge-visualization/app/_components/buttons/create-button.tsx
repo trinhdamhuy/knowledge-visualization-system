@@ -9,6 +9,7 @@ interface CreateButtonProps {
   icon: React.ReactNode;
   variant?: RippleButtonProps["variant"];
   size?: RippleButtonProps["size"];
+  onClick?: () => void;
 }
 
 export default function CreateButton({
@@ -16,9 +17,10 @@ export default function CreateButton({
   variant = "secondary",
   size = "default",
   icon,
+  onClick,
 }: CreateButtonProps) {
   return (
-    <RippleButton variant={variant} size={size}>
+    <RippleButton variant={variant} size={size} onClick={onClick}>
       {label}
       {icon}
       <RippleButtonRipples />

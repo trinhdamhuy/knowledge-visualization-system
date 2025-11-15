@@ -1,11 +1,11 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Knovion",
-  description: "Dashboard page of Knovion",
+  title: "Home | Knovion",
+  description: "Home page of Knovion",
 };
 
-export default async function DashboardLayout({
+export default async function HomeLayout({
   children,
 }: {
   children: React.ReactNode;

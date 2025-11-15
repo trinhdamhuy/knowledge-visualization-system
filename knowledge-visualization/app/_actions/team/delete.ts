@@ -1,23 +1,29 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "../user";
+import { getTeamRole } from "./permission";
+import { Permission } from "@prisma/client";
 
+/**
+ * Delete a team
+ * Only OWNER has permission to delete a team
+ * @param teamId - Team ID to delete
+ * @returns true if successful, false otherwise
+ */
 async function deleteTeam(teamId: string): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) {
+  // Only OWNER has permission to delete a team
+  const role = await getTeamRole(teamId);
+  if (role !== Permission.OWNER) {
     return false;
   }
 
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (!team) {
-    return false;
-  }
-
-  if (team.ownerId !== user.id) {
-    return false;
-  }
   try {
+    // Check if team exists
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) {
+      return false;
+    }
+
     await prisma.team.delete({ where: { id: teamId } });
     return true;
   } catch (error) {

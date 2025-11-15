@@ -163,6 +163,8 @@ model Folder {
     children Folder[]  @relation("FolderHierarchy")
     diagrams Diagram[]
     shares   Share[]
+
+    @@unique([name, parentId, teamId])
 }
 
 model Diagram {
@@ -182,6 +184,8 @@ model Diagram {
     recents  Recent[]
     trash    Trash?
     starreds Starred[]
+
+    @@unique([title, folderId, teamId])
 }
 
 model Trash {

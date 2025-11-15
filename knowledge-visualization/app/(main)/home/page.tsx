@@ -2,6 +2,6 @@
 
 import { ItemsList } from "@/app/_components/layouts/items-list";
 
-export default function DashboardPage() {
+export default function HomePage() {
   return <ItemsList />;
 }

@@ -15,6 +15,22 @@ async function createTeam(
   }
 
   try {
+    // Check for duplicate team name in user's teams
+    const existingTeam = await prisma.team.findFirst({
+      where: {
+        name: name,
+        members: {
+          some: {
+            userId: user.id,
+          },
+        },
+      },
+    });
+
+    if (existingTeam) {
+      throw new Error("You already have a team with this name");
+    }
+
     const team = await prisma.team.create({
       data: {
         name: name,
@@ -24,7 +40,7 @@ async function createTeam(
             userId: user.id,
             permission: Permission.OWNER,
           },
-        },  
+        },
       },
     });
 

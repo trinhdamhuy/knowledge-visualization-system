@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { useTeamContext } from "@/contexts/team-context";
 import { useTeam } from "@/hooks/use-team";
-import { CreateTeamDialog } from "./create-team-dialog";
+import { CreateTeamDialog } from "./dialogs/create-team-dialog";
 
 const defaultLogos = [
   AudioWaveform,

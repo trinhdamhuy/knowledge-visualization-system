@@ -9,7 +9,11 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Star } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
+import { starDiagram, unstarDiagram } from "@/app/_actions";
+import { useQueryClient } from "@tanstack/react-query";
+import { starredKeys } from "@/hooks/use-starred";
+import { itemsKeys } from "@/hooks/use-items";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
@@ -25,8 +29,21 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
   ) {
     const { data: session } = useSession();
     const router = useRouter();
-    const isStarred = session?.user?.id === diagram.ownerId;
     const locale = useLocale();
+    const queryClient = useQueryClient();
+    const [isStarring, setIsStarring] = useState(false);
+
+    // Check if diagram is starred by current user
+    const isStarred =
+      session?.user?.id &&
+      diagram.starreds?.some((s) => s.userId === session.user.id);
+
+    const owner = diagram.owner || {
+      id: diagram.ownerId || "",
+      name: "Unknown",
+      email: "",
+      image: "",
+    };
 
     const handleCardDoubleClick = () => {
       router.push(`/diagrams/${diagram.id}`);
@@ -38,6 +55,31 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
       if ((e.target as HTMLElement).closest("a")) return;
 
       onCardClick?.(diagram.id, e);
+    };
+
+    const handleStarClick = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!session?.user?.id || isStarring) return;
+
+      setIsStarring(true);
+      try {
+        if (isStarred) {
+          await unstarDiagram(diagram.id);
+        } else {
+          await starDiagram(diagram.id);
+        }
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: starredKeys.list() });
+        queryClient.invalidateQueries({ queryKey: starredKeys.all });
+        queryClient.invalidateQueries({
+          queryKey: starredKeys.detail(diagram.id),
+        });
+        queryClient.invalidateQueries({ queryKey: itemsKeys.all });
+      } catch (error) {
+        console.error("Failed to toggle star:", error);
+      } finally {
+        setIsStarring(false);
+      }
     };
 
     return (
@@ -71,17 +113,23 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
               {/* Date overlay - only visible on hover */}
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2">
-                  <button>
+                  <button
+                    onClick={handleStarClick}
+                    disabled={isStarring}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
                     <Star
-                      className={`opacity-0 ${
-                        isStarred ? "opacity-100 fill-yellow-500" : "opacity-0"
-                      } group-hover:opacity-100 hover:fill-yellow-300 transition-all duration-500 size-6`}
+                      className={`size-6 transition-all ${
+                        isStarred
+                          ? "fill-yellow-500 text-yellow-500"
+                          : "hover:fill-yellow-300 hover:text-yellow-300"
+                      }`}
                     />
                   </button>
                   <Avatar className="rounded-full">
-                    <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
+                    <AvatarImage src={owner.image ?? ""} alt="Avatar" />
                     <AvatarFallback>
-                      {diagram.owner.name?.charAt(0) ?? "U"}
+                      {owner.name?.charAt(0) ?? "U"}
                     </AvatarFallback>
                   </Avatar>
                 </div>
@@ -106,13 +154,17 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
                 <CardTitle className="text-sm sm:text-base font-medium truncate">
                   {diagram.title}
                 </CardTitle>
-                <button>
+                <button
+                  onClick={handleStarClick}
+                  disabled={isStarring}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
                   <Star
-                    className={`opacity-0 ${
+                    className={`size-6 transition-all ${
                       isStarred
-                        ? "opacity-100 fill-yellow-500 text-yellow-500"
-                        : "opacity-0"
-                    } group-hover:opacity-100 hover:fill-yellow-300 hover:text-yellow-300 transition-opacity duration-500 size-6`}
+                        ? "fill-yellow-500 text-yellow-500"
+                        : "hover:fill-yellow-300 hover:text-yellow-300"
+                    }`}
                   />
                 </button>
               </CardHeader>
@@ -126,9 +178,9 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
                   />
 
                   <Avatar className="rounded-full absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 top-2 right-2">
-                    <AvatarImage src={diagram.owner.image ?? ""} alt="Avatar" />
+                    <AvatarImage src={owner.image ?? ""} alt="Avatar" />
                     <AvatarFallback>
-                      {diagram.owner.name?.charAt(0) ?? "U"}
+                      {owner.name?.charAt(0) ?? "U"}
                     </AvatarFallback>
                   </Avatar>
 

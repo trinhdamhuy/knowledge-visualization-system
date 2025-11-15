@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function Logo({ text, className }: { text: string; className: string }) {
   return (
     <Link
-      href="/dashboard"
+      href="/home"
       className={cn(
         "text-2xl font-bold inline-block text-center cursor-pointer",
         className

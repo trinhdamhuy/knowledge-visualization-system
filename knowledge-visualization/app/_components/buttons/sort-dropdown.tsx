@@ -10,14 +10,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
+import type { DiagramSortBy, SortDirection } from "@/types";
 
-export function SortDropdown() {
-  const sortByOptions = [
+interface SortDropdownProps {
+  sortBy: DiagramSortBy;
+  sortDirection: SortDirection;
+  onSortByChange: (sortBy: DiagramSortBy) => void;
+  onSortDirectionChange: (sortDirection: SortDirection) => void;
+}
+
+export function SortDropdown({
+  sortBy,
+  sortDirection,
+  onSortByChange,
+  onSortDirectionChange,
+}: SortDropdownProps) {
+  const sortByOptions: { label: string; value: DiagramSortBy }[] = [
     {
       label: "Name",
-      value: "name",
+      value: "title",
     },
     {
       label: "Date created",
@@ -28,10 +41,11 @@ export function SortDropdown() {
       value: "updatedAt",
     },
   ];
-  const [sortBy, setSortBy] =
-    useState<(typeof sortByOptions)[number]["value"]>("name");
 
-  const sortDirectionOptions = [
+  const sortDirectionOptions: {
+    label: string;
+    value: SortDirection;
+  }[] = [
     {
       label: "Ascending",
       value: "asc",
@@ -41,8 +55,6 @@ export function SortDropdown() {
       value: "desc",
     },
   ];
-  const [sortDirection, setSortDirection] =
-    useState<(typeof sortDirectionOptions)[number]["value"]>("asc");
 
   const foldersStateOptions = [
     {
@@ -71,7 +83,7 @@ export function SortDropdown() {
             <DropdownMenuCheckboxItem
               key={option.value}
               checked={sortBy === option.value}
-              onCheckedChange={() => setSortBy(option.value)}
+              onCheckedChange={() => onSortByChange(option.value)}
             >
               <span>{option.label}</span>
             </DropdownMenuCheckboxItem>
@@ -86,7 +98,7 @@ export function SortDropdown() {
             <DropdownMenuCheckboxItem
               key={option.value}
               checked={sortDirection === option.value}
-              onCheckedChange={() => setSortDirection(option.value)}
+              onCheckedChange={() => onSortDirectionChange(option.value)}
             >
               <span>{option.label}</span>
             </DropdownMenuCheckboxItem>

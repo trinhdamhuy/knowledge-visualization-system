@@ -10,14 +10,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import {
-  Clock,
-  FileText,
-  LayoutDashboard,
-  Share,
-  Star,
-  Trash,
-} from "lucide-react";
+import { FileText, Home, Share, Star, Trash } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Logo } from "./logo";
 import { TeamSwitcher } from "./team-switcher";
@@ -27,9 +20,9 @@ export function AppSidebar() {
 
   const sidebarItems = [
     {
-      label: "Dashboard",
-      href: "/dashboard",
-      icon: LayoutDashboard,
+      label: "Home",
+      href: "/home",
+      icon: Home,
     },
     {
       label: "My Diagrams",
@@ -40,11 +33,6 @@ export function AppSidebar() {
       label: "Shared with me",
       href: "/shared-with-me",
       icon: Share,
-    },
-    {
-      label: "Recent",
-      href: "/recent",
-      icon: Clock,
     },
     {
       label: "Starred",
