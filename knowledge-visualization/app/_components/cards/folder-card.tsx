@@ -13,11 +13,12 @@ interface FolderCardProps {
   folder: FullFolder;
   isSelected?: boolean;
   onCardClick?: (folderId: string, e: React.MouseEvent) => void;
+  onCardRightClick?: (folderId: string, e: React.MouseEvent) => void;
 }
 
 export const FolderCard = forwardRef<HTMLDivElement, FolderCardProps>(
   function FolderCard(
-    { variant, folder, isSelected = false, onCardClick },
+    { variant, folder, isSelected = false, onCardClick, onCardRightClick },
     ref
   ) {
     const locale = useLocale();
@@ -35,12 +36,21 @@ export const FolderCard = forwardRef<HTMLDivElement, FolderCardProps>(
       onCardClick?.(folder.id, e);
     };
 
+    const handleCardRightClick = (e: React.MouseEvent) => {
+      // Don't trigger if clicking on buttons or links
+      if ((e.target as HTMLElement).closest("button")) return;
+      if ((e.target as HTMLElement).closest("a")) return;
+
+      onCardRightClick?.(folder.id, e);
+    };
+
     return (
       <>
         {variant === "list" ? (
           <div ref={ref} className="w-full">
             <Card
               onClick={handleCardClick}
+              onContextMenu={handleCardRightClick}
               onDoubleClick={handleCardDoubleClick}
               onDragStart={(e) => e.preventDefault()}
               draggable={false}
@@ -75,6 +85,7 @@ export const FolderCard = forwardRef<HTMLDivElement, FolderCardProps>(
           <div ref={ref} className="w-full h-full">
             <Card
               onClick={handleCardClick}
+              onContextMenu={handleCardRightClick}
               onDoubleClick={handleCardDoubleClick}
               onDragStart={(e) => e.preventDefault()}
               draggable={false}

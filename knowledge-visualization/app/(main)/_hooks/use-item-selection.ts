@@ -68,6 +68,18 @@ export function useItemSelection() {
     []
   );
 
+  const handleCardRightClick = useCallback(
+    (itemId: string, e: React.MouseEvent) => {
+      // Don't trigger if clicking on buttons or links
+      if ((e.target as HTMLElement).closest("button")) return;
+      if ((e.target as HTMLElement).closest("a")) return;
+
+      // Clear selection first, then select only this item
+      setSelectedItems(new Set([itemId]));
+    },
+    []
+  );
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left mouse button
     if ((e.target as HTMLElement).closest("button")) return; // Don't start selection on buttons
@@ -160,6 +172,10 @@ export function useItemSelection() {
     hasMovedRef.current = false;
   }, [selectedItems]);
 
+  const selectAll = useCallback(() => {
+    setSelectedItems(new Set(cardRefs.current.keys()));
+  }, [cardRefs]);
+
   useEffect(() => {
     if (isSelecting) {
       document.addEventListener("mousemove", handleMouseMove);
@@ -187,8 +203,11 @@ export function useItemSelection() {
     isSelecting,
     selectionBox,
     selectionRef,
+    setSelectedItems,
     handleCardClick,
+    handleCardRightClick,
     handleMouseDown,
     setCardRef,
+    selectAll,
   };
 }

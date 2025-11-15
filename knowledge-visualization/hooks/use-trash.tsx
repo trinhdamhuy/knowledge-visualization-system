@@ -1,6 +1,10 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   getTrashItems,
   restoreDiagram,
@@ -22,13 +26,18 @@ const ITEMS_PER_PAGE = 20;
 /**
  * Hook to fetch trash items with infinite query
  */
-export const useTrashItems = () => {
+export const useTrashItems = (params?: {
+  sortBy?: "deletedAt" | "createdAt" | "updatedAt" | "title";
+  sortDirection?: "asc" | "desc";
+}) => {
   const query = useInfiniteQuery<GetTrashItemsResult>({
-    queryKey: trashKeys.list(),
+    queryKey: [...trashKeys.list(), params?.sortBy, params?.sortDirection],
     queryFn: async ({ pageParam = 1 }) => {
       const result = await getTrashItems({
         page: pageParam,
         limit: ITEMS_PER_PAGE,
+        sortBy: params?.sortBy,
+        sortDirection: params?.sortDirection,
       });
       return result ?? { items: [], hasMore: false, total: 0 };
     },
@@ -106,4 +115,3 @@ export const usePermanentDeleteTrash = () => {
     isDeleting: deleteMutation.isPending,
   };
 };
-

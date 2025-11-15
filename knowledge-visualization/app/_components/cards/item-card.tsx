@@ -10,10 +10,14 @@ interface ItemCardProps {
   item: Item;
   isSelected?: boolean;
   onCardClick?: (id: string, e: React.MouseEvent) => void;
+  onCardRightClick?: (id: string, e: React.MouseEvent) => void;
 }
 
 export const ItemCard = forwardRef<HTMLDivElement, ItemCardProps>(
-  function ItemCard({ variant, item, isSelected, onCardClick }, ref) {
+  function ItemCard(
+    { variant, item, isSelected, onCardClick, onCardRightClick },
+    ref
+  ) {
     if (item.type === "folder") {
       return (
         <FolderCard
@@ -22,6 +26,7 @@ export const ItemCard = forwardRef<HTMLDivElement, ItemCardProps>(
           folder={item}
           isSelected={isSelected}
           onCardClick={onCardClick}
+          onCardRightClick={onCardRightClick}
         />
       );
     }
@@ -33,6 +38,7 @@ export const ItemCard = forwardRef<HTMLDivElement, ItemCardProps>(
         diagram={item}
         isSelected={isSelected}
         onCardClick={onCardClick}
+        onCardRightClick={onCardRightClick}
       />
     );
   }

@@ -45,6 +45,10 @@ export default async function RootLayout({
               className="min-h-screen flex flex-col items-center justify-center"
               style={{
                 WebkitUserSelect: "none",
+                userSelect: "none",
+                MozUserSelect: "none",
+                msUserSelect: "none",
+                WebkitTouchCallout: "none",
               }}
             >
               {children}

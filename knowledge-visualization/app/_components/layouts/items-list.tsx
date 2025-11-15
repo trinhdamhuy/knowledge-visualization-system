@@ -18,25 +18,76 @@ import {
 import { useItemSelection } from "@/app/(main)/_hooks/use-item-selection";
 import { CreateDiagramDialog } from "../dialogs/create-diagram-dialog";
 import { useItems } from "@/hooks/use-items";
-import type { DiagramSortBy, SortDirection } from "@/types";
+import type { DiagramSortBy, SortDirection, Item } from "@/types";
+import { ReactNode } from "react";
 
 interface ItemsListProps {
   onlyMine?: boolean; // If true, only show items owned by current user (for my-diagrams)
+  items?: Item[]; // Custom items array (for trash page)
+  isLoading?: boolean;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
+  fetchNextPage?: () => void;
+  sortBy?: DiagramSortBy | string;
+  sortDirection?: SortDirection;
+  onSortByChange?: (sortBy: DiagramSortBy | string) => void;
+  onSortDirectionChange?: (sortDirection: SortDirection) => void;
+  sortByOptions?: Array<{ label: string; value: DiagramSortBy | string }>;
+  renderContextMenu?: (item: Item) => ReactNode;
+  showCreateButtons?: boolean; // Show create buttons (default: true)
 }
 
-export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
+export function ItemsList({
+  onlyMine = false,
+  items: customItems,
+  isLoading: customIsLoading,
+  isFetchingNextPage: customIsFetchingNextPage,
+  hasNextPage: customHasNextPage,
+  fetchNextPage: customFetchNextPage,
+  sortBy: customSortBy,
+  sortDirection: customSortDirection,
+  onSortByChange: customOnSortByChange,
+  onSortDirectionChange: customOnSortDirectionChange,
+  sortByOptions: customSortByOptions,
+  renderContextMenu,
+  showCreateButtons = true,
+}: ItemsListProps = {}) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<DiagramSortBy>("updatedAt");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const { items, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useItems({ onlyMine, sortBy, sortDirection });
+  const [internalSortBy, setInternalSortBy] =
+    useState<DiagramSortBy>("updatedAt");
+  const [internalSortDirection, setInternalSortDirection] =
+    useState<SortDirection>("desc");
+
+  // Use custom items if provided, otherwise use hook
+  const itemsQuery = useItems({
+    onlyMine,
+    sortBy: internalSortBy as DiagramSortBy,
+    sortDirection: internalSortDirection,
+  });
+
+  const items = customItems ?? itemsQuery.items;
+  const isLoading = customIsLoading ?? itemsQuery.isLoading;
+  const isFetchingNextPage =
+    customIsFetchingNextPage ?? itemsQuery.isFetchingNextPage;
+  const hasNextPage = customHasNextPage ?? itemsQuery.hasNextPage;
+  const fetchNextPage = customFetchNextPage ?? itemsQuery.fetchNextPage;
+
+  const sortBy = customSortBy ?? internalSortBy;
+  const sortDirection = customSortDirection ?? internalSortDirection;
+  const onSortByChange =
+    customOnSortByChange ??
+    ((value: DiagramSortBy | string) =>
+      setInternalSortBy(value as DiagramSortBy));
+  const onSortDirectionChange =
+    customOnSortDirectionChange ?? setInternalSortDirection;
   const {
     selectedItems,
     isSelecting,
     selectionBox,
     selectionRef,
     handleCardClick,
+    handleCardRightClick,
     handleMouseDown,
     setCardRef,
   } = useItemSelection();
@@ -63,25 +114,50 @@ export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
     };
   }, [hasNextPage, isLoading, isFetchingNextPage, fetchNextPage]);
 
+  const defaultSortByOptions: Array<{
+    label: string;
+    value: DiagramSortBy | string;
+  }> = [
+    {
+      label: "Name",
+      value: "title",
+    },
+    {
+      label: "Date created",
+      value: "createdAt",
+    },
+    {
+      label: "Date updated",
+      value: "updatedAt",
+    },
+  ];
+
+  const sortByOptions = customSortByOptions ?? defaultSortByOptions;
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-4 px-8">
-        <CreateButton
-          label="Create Diagram"
-          icon={<Plus />}
-          onClick={() => setIsCreateDialogOpen(true)}
-        />
-        <CreateButton
-          label="Create Diagram with AI"
-          icon={<Sparkles animate loop loopDelay={1000} initialOnAnimateEnd />}
-        />
-      </div>
-      <CreateDiagramDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-      />
-
-      <Separator className="w-[95%] mx-auto" />
+      {showCreateButtons && (
+        <>
+          <div className="flex gap-4 px-8">
+            <CreateButton
+              label="Create Diagram"
+              icon={<Plus />}
+              onClick={() => setIsCreateDialogOpen(true)}
+            />
+            <CreateButton
+              label="Create Diagram with AI"
+              icon={
+                <Sparkles animate loop loopDelay={1000} initialOnAnimateEnd />
+              }
+            />
+          </div>
+          <CreateDiagramDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+          />
+          <Separator className="w-[95%] mx-auto" />
+        </>
+      )}
 
       <ContextMenu>
         <ContextMenuTrigger>
@@ -89,18 +165,14 @@ export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
             ref={selectionRef}
             className="flex flex-col w-full min-h-[74.5vh] px-8 relative"
             onMouseDown={handleMouseDown}
-            onDragStart={(e) => e.preventDefault()}
-            style={{
-              userSelect: isSelecting ? "none" : undefined,
-              WebkitUserSelect: isSelecting ? "none" : undefined,
-            }}
           >
             <div className="flex items-center justify-between mb-4">
               <SortDropdown
                 sortBy={sortBy}
                 sortDirection={sortDirection}
-                onSortByChange={setSortBy}
-                onSortDirectionChange={setSortDirection}
+                onSortByChange={onSortByChange}
+                onSortDirectionChange={onSortDirectionChange}
+                sortByOptions={sortByOptions}
               />
               <div className="flex gap-2">
                 <Button
@@ -140,6 +212,7 @@ export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
                         item={item}
                         isSelected={selectedItems.has(item.id)}
                         onCardClick={handleCardClick}
+                        onCardRightClick={handleCardRightClick}
                       />
                     ))}
                     {/* Infinite scroll trigger */}
@@ -162,6 +235,7 @@ export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
                         item={item}
                         isSelected={selectedItems.has(item.id)}
                         onCardClick={handleCardClick}
+                        onCardRightClick={handleCardRightClick}
                       />
                     ))}
                     {/* Infinite scroll trigger */}
@@ -196,12 +270,31 @@ export function ItemsList({ onlyMine = false }: ItemsListProps = {}) {
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem>
-            <Copy />
-            Copy
-          </ContextMenuItem>
-        </ContextMenuContent>
+        {renderContextMenu ? (
+          <ContextMenuContent>
+            {selectedItems.size > 0 ? (
+              // Render context menu for the first selected item
+              (() => {
+                const firstSelectedId = Array.from(selectedItems)[0];
+                const item = items.find((i) => i.id === firstSelectedId);
+                return item ? renderContextMenu(item) : null;
+              })()
+            ) : (
+              // Default context menu when no items selected
+              <ContextMenuItem>
+                <Copy />
+                Copy
+              </ContextMenuItem>
+            )}
+          </ContextMenuContent>
+        ) : (
+          <ContextMenuContent>
+            <ContextMenuItem>
+              <Copy />
+              Copy
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )}
       </ContextMenu>
     </div>
   );

@@ -20,11 +20,12 @@ interface DiagramCardProps {
   diagram: FullDiagram;
   isSelected?: boolean;
   onCardClick?: (diagramId: string, e: React.MouseEvent) => void;
+  onCardRightClick?: (diagramId: string, e: React.MouseEvent) => void;
 }
 
 export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
   function DiagramCard(
-    { variant, diagram, isSelected = false, onCardClick },
+    { variant, diagram, isSelected = false, onCardClick, onCardRightClick },
     ref
   ) {
     const { data: session } = useSession();
@@ -55,6 +56,14 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
       if ((e.target as HTMLElement).closest("a")) return;
 
       onCardClick?.(diagram.id, e);
+    };
+
+    const handleCardRightClick = (e: React.MouseEvent) => {
+      // Don't trigger if clicking on buttons or links
+      if ((e.target as HTMLElement).closest("button")) return;
+      if ((e.target as HTMLElement).closest("a")) return;
+
+      onCardRightClick?.(diagram.id, e);
     };
 
     const handleStarClick = async (e: React.MouseEvent) => {
@@ -88,6 +97,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
           <div ref={ref} className="w-full">
             <Card
               onClick={handleCardClick}
+              onContextMenu={handleCardRightClick}
               onDoubleClick={handleCardDoubleClick}
               onDragStart={(e) => e.preventDefault()}
               draggable={false}
@@ -143,6 +153,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
           <div ref={ref} className="w-full h-full">
             <Card
               onClick={handleCardClick}
+              onContextMenu={handleCardRightClick}
               onDoubleClick={handleCardDoubleClick}
               onDragStart={(e) => e.preventDefault()}
               draggable={false}

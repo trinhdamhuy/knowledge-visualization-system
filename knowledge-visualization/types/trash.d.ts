@@ -6,31 +6,31 @@ import type { FolderWithRelations } from "./folder";
  */
 export type TrashItem =
   | ({ type: "diagram" } & DiagramWithRelations & {
-      trash: {
-        id: string;
-        deletedAt: Date;
-        autoDeleteAt: Date;
-        deletedBy: {
+        trash: {
           id: string;
-          name: string | null;
-          email: string | null;
-          image: string | null;
+          deletedAt: Date;
+          autoDeleteAt: Date;
+          deletedBy: {
+            id: string;
+            name: string | null;
+            email: string | null;
+            image: string | null;
+          };
         };
-      };
-    })
+      })
   | ({ type: "folder" } & FolderWithRelations & {
-      trash: {
-        id: string;
-        deletedAt: Date;
-        autoDeleteAt: Date;
-        deletedBy: {
+        trash: {
           id: string;
-          name: string | null;
-          email: string | null;
-          image: string | null;
+          deletedAt: Date;
+          autoDeleteAt: Date;
+          deletedBy: {
+            id: string;
+            name: string | null;
+            email: string | null;
+            image: string | null;
+          };
         };
-      };
-    });
+      });
 
 /**
  * Parameters for getting trash items
@@ -38,6 +38,8 @@ export type TrashItem =
 export interface GetTrashItemsParams {
   page?: number;
   limit?: number;
+  sortBy?: "deletedAt" | "createdAt" | "updatedAt" | "title";
+  sortDirection?: "asc" | "desc";
 }
 
 /**
@@ -48,4 +50,3 @@ export interface GetTrashItemsResult {
   hasMore: boolean;
   total: number;
 }
-

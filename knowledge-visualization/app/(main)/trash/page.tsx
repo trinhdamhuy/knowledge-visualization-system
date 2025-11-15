@@ -1,54 +1,102 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { MasonryLayout } from "@/app/_components/layouts/masonry-layout";
-import { TrashItemCard } from "@/app/_components/cards/trash-item-card";
-import { Button } from "@/components/ui/button";
-import { Grid3X3, List } from "lucide-react";
-import { useTrashItems, useRestoreTrash, usePermanentDeleteTrash } from "@/hooks/use-trash";
+import { useState } from "react";
+import { ItemsList } from "@/app/_components/layouts/items-list";
+import {
+  useTrashItems,
+  useRestoreTrash,
+  usePermanentDeleteTrash,
+} from "@/hooks/use-trash";
 import { toast } from "sonner";
 import type { TrashItem } from "@/types/trash";
+import type { Item } from "@/types";
+import {
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import { RotateCcw, Trash2 } from "lucide-react";
+import { useMemo } from "react";
+
+/**
+ * Convert TrashItem to Item format for display
+ */
+function trashItemToItem(trashItem: TrashItem): Item {
+  if (trashItem.type === "diagram") {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { trash, type, ...diagram } = trashItem;
+    return {
+      type: "diagram",
+      ...diagram,
+      owner: diagram.owner || {
+        id: diagram.ownerId || "",
+        name: "Unknown",
+        email: "",
+        image: "",
+      },
+    } as Item;
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { trash, type, ...folder } = trashItem;
+    return {
+      type: "folder",
+      ...folder,
+      owner: folder.owner || {
+        id: folder.ownerId || "",
+        name: "Unknown",
+        email: "",
+        image: "",
+      },
+    } as Item;
+  }
+}
 
 export default function TrashPage() {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<
+    "deletedAt" | "createdAt" | "updatedAt" | "title"
+  >("deletedAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
   const {
-    items,
+    items: trashItems,
     isLoading,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useTrashItems();
+  } = useTrashItems({ sortBy, sortDirection });
   const { restore, isRestoring } = useRestoreTrash();
   const { permanentDelete, isDeleting } = usePermanentDeleteTrash();
 
-  // Infinite scroll observer
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  // Convert TrashItem[] to Item[]
+  const items = useMemo(() => {
+    return trashItems.map(trashItemToItem);
+  }, [trashItems]);
 
-  useEffect(() => {
-    if (!loadMoreRef.current || !hasNextPage || isLoading) return;
+  // Store original trash items for context menu actions
+  const trashItemsMap = useMemo(() => {
+    const map = new Map<string, TrashItem>();
+    trashItems.forEach((item) => {
+      map.set(item.id, item);
+    });
+    return map;
+  }, [trashItems]);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1 }
-    );
+  /**
+   * Handle restore action for trash items
+   */
+  const handleRestore = async (item: Item) => {
+    const trashItem = trashItemsMap.get(item.id);
+    if (!trashItem) {
+      toast.error("Item not found");
+      return;
+    }
 
-    observer.observe(loadMoreRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasNextPage, isLoading, isFetchingNextPage, fetchNextPage]);
-
-  const handleRestore = async (item: TrashItem) => {
     try {
-      const success = await restore({ item });
+      const success = await restore({ item: trashItem });
       if (success) {
         toast.success(
-          `${item.type === "diagram" ? "Diagram" : "Folder"} restored successfully`
+          `${
+            item.type === "diagram" ? "Diagram" : "Folder"
+          } restored successfully`
         );
       } else {
         toast.error("Failed to restore item");
@@ -59,20 +107,30 @@ export default function TrashPage() {
     }
   };
 
-  const handlePermanentDelete = async (item: TrashItem) => {
+  /**
+   * Handle permanent delete action for trash items
+   */
+  const handlePermanentDelete = async (item: Item) => {
+    const trashItem = trashItemsMap.get(item.id);
+    if (!trashItem) {
+      toast.error("Item not found");
+      return;
+    }
+
+    const itemType = item.type === "diagram" ? "diagram" : "folder";
     if (
       !confirm(
-        `Are you sure you want to permanently delete this ${item.type}? This action cannot be undone.`
+        `Are you sure you want to permanently delete this ${itemType}? This action cannot be undone.`
       )
     ) {
       return;
     }
 
     try {
-      const success = await permanentDelete({ item });
+      const success = await permanentDelete({ item: trashItem });
       if (success) {
         toast.success(
-          `${item.type === "diagram" ? "Diagram" : "Folder"} permanently deleted`
+          `${itemType === "diagram" ? "Diagram" : "Folder"} permanently deleted`
         );
       } else {
         toast.error("Failed to delete item");
@@ -83,88 +141,63 @@ export default function TrashPage() {
     }
   };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-8">
-        <h1 className="text-2xl font-bold">Trash</h1>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setViewMode("grid")}
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            size="icon"
-          >
-            <Grid3X3 />
-          </Button>
-          <Button
-            onClick={() => setViewMode("list")}
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="icon"
-          >
-            <List />
-          </Button>
-        </div>
-      </div>
+  const sortByOptions = useMemo(
+    () => [
+      {
+        label: "Name",
+        value: "title",
+      },
+      {
+        label: "Date deleted",
+        value: "deletedAt",
+      },
+      {
+        label: "Date created",
+        value: "createdAt",
+      },
+      {
+        label: "Date updated",
+        value: "updatedAt",
+      },
+    ],
+    []
+  );
 
-      {isLoading ? (
-        <div className="flex items-center justify-center w-full h-64">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="flex items-center justify-center w-full h-64">
-          <p className="text-muted-foreground">Trash is empty</p>
-        </div>
-      ) : (
+  return (
+    <ItemsList
+      items={items}
+      isLoading={isLoading}
+      isFetchingNextPage={isFetchingNextPage}
+      hasNextPage={hasNextPage}
+      fetchNextPage={fetchNextPage}
+      sortBy={sortBy}
+      sortDirection={sortDirection}
+      onSortByChange={(value) => setSortBy(value as typeof sortBy)}
+      onSortDirectionChange={(value) =>
+        setSortDirection(value as typeof sortDirection)
+      }
+      sortByOptions={sortByOptions}
+      showCreateButtons={false}
+      renderContextMenu={(item) => (
         <>
-          {viewMode === "list" ? (
-            <div className="flex flex-col w-full items-center justify-center space-y-4 px-8">
-              {items.map((item) => (
-                <div key={`${item.type}-${item.id}`} className="w-full max-w-4xl">
-                  <TrashItemCard
-                    variant="list"
-                    item={item}
-                    onRestore={handleRestore}
-                    onPermanentDelete={handlePermanentDelete}
-                    isRestoring={isRestoring}
-                    isDeleting={isDeleting}
-                  />
-                </div>
-              ))}
-              {/* Infinite scroll trigger */}
-              <div ref={loadMoreRef} className="h-4 w-full" />
-              {isFetchingNextPage && (
-                <div className="flex items-center justify-center w-full py-4">
-                  <p className="text-sm text-muted-foreground">
-                    Loading more...
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <MasonryLayout>
-              {items.map((item) => (
-                <TrashItemCard
-                  key={`${item.type}-${item.id}`}
-                  variant="grid"
-                  item={item}
-                  onRestore={handleRestore}
-                  onPermanentDelete={handlePermanentDelete}
-                  isRestoring={isRestoring}
-                  isDeleting={isDeleting}
-                />
-              ))}
-              {/* Infinite scroll trigger */}
-              <div ref={loadMoreRef} className="h-4 w-full" />
-              {isFetchingNextPage && (
-                <div className="flex items-center justify-center w-full py-4 col-span-full">
-                  <p className="text-sm text-muted-foreground">
-                    Loading more...
-                  </p>
-                </div>
-              )}
-            </MasonryLayout>
-          )}
+          <ContextMenuItem
+            onClick={() => handleRestore(item)}
+            disabled={isRestoring || isDeleting}
+          >
+            <RotateCcw className="size-4 mr-2" />
+            Restore
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => handlePermanentDelete(item)}
+            disabled={isRestoring || isDeleting}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="size-4 mr-2" />
+            Delete Forever
+          </ContextMenuItem>
         </>
       )}
-    </div>
+    />
   );
 }
