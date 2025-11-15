@@ -39,7 +39,7 @@ async function deleteFolder(folderId: string): Promise<boolean> {
       return true;
     }
 
-    // Create record in Trash
+    // Create record in Trash (autoDeleteAt will be set by database default)
     await prisma.trash.create({
       data: {
         folderId: folderId,

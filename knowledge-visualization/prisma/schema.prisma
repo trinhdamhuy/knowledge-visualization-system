@@ -189,15 +189,20 @@ model Diagram {
 }
 
 model Trash {
-    id          String   @id @default(cuid())
-    folderId    String?  @unique
-    diagramId   String?  @unique
-    deletedById String   @map("deleted_by_id")
-    deletedAt   DateTime @default(now())
+    id           String   @id @default(cuid())
+    folderId     String?  @unique
+    diagramId    String?  @unique
+    deletedById  String   @map("deleted_by_id")
+    deletedAt    DateTime @default(now())
+    autoDeleteAt DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("auto_delete_at")
 
     diagram   Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
     folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
     deletedBy User     @relation(fields: [deletedById], references: [id])
+
+    @@index([deletedById])
+    @@index([deletedAt])
+    @@index([autoDeleteAt])
 }
 
 model Share {

@@ -39,7 +39,6 @@ async function deleteDiagram(diagramId: string): Promise<boolean> {
       return true;
     }
 
-    // Create record in Trash
     await prisma.trash.create({
       data: {
         diagramId: diagramId,
