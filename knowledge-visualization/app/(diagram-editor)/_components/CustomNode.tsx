@@ -23,6 +23,8 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
 
   return (
     <div
+      data-node-id={id}
+      data-node-label={label}
       style={{
         border: "1.5px solid #1a192b",
         background: nodeData.color || "#ff97a7",
@@ -43,12 +45,18 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         whiteSpace: "pre-line",
         boxSizing: "border-box",
         maxWidth: 240,
-        position: "relative"
+        position: "relative",
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: '#555' }} />
-      <Handle type="source" position={Position.Right} style={{ background: '#555' }} />
-      
+      <Handle
+        type="target"
+        position={Position.Left}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+      />
+
       {isEditing ? (
         <input
           type="text"
@@ -69,10 +77,7 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           }}
         />
       ) : (
-        <span
-          onDoubleClick={handleDoubleClick}
-          style={{ cursor: "pointer", width: "100%" }}
-        >
+        <span onDoubleClick={handleDoubleClick} style={{ width: "100%" }}>
           {nodeData.label}
         </span>
       )}

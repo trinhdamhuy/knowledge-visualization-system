@@ -10,7 +10,11 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
-export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps) {
+export function NodeContextMenu({
+  nodeId,
+  position,
+  onClose,
+}: ContextMenuProps) {
   const { nodes, edges, addNodeWithEdge } = useDiagramStore();
 
   const handleAddChild = useCallback(() => {
@@ -23,7 +27,7 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
 
     // Kiểm tra xem node này có phải là child của node khác không (level 1+)
     const isChildNode = edges.some((e) => e.target === nodeId);
-    
+
     // Kiểm tra xem node này đã có grandchildren chưa (children của children)
     const hasGrandchildren = childrenEdges.some((edge) => {
       const childId = edge.target;
@@ -35,11 +39,11 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
       // Tìm node cuối cùng trong chuỗi extend
       let currentNode = parentNode;
       let extendEdge = edges.find((e) => e.source === currentNode.id);
-      
+
       while (extendEdge) {
         const nextNode = nodes.find((n) => n.id === extendEdge!.target);
         if (!nextNode) break;
-        
+
         // Kiểm tra xem node này còn extend tiếp không
         const nextExtend = edges.find((e) => e.source === nextNode.id);
         if (nextExtend) {
@@ -50,8 +54,10 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
           break;
         }
       }
-      
-      const extendCount = edges.filter((e) => e.source === currentNode.id).length;
+
+      const extendCount = edges.filter(
+        (e) => e.source === currentNode.id
+      ).length;
       const newNodeId = `${currentNode.id}-ext-${Date.now()}`;
       const newNode: Node = {
         id: newNodeId,
@@ -85,7 +91,7 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
         type: "custom",
         position: {
           x: parentNode.position.x + 200,
-          y: parentNode.position.y + (childrenCount * 80) - (childrenCount * 40),
+          y: parentNode.position.y + childrenCount * 80 - childrenCount * 40,
         },
         data: {
           label: `New Topic ${childrenCount + 1}`,
@@ -144,9 +150,7 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
         className="w-full flex items-center justify-between px-3 py-2 border-none bg-transparent hover:bg-accent cursor-pointer text-sm text-left rounded transition-colors"
       >
         <span>Add child</span>
-        <span className="text-muted-foreground text-xs font-medium">
-          TAB
-        </span>
+        <span className="text-muted-foreground text-xs font-medium">TAB</span>
       </button>
     </div>
   );

@@ -5,6 +5,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function DiagramNodeToolBar() {
   const { selectedNodeId, nodes, setNodeColor, setNodeShape } =
@@ -35,26 +42,26 @@ export function DiagramNodeToolBar() {
   ];
 
   return (
-    <div className="fixed right-6 top-[20%] z-[1000] bg-background border rounded-xl shadow-lg min-w-[220px] p-4">
+    <div className="fixed right-6 top-[20%] z-999 bg-background border rounded-xl shadow-lg min-w-[220px] p-4">
       <div className="mb-3">
-        <label className="block text-sm font-medium mb-1.5">
-          Shape
-        </label>
-        <select
+        <label className="block text-sm font-medium mb-1.5">Shape</label>
+        <Select
           value={shape}
-          onChange={(e) =>
-            setNodeShape(node.id, e.target.value as "rectangle" | "circle")
+          onValueChange={(value) =>
+            setNodeShape(node.id, value as "rectangle" | "circle")
           }
-          className="w-full px-3 py-2 text-sm rounded-md border bg-background outline-none focus:ring-2 focus:ring-primary"
         >
-          <option value="rectangle">Rectangle</option>
-          <option value="circle">Circle</option>
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a shape" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="rectangle">Rectangle</SelectItem>
+            <SelectItem value="circle">Circle</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div>
-        <label className="block text-sm font-medium mb-1.5">
-          Color
-        </label>
+        <label className="block text-sm font-medium mb-1.5">Color</label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full justify-start gap-2">

@@ -1,13 +1,5 @@
 "use client";
-import {
-  ArrowsPointingOutIcon,
-  CursorArrowRaysIcon,
-  MagnifyingGlassPlusIcon,
-  MagnifyingGlassMinusIcon,
-  HandRaisedIcon,
-  TagIcon,
-  MagnifyingGlassIcon,
-} from "@heroicons/react/24/outline";
+import { CursorArrowRaysIcon } from "@heroicons/react/24/outline";
 import { Toolbar, ToolbarGroup, ToolbarItem } from "@/components/ui/toolbar";
 import {
   Tooltip,
@@ -15,104 +7,22 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useCallback } from "react";
-import type { RefObject } from "react";
-import type { ReactFlowInstance } from "@xyflow/react";
 import { useDiagramStore } from "../_store/use-diagram-store";
+import { DiagramMode } from "@/enums/modes";
 
-export function DiagramToolBar({
-  reactFlowInstance,
-}: {
-  reactFlowInstance: RefObject<ReactFlowInstance | null>;
-}) {
-  const {
-    setMode,
-    setFullscreen,
-    setMoveActive,
-    setSelectActive,
-    fullscreen,
-    moveActive,
-    selectActive,
-  } = useDiagramStore();
-
-  const handleFullscreen = useCallback(() => {
-    if (fullscreen) {
-      document.exitFullscreen?.();
-    } else {
-      document.documentElement.requestFullscreen?.();
-    }
-    setFullscreen(!fullscreen);
-  }, [fullscreen, setFullscreen]);
-
-  const handleToCenter = useCallback(() => {
-    reactFlowInstance.current?.fitView();
-  }, [reactFlowInstance]);
-
-  const handleZoomIn = useCallback(() => {
-    reactFlowInstance.current?.zoomIn?.();
-  }, [reactFlowInstance]);
-
-  const handleZoomOut = useCallback(() => {
-    reactFlowInstance.current?.zoomOut?.();
-  }, [reactFlowInstance]);
-
-  const handleResetZoom = useCallback(() => {
-    reactFlowInstance.current?.fitView();
-  }, [reactFlowInstance]);
-
-  const handleMove = useCallback(() => {
-    setMode("move");
-    setMoveActive(true);
-    setSelectActive(false);
-  }, [setMode, setMoveActive, setSelectActive]);
+export function DiagramToolBar() {
+  const { setActiveMode, activeMode } = useDiagramStore();
 
   const handleSelect = useCallback(() => {
-    setMode("select");
-    setSelectActive(true);
-    setMoveActive(false);
-  }, [setMode, setSelectActive, setMoveActive]);
+    setActiveMode(DiagramMode.Select);
+  }, [setActiveMode]);
 
   const TOOLBAR_ITEMS = [
-    {
-      label: "Fullscreen",
-      Icon: ArrowsPointingOutIcon,
-      onClick: handleFullscreen,
-      active: fullscreen,
-    },
-    {
-      label: "To center",
-      Icon: TagIcon,
-      onClick: handleToCenter,
-      active: false,
-    },
-    {
-      label: "Zoom in",
-      Icon: MagnifyingGlassPlusIcon,
-      onClick: handleZoomIn,
-      active: false,
-    },
-    {
-      label: "Zoom out",
-      Icon: MagnifyingGlassMinusIcon,
-      onClick: handleZoomOut,
-      active: false,
-    },
-    {
-      label: "Reset zoom",
-      Icon: MagnifyingGlassIcon,
-      onClick: handleResetZoom,
-      active: false,
-    },
-    {
-      label: "Move canvas",
-      Icon: HandRaisedIcon,
-      onClick: handleMove,
-      active: moveActive,
-    },
     {
       label: "Select",
       Icon: CursorArrowRaysIcon,
       onClick: handleSelect,
-      active: selectActive,
+      active: activeMode === DiagramMode.Select,
     },
   ];
 
@@ -130,7 +40,9 @@ export function DiagramToolBar({
                 aria-label={item.label}
                 size="sq-lg"
                 onClick={item.onClick}
-                className={item.active ? "bg-blue-500 text-white" : ""}
+                className={
+                  item.active ? "bg-primary text-primary-foreground" : ""
+                }
               >
                 <item.Icon className="h-6 w-6" />
               </ToolbarItem>

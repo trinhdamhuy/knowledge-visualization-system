@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
@@ -9,52 +9,53 @@ import {
   Background,
   MiniMap,
   Node,
-  Edge,
   ReactFlowInstance,
+  BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useDiagramStore } from "../_store/use-diagram-store";
 import CustomNode from "./CustomNode";
+import { CollaboratorCursors } from "./CollaboratorCursors";
 import { ChatBotPanel } from "./ChatBotPanel";
-
-const initialNodes: Node[] = [
-  {
-    id: "n1",
-    type: "custom",
-    position: { x: 0, y: 0 },
-    data: { label: "New topic", color: "#FF97A7", shape: "rectangle" },
-  },
-];
-const initialEdges: Edge[] = [];
+import { useUpdateMyPresence } from "@liveblocks/react";
+import { useTheme } from "next-themes";
+import { DiagramMode } from "@/enums/modes";
 
 export function DiagramCanvas() {
+  const updateMyPresence = useUpdateMyPresence();
+  const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
   const [contextMenu, setContextMenu] = useState<{
     nodeId: string;
     position: { x: number; y: number };
   } | null>(null);
-  
+
   const {
     nodes,
     edges,
-    mode,
+    activeMode,
     initialize,
     onNodesChange,
     onEdgesChange,
     onConnect,
     setSelectedNodeId,
+    setActiveMode,
   } = useDiagramStore();
 
   useEffect(() => {
-    if (nodes.length === 0 && edges.length === 0) {
-      initialize(initialNodes, initialEdges);
-    }
-  }, [nodes.length, edges.length, initialize]);
-
-  useEffect(() => {
-    console.log("Current nodes:", nodes);
-    console.log("Current edges:", edges);
-  }, [nodes, edges]);
+    setActiveMode(DiagramMode.Select);
+    initialize(
+      [
+        {
+          id: "1",
+          type: "input",
+          position: { x: 0, y: 0 },
+          data: { label: "Node 1" },
+        },
+      ],
+      []
+    );
+  }, [initialize, setActiveMode]);
 
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id);
@@ -68,16 +69,44 @@ export function DiagramCanvas() {
     });
   };
 
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!reactFlowInstance.current) return;
+
+      const position = reactFlowInstance.current.screenToFlowPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+
+      updateMyPresence({
+        cursor: { x: Math.round(position.x), y: Math.round(position.y) },
+      });
+    },
+    [updateMyPresence]
+  );
+
+  const onPointerLeave = useCallback(() => {
+    updateMyPresence({ cursor: null });
+  }, [updateMyPresence]);
   return (
     <ReactFlow
+      colorMode={
+        theme.resolvedTheme === "dark"
+          ? "dark"
+          : theme.theme === "light"
+          ? "light"
+          : "system"
+      }
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
       onConnect={onConnect}
       fitView
-      panOnDrag={mode === "move"}
-      selectionOnDrag={mode === "select"}
+      panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
+      selectionOnDrag={activeMode === DiagramMode.Select}
       nodeTypes={{ custom: CustomNode }}
       onNodeClick={onNodeClick}
       onNodeContextMenu={onNodeContextMenu}
@@ -86,10 +115,14 @@ export function DiagramCanvas() {
       nodesConnectable={true}
       elementsSelectable={true}
       selectNodesOnDrag={false}
+      style={{
+        cursor: "default",
+      }}
     >
       <DiagramHeader />
-      <DiagramToolBar reactFlowInstance={reactFlowInstance} />
-      <Background />
+      <DiagramToolBar />
+      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+      <CollaboratorCursors />
       <MiniMap position="bottom-left" />
       <ChatBotPanel />
       <DiagramNodeToolBar />

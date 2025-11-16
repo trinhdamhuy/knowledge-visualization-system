@@ -7,26 +7,21 @@ import type {
   Connection,
 } from "@xyflow/react";
 import { applyNodeChanges, applyEdgeChanges, addEdge } from "@xyflow/react";
+import { DiagramMode } from "@/enums/modes";
 
 type ShapeType = "rectangle" | "circle";
 
 type DiagramState = {
   nodes: Node[];
   edges: Edge[];
-  mode: "move" | "select";
-  fullscreen: boolean;
-  moveActive: boolean;
-  selectActive: boolean;
+  activeMode: DiagramMode;
   selectedNodeId: string | null;
 };
 
 type DiagramActions = {
   setNodes: (updater: Node[] | ((prev: Node[]) => Node[])) => void;
   setEdges: (updater: Edge[] | ((prev: Edge[]) => Edge[])) => void;
-  setMode: (mode: "move" | "select") => void;
-  setFullscreen: (fullscreen: boolean) => void;
-  setMoveActive: (active: boolean) => void;
-  setSelectActive: (active: boolean) => void;
+  setActiveMode: (mode: DiagramMode) => void;
   setSelectedNodeId: (id: string | null) => void;
   setNodeColor: (id: string, color: string) => void;
   setNodeShape: (id: string, shape: ShapeType) => void;
@@ -41,10 +36,7 @@ export const useDiagramStore = create<DiagramState & DiagramActions>(
   (set, get) => ({
     nodes: [],
     edges: [],
-    mode: "move",
-    fullscreen: false,
-    moveActive: false,
-    selectActive: false,
+    activeMode: DiagramMode.Select,
     selectedNodeId: null,
 
     setNodes: (updater) =>
@@ -55,10 +47,7 @@ export const useDiagramStore = create<DiagramState & DiagramActions>(
       set((s) => ({
         edges: typeof updater === "function" ? updater(s.edges) : updater,
       })),
-    setMode: (mode) => set({ mode }),
-    setFullscreen: (fullscreen) => set({ fullscreen }),
-    setMoveActive: (active) => set({ moveActive: active }),
-    setSelectActive: (active) => set({ selectActive: active }),
+    setActiveMode: (mode: DiagramMode) => set({ activeMode: mode }),
     setSelectedNodeId: (id) => set({ selectedNodeId: id }),
     setNodeColor: (id, color) =>
       set((s) => ({
