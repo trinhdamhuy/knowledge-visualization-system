@@ -13,7 +13,7 @@ import {
   BackgroundVariant,
 } from "@xyflow/react";
 import "../style.css";
-import { useDiagramStore } from "../_store/use-diagram-store";
+import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { ChatBotPanel } from "./ChatBotPanel";

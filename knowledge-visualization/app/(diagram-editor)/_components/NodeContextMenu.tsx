@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { Node } from "@xyflow/react";
-import { useDiagramStore } from "../_store/use-diagram-store";
+import { useDiagramStore } from "../_stores/use-diagram-store";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 

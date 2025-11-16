@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useCallback } from "react";
-import { useDiagramStore } from "../_store/use-diagram-store";
+import { useDiagramStore } from "../_stores/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
 import { Button } from "@/components/ui/button";
 import { MousePointer2 } from "lucide-react";

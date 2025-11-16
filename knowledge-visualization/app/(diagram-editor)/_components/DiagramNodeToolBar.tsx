@@ -1,4 +1,4 @@
-import { useDiagramStore } from "../_store/use-diagram-store";
+import { useDiagramStore } from "../_stores/use-diagram-store";
 import {
   Select,
   SelectContent,
