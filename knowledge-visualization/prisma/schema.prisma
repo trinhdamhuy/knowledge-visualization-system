@@ -184,8 +184,6 @@ model Diagram {
     recents  Recent[]
     trash    Trash?
     starreds Starred[]
-
-    @@unique([name, folderId, teamId])
 }
 
 model Trash {
