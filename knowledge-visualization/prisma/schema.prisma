@@ -169,7 +169,7 @@ model Folder {
 
 model Diagram {
     id        String   @id @default(cuid())
-    title     String
+    name      String
     imageUrl  String?
     folderId  String?
     ownerId   String?
@@ -185,7 +185,7 @@ model Diagram {
     trash    Trash?
     starreds Starred[]
 
-    @@unique([title, folderId, teamId])
+    @@unique([name, folderId, teamId])
 }
 
 model Trash {
@@ -194,7 +194,7 @@ model Trash {
     diagramId    String?  @unique
     deletedById  String   @map("deleted_by_id")
     deletedAt    DateTime @default(now())
-    autoDeleteAt DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("auto_delete_at")
+    autoDeleteAt DateTime @default(dbgenerated("NOW() + INTERVAL '30 days'")) @map("auto_delete_at")
 
     diagram   Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)
     folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)

@@ -5,68 +5,15 @@ import { getCurrentUser } from "../user";
 import { Diagram } from "@prisma/client";
 
 /**
- * Find a unique diagram title by appending a number suffix if needed
- * @param baseTitle - Base title to check
- * @param folderId - Folder ID (optional)
- * @param teamId - Team ID (optional)
- * @param excludeDiagramId - Diagram ID to exclude from check (optional)
- * @returns Unique title with number suffix if needed
- */
-async function findUniqueDiagramTitle(
-  baseTitle: string,
-  folderId: string | null | undefined,
-  teamId: string | null | undefined,
-  excludeDiagramId?: string
-): Promise<string> {
-  // Check if base title is available
-  const existingBase = await prisma.diagram.findFirst({
-    where: {
-      title: baseTitle,
-      folderId: folderId || null,
-      teamId: teamId || null,
-      id: excludeDiagramId ? { not: excludeDiagramId } : undefined,
-      trash: null,
-    },
-  });
-
-  if (!existingBase) {
-    return baseTitle;
-  }
-
-  // Find the next available number
-  let counter = 1;
-  let uniqueTitle = `${baseTitle} (${counter})`;
-
-  while (true) {
-    const existing = await prisma.diagram.findFirst({
-      where: {
-        title: uniqueTitle,
-        folderId: folderId || null,
-        teamId: teamId || null,
-        id: excludeDiagramId ? { not: excludeDiagramId } : undefined,
-        trash: null,
-      },
-    });
-
-    if (!existing) {
-      return uniqueTitle;
-    }
-
-    counter++;
-    uniqueTitle = `${baseTitle} (${counter})`;
-  }
-}
-
-/**
  * Create a new diagram
- * @param title - Diagram title
+ * @param name - Diagram name
  * @param folderId - Folder ID containing the diagram (optional)
  * @param teamId - Team ID (optional)
  * @param imageUrl - Preview image URL (optional)
  * @returns Newly created diagram or null if failed
  */
 async function createDiagram(
-  title: string,
+  name: string,
   folderId?: string | null,
   teamId?: string | null,
   imageUrl?: string | null
@@ -103,13 +50,10 @@ async function createDiagram(
       }
     }
 
-    // Find unique title by appending number suffix if needed
-    const uniqueTitle = await findUniqueDiagramTitle(title, folderId, teamId);
-
     // Create diagram
     const diagram = await prisma.diagram.create({
       data: {
-        title: uniqueTitle,
+        name: name,
         ownerId: user.id,
         folderId: folderId || null,
         teamId: teamId || null,

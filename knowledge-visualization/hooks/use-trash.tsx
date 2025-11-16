@@ -34,7 +34,7 @@ export const useTrashItems = (params?: {
     queryKey: [...trashKeys.list(), params?.sortBy, params?.sortDirection],
     queryFn: async ({ pageParam = 1 }) => {
       const result = await getTrashItems({
-        page: pageParam,
+        page: pageParam as number,
         limit: ITEMS_PER_PAGE,
         sortBy: params?.sortBy,
         sortDirection: params?.sortDirection,

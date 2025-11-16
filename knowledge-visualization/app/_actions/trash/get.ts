@@ -128,7 +128,6 @@ async function getTrashItems(
               id: trash.id,
               deletedAt: trash.deletedAt,
               autoDeleteAt: trash.autoDeleteAt,
-              deletedBy: trash.deletedBy,
             },
           };
         } else if (trash.folder) {
@@ -139,7 +138,6 @@ async function getTrashItems(
               id: trash.id,
               deletedAt: trash.deletedAt,
               autoDeleteAt: trash.autoDeleteAt,
-              deletedBy: trash.deletedBy,
             },
           };
         }
@@ -154,8 +152,8 @@ async function getTrashItems(
         let bValue: string | Date;
 
         if (sortBy === "title") {
-          aValue = a.type === "diagram" ? a.title : a.name;
-          bValue = b.type === "diagram" ? b.title : b.name;
+          aValue = a.type === "diagram" ? a.name : a.name;
+          bValue = b.type === "diagram" ? b.name : b.name;
         } else if (sortBy === "createdAt") {
           aValue = a.createdAt;
           bValue = b.createdAt;

@@ -73,8 +73,8 @@ async function getDiagrams(
 
     // Build orderBy clause
     const orderBy: Prisma.DiagramOrderByWithRelationInput = {};
-    if (sortBy === "title") {
-      orderBy.title = sortDirection;
+    if (sortBy === "name") {
+      orderBy.name = sortDirection;
     } else if (sortBy === "createdAt") {
       orderBy.createdAt = sortDirection;
     } else {

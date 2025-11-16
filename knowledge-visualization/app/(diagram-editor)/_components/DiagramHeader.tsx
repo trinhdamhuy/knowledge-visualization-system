@@ -35,24 +35,24 @@ export function DiagramHeader() {
 
   const handleSaveTitle = async (newTitle: string) => {
     if (!diagramId || !newTitle.trim()) {
-      toast.error("Title cannot be empty");
+      toast.error("Name cannot be empty");
       return;
     }
 
     try {
       const success = await updateDiagram({
         diagramId,
-        data: { title: newTitle },
+        data: { name: newTitle },
       });
 
       if (success) {
-        toast.success("Diagram title updated");
+        toast.success("Diagram name updated");
       } else {
-        toast.error("Failed to update diagram title");
+        toast.error("Failed to update diagram name");
       }
     } catch (error) {
-      console.error("Error updating diagram title:", error);
-      toast.error("An error occurred while updating the title");
+      console.error("Error updating diagram name:", error);
+      toast.error("An error occurred while updating the name");
       throw error;
     }
   };
@@ -74,7 +74,7 @@ export function DiagramHeader() {
             </span>
           ) : (
             <EditableTitle
-              value={diagram?.title || "Untitled Diagram"}
+              value={diagram?.name || "Untitled Diagram"}
               onSave={handleSaveTitle}
               disabled={isUpdatingDiagram || !diagram || !canEdit}
               className="text-sm font-medium"

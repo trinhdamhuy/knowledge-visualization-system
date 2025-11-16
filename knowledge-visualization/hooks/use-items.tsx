@@ -51,7 +51,7 @@ export const useItems = (params: UseItemsParams = {}) => {
         ownerId: onlyMine ? "current" : null, // "current" will be replaced with actual userId in server action
         page: pageParam,
         limit: ITEMS_PER_PAGE,
-        sortBy: sortBy === "title" ? "name" : (sortBy as FolderSortBy),
+        sortBy: sortBy === "name" ? "name" : (sortBy as FolderSortBy),
         sortDirection,
       });
       return result ?? { folders: [], hasMore: false, total: 0 };
@@ -79,7 +79,7 @@ export const useItems = (params: UseItemsParams = {}) => {
         ownerId: onlyMine ? "current" : null, // "current" will be replaced with actual userId in server action
         page: pageParam,
         limit: ITEMS_PER_PAGE,
-        sortBy: sortBy === "name" ? "title" : (sortBy as DiagramSortBy),
+        sortBy: sortBy === "name" ? "name" : (sortBy as DiagramSortBy),
         sortDirection,
       });
       return result ?? { diagrams: [], hasMore: false, total: 0 };

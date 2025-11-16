@@ -10,12 +10,6 @@ export type TrashItem =
           id: string;
           deletedAt: Date;
           autoDeleteAt: Date;
-          deletedBy: {
-            id: string;
-            name: string | null;
-            email: string | null;
-            image: string | null;
-          };
         };
       })
   | ({ type: "folder" } & FolderWithRelations & {
@@ -23,12 +17,6 @@ export type TrashItem =
           id: string;
           deletedAt: Date;
           autoDeleteAt: Date;
-          deletedBy: {
-            id: string;
-            name: string | null;
-            email: string | null;
-            image: string | null;
-          };
         };
       });
 

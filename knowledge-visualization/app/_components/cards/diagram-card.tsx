@@ -39,12 +39,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
       session?.user?.id &&
       diagram.starreds?.some((s) => s.userId === session.user.id);
 
-    const owner = diagram.owner || {
-      id: diagram.ownerId || "",
-      name: "Unknown",
-      email: "",
-      image: "",
-    };
+    const owner = diagram.owner;
 
     const handleCardDoubleClick = () => {
       router.push(`/diagrams/${diagram.id}`);
@@ -109,14 +104,14 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
                 <div className="relative w-16 aspect-square">
                   <Image
                     src={diagram.imageUrl ?? "https://placehold.co/600x600"}
-                    alt={diagram.title}
+                    alt={diagram.name}
                     fill
                     className="object-cover rounded-md select-none pointer-events-none"
                   />
                 </div>
 
                 <CardTitle className="text-sm sm:text-base font-medium truncate">
-                  {diagram.title}
+                  {diagram.name}
                 </CardTitle>
               </div>
 
@@ -137,9 +132,9 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
                     />
                   </button>
                   <Avatar className="rounded-full">
-                    <AvatarImage src={owner.image ?? ""} alt="Avatar" />
+                    <AvatarImage src={owner?.image ?? ""} alt="Avatar" />
                     <AvatarFallback>
-                      {owner.name?.charAt(0) ?? "U"}
+                      {owner?.name?.charAt(0) ?? "U"}
                     </AvatarFallback>
                   </Avatar>
                 </div>
@@ -163,7 +158,7 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
             >
               <CardHeader className="flex items-center justify-between px-0">
                 <CardTitle className="text-sm sm:text-base font-medium truncate">
-                  {diagram.title}
+                  {diagram.name}
                 </CardTitle>
                 <button
                   onClick={handleStarClick}
@@ -183,15 +178,15 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
                 <div className="relative w-full aspect-6/4">
                   <Image
                     src={diagram.imageUrl ?? "https://placehold.co/600x400"}
-                    alt={diagram.title}
+                    alt={diagram.name}
                     fill
                     className="object-cover rounded-md select-none pointer-events-none"
                   />
 
                   <Avatar className="rounded-full absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 top-2 right-2">
-                    <AvatarImage src={owner.image ?? ""} alt="Avatar" />
+                    <AvatarImage src={owner?.image ?? ""} alt="Avatar" />
                     <AvatarFallback>
-                      {owner.name?.charAt(0) ?? "U"}
+                      {owner?.name?.charAt(0) ?? "U"}
                     </AvatarFallback>
                   </Avatar>
 

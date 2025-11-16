@@ -5,19 +5,9 @@ import { Diagram, Share, Team, User } from "@prisma/client";
  */
 export type FullDiagram = Diagram & {
   team: Team | null;
-  owner: {
-    id: string;
-    name: string;
-    email: string;
-    image: string;
-  } | null;
+  owner: Pick<User, "id" | "name" | "email" | "image"> | null;
   shares: (Share & {
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      image: string;
-    } | null;
+    user: Pick<User, "id" | "name" | "email" | "image"> | null;
   })[];
   starreds?: {
     userId: string;
@@ -41,7 +31,7 @@ export type DiagramWithRelations = Diagram & {
 /**
  * Sort options for diagrams
  */
-export type DiagramSortBy = "title" | "createdAt" | "updatedAt";
+export type DiagramSortBy = "name" | "createdAt" | "updatedAt";
 export type SortDirection = "asc" | "desc";
 
 /**

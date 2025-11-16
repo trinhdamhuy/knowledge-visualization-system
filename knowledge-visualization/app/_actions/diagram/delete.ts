@@ -7,7 +7,7 @@ import { Permission } from "@prisma/client";
 
 /**
  * Delete a diagram (move to trash)
- * Only OWNER has permission to delete a diagram
+ * Only OWNER or EDITOR has permission to delete a diagram
  * @param diagramId - Diagram ID to delete
  * @returns true if successful, false otherwise
  */
@@ -17,9 +17,9 @@ async function deleteDiagram(diagramId: string): Promise<boolean> {
     return false;
   }
 
-  // Only OWNER has permission to delete
+  // Only OWNER or EDITOR has permission to delete
   const role = await getDiagramRole(diagramId);
-  if (role !== Permission.OWNER) {
+  if (role !== Permission.OWNER && role !== Permission.EDITOR) {
     return false;
   }
 

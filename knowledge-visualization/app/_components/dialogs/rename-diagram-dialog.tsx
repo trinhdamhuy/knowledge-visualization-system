@@ -22,19 +22,21 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useDiagram } from "@/hooks/use-diagram";
-import { useTeamContext } from "@/contexts/team-context";
 
-interface CreateDiagramDialogProps {
+interface RenameDiagramDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  diagramId: string;
+  currentTitle: string;
 }
 
-export function CreateDiagramDialog({
+export function RenameDiagramDialog({
   open,
   onOpenChange,
-}: CreateDiagramDialogProps) {
-  const { createDiagram, isCreatingDiagram } = useDiagram();
-  const { activeTeam } = useTeamContext();
+  diagramId,
+  currentTitle,
+}: RenameDiagramDialogProps) {
+  const { updateDiagram, isUpdatingDiagram } = useDiagram();
 
   const formSchema = z.object({
     name: z.string().min(1, {
@@ -44,7 +46,7 @@ export function CreateDiagramDialog({
 
   const form = useForm({
     defaultValues: {
-      name: "Untitled Diagram",
+      name: currentTitle,
     },
     validators: {
       onSubmit: formSchema,
@@ -54,29 +56,35 @@ export function CreateDiagramDialog({
     },
   });
 
+  // Reset form when dialog opens or currentTitle changes
+  React.useEffect(() => {
+    if (open) {
+      form.setFieldValue("name", currentTitle);
+    }
+  }, [open, currentTitle, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const name = values.name.trim() || "Untitled Diagram";
-      const diagram = await createDiagram({
-        name: name,
-        teamId: activeTeam?.id || null,
-        folderId: null,
-        imageUrl: null,
+      const name = values.name.trim();
+      if (name === currentTitle) {
+        onOpenChange(false);
+        return;
+      }
+
+      const success = await updateDiagram({
+        diagramId,
+        data: { name },
       });
 
-      if (diagram) {
-        toast.success("Diagram created successfully");
-        form.reset();
+      if (success) {
+        toast.success("Diagram renamed successfully");
         onOpenChange(false);
-
-        // Open diagram in a new tab
-        window.open(`/diagrams/${diagram.id}`, "_blank");
       } else {
-        toast.error("Failed to create diagram");
+        toast.error("Failed to rename diagram. You may not have permission.");
       }
     } catch (error) {
-      console.error("Error creating diagram:", error);
-      toast.error("An error occurred while creating the diagram");
+      console.error("Error renaming diagram:", error);
+      toast.error("An error occurred while renaming the diagram");
     }
   }
 
@@ -84,9 +92,9 @@ export function CreateDiagramDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Diagram</DialogTitle>
+          <DialogTitle>Rename Diagram</DialogTitle>
           <DialogDescription>
-            Create a new diagram. You can change the name later.
+            Enter a new name for this diagram.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -114,7 +122,7 @@ export function CreateDiagramDialog({
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
                       placeholder="Untitled Diagram"
-                      disabled={isCreatingDiagram}
+                      disabled={isUpdatingDiagram}
                       aria-invalid={isInvalid}
                       autoFocus
                     />
@@ -132,12 +140,12 @@ export function CreateDiagramDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isCreatingDiagram}
+              disabled={isUpdatingDiagram}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreatingDiagram}>
-              {isCreatingDiagram ? "Creating..." : "Create Diagram"}
+            <Button type="submit" disabled={isUpdatingDiagram}>
+              {isUpdatingDiagram ? "Renaming..." : "Rename"}
             </Button>
           </DialogFooter>
         </form>

@@ -5,20 +5,15 @@ import { Folder, Share, Team, User } from "@prisma/client";
  */
 export type FullFolder = Folder & {
   team: Team | null;
-  owner: {
-    id: string;
-    name: string;
-    email: string;
-    image: string;
-  };
+  owner: Pick<User, "id" | "name" | "email" | "image">;
   shares: (Share & {
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      image: string;
-    };
+    user: Pick<User, "id" | "name" | "email" | "image">;
   })[];
+  trash?: {
+    id: string;
+    deletedAt: Date;
+    autoDeleteAt: Date;
+  } | null;
 };
 
 /**

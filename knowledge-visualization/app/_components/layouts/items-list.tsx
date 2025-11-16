@@ -120,7 +120,7 @@ export function ItemsList({
   }> = [
     {
       label: "Name",
-      value: "title",
+      value: "name",
     },
     {
       label: "Date created",
@@ -271,22 +271,15 @@ export function ItemsList({
           </div>
         </ContextMenuTrigger>
         {renderContextMenu ? (
-          <ContextMenuContent>
-            {selectedItems.size > 0 ? (
-              // Render context menu for the first selected item
-              (() => {
+          selectedItems.size > 0 && (
+            <ContextMenuContent>
+              {(() => {
                 const firstSelectedId = Array.from(selectedItems)[0];
                 const item = items.find((i) => i.id === firstSelectedId);
                 return item ? renderContextMenu(item) : null;
-              })()
-            ) : (
-              // Default context menu when no items selected
-              <ContextMenuItem>
-                <Copy />
-                Copy
-              </ContextMenuItem>
-            )}
-          </ContextMenuContent>
+              })()}
+            </ContextMenuContent>
+          )
         ) : (
           <ContextMenuContent>
             <ContextMenuItem>

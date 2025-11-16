@@ -1,12 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ItemsList } from "@/app/_components/layouts/items-list";
-import {
-  useTrashItems,
-  useRestoreTrash,
-  usePermanentDeleteTrash,
-} from "@/hooks/use-trash";
+import { useTrashItems, useRestoreTrash } from "@/hooks/use-trash";
 import { toast } from "sonner";
 import type { TrashItem } from "@/types/trash";
 import type { Item } from "@/types";
@@ -15,37 +11,27 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { RotateCcw, Trash2 } from "lucide-react";
-import { useMemo } from "react";
+import { DeleteForeverDialog } from "@/app/_components/dialogs/delete-forever-dialog";
 
 /**
  * Convert TrashItem to Item format for display
  */
 function trashItemToItem(trashItem: TrashItem): Item {
   if (trashItem.type === "diagram") {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { trash, type, ...diagram } = trashItem;
     return {
-      type: "diagram",
+      trash,
+      type,
       ...diagram,
-      owner: diagram.owner || {
-        id: diagram.ownerId || "",
-        name: "Unknown",
-        email: "",
-        image: "",
-      },
+      owner: diagram.owner,
     } as Item;
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { trash, type, ...folder } = trashItem;
     return {
-      type: "folder",
+      trash,
+      type,
       ...folder,
-      owner: folder.owner || {
-        id: folder.ownerId || "",
-        name: "Unknown",
-        email: "",
-        image: "",
-      },
+      owner: folder.owner,
     } as Item;
   }
 }
@@ -64,7 +50,10 @@ export default function TrashPage() {
     fetchNextPage,
   } = useTrashItems({ sortBy, sortDirection });
   const { restore, isRestoring } = useRestoreTrash();
-  const { permanentDelete, isDeleting } = usePermanentDeleteTrash();
+  const [deleteForeverDialog, setDeleteForeverDialog] = useState<{
+    open: boolean;
+    item: Item | null;
+  }>({ open: false, item: null });
 
   // Convert TrashItem[] to Item[]
   const items = useMemo(() => {
@@ -110,35 +99,8 @@ export default function TrashPage() {
   /**
    * Handle permanent delete action for trash items
    */
-  const handlePermanentDelete = async (item: Item) => {
-    const trashItem = trashItemsMap.get(item.id);
-    if (!trashItem) {
-      toast.error("Item not found");
-      return;
-    }
-
-    const itemType = item.type === "diagram" ? "diagram" : "folder";
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete this ${itemType}? This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const success = await permanentDelete({ item: trashItem });
-      if (success) {
-        toast.success(
-          `${itemType === "diagram" ? "Diagram" : "Folder"} permanently deleted`
-        );
-      } else {
-        toast.error("Failed to delete item");
-      }
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      toast.error("An error occurred while deleting the item");
-    }
+  const handleDeleteForever = (item: Item) => {
+    setDeleteForeverDialog({ open: true, item });
   };
 
   const sortByOptions = useMemo(
@@ -164,40 +126,56 @@ export default function TrashPage() {
   );
 
   return (
-    <ItemsList
-      items={items}
-      isLoading={isLoading}
-      isFetchingNextPage={isFetchingNextPage}
-      hasNextPage={hasNextPage}
-      fetchNextPage={fetchNextPage}
-      sortBy={sortBy}
-      sortDirection={sortDirection}
-      onSortByChange={(value) => setSortBy(value as typeof sortBy)}
-      onSortDirectionChange={(value) =>
-        setSortDirection(value as typeof sortDirection)
-      }
-      sortByOptions={sortByOptions}
-      showCreateButtons={false}
-      renderContextMenu={(item) => (
-        <>
-          <ContextMenuItem
-            onClick={() => handleRestore(item)}
-            disabled={isRestoring || isDeleting}
-          >
-            <RotateCcw className="size-4 mr-2" />
-            Restore
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onClick={() => handlePermanentDelete(item)}
-            disabled={isRestoring || isDeleting}
-            className="text-destructive focus:text-destructive"
-          >
-            <Trash2 className="size-4 mr-2" />
-            Delete Forever
-          </ContextMenuItem>
-        </>
+    <>
+      <ItemsList
+        items={items}
+        isLoading={isLoading}
+        isFetchingNextPage={isFetchingNextPage}
+        hasNextPage={hasNextPage}
+        fetchNextPage={fetchNextPage}
+        sortBy={sortBy}
+        sortDirection={sortDirection}
+        onSortByChange={(value) => setSortBy(value as typeof sortBy)}
+        onSortDirectionChange={(value) =>
+          setSortDirection(value as typeof sortDirection)
+        }
+        sortByOptions={sortByOptions}
+        showCreateButtons={false}
+        renderContextMenu={(item) => (
+          <>
+            <ContextMenuItem
+              onSelect={() => handleRestore(item)}
+              disabled={isRestoring}
+            >
+              <RotateCcw />
+              Restore
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() => handleDeleteForever(item)}
+              disabled={isRestoring}
+              variant="destructive"
+            >
+              <Trash2 />
+              Delete Forever
+            </ContextMenuItem>
+          </>
+        )}
+      />
+      {deleteForeverDialog.item && (
+        <DeleteForeverDialog
+          open={deleteForeverDialog.open}
+          onOpenChange={(open) =>
+            setDeleteForeverDialog({
+              open,
+              item: open ? deleteForeverDialog.item : null,
+            })
+          }
+          itemId={deleteForeverDialog.item.id}
+          itemTitle={deleteForeverDialog.item.name}
+          itemType={deleteForeverDialog.item.type}
+        />
       )}
-    />
+    </>
   );
 }

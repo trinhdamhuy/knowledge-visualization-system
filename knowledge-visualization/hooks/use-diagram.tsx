@@ -5,6 +5,7 @@ import {
   createDiagram,
   updateDiagram,
   getDiagramById,
+  copyDiagram,
 } from "@/app/_actions/diagram";
 import { itemsKeys } from "./use-items";
 import { starredKeys } from "./use-starred";
@@ -19,7 +20,7 @@ export const diagramKeys = {
 };
 
 interface CreateDiagramParams {
-  title: string;
+  name: string;
   folderId?: string | null;
   teamId?: string | null;
   imageUrl?: string | null;
@@ -32,7 +33,7 @@ export const useDiagram = () => {
   const createDiagramMutation = useMutation({
     mutationFn: async (params: CreateDiagramParams) => {
       return await createDiagram(
-        params.title,
+        params.name,
         params.folderId,
         params.teamId,
         params.imageUrl
@@ -56,7 +57,7 @@ export const useDiagram = () => {
     }: {
       diagramId: string;
       data: {
-        title?: string;
+        name?: string;
         imageUrl?: string | null;
         folderId?: string | null;
       };
@@ -77,10 +78,25 @@ export const useDiagram = () => {
         queryClient.invalidateQueries({
           queryKey: ["diagram-permission", variables.diagramId],
         });
-        // Invalidate starred list if title changed
-        if (variables.data.title) {
+        // Invalidate starred list if name changed
+        if (variables.data.name) {
           queryClient.invalidateQueries({ queryKey: starredKeys.all });
         }
+      }
+    },
+  });
+
+  // Mutation: Copy diagram
+  const copyDiagramMutation = useMutation({
+    mutationFn: async (diagramId: string) => {
+      return await copyDiagram(diagramId);
+    },
+    onSuccess: (data) => {
+      if (data) {
+        // Invalidate and refetch diagrams list
+        queryClient.invalidateQueries({ queryKey: diagramKeys.lists() });
+        // Invalidate items list (for home, my-diagrams pages)
+        queryClient.invalidateQueries({ queryKey: itemsKeys.all });
       }
     },
   });
@@ -89,14 +105,17 @@ export const useDiagram = () => {
     // Mutations
     createDiagram: createDiagramMutation.mutateAsync,
     updateDiagram: updateDiagramMutation.mutateAsync,
+    copyDiagram: copyDiagramMutation.mutateAsync,
 
     // Mutation states
     isCreatingDiagram: createDiagramMutation.isPending,
     isUpdatingDiagram: updateDiagramMutation.isPending,
+    isCopyingDiagram: copyDiagramMutation.isPending,
 
     // Mutation results
     createDiagramError: createDiagramMutation.error,
     updateDiagramError: updateDiagramMutation.error,
+    copyDiagramError: copyDiagramMutation.error,
   };
 };
 
