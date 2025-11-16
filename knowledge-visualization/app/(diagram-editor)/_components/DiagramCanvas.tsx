@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
+import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
   Background,
@@ -27,6 +28,11 @@ const initialEdges: Edge[] = [];
 
 export function DiagramCanvas() {
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    nodeId: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  
   const {
     nodes,
     edges,
@@ -44,8 +50,21 @@ export function DiagramCanvas() {
     }
   }, [nodes.length, edges.length, initialize]);
 
+  useEffect(() => {
+    console.log("Current nodes:", nodes);
+    console.log("Current edges:", edges);
+  }, [nodes, edges]);
+
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id);
+  };
+
+  const onNodeContextMenu = (event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setContextMenu({
+      nodeId: node.id,
+      position: { x: event.clientX, y: event.clientY },
+    });
   };
 
   return (
@@ -60,6 +79,7 @@ export function DiagramCanvas() {
       selectionOnDrag={mode === "select"}
       nodeTypes={{ custom: CustomNode }}
       onNodeClick={onNodeClick}
+      onNodeContextMenu={onNodeContextMenu}
       onInit={(instance) => (reactFlowInstance.current = instance)}
       nodesDraggable={true}
       nodesConnectable={true}
@@ -71,6 +91,13 @@ export function DiagramCanvas() {
       <Background />
       <MiniMap />
       <DiagramNodeToolBar />
+      {contextMenu && (
+        <NodeContextMenu
+          nodeId={contextMenu.nodeId}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </ReactFlow>
   );
 }

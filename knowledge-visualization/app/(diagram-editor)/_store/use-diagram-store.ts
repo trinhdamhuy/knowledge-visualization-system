@@ -30,6 +30,7 @@ type DiagramActions = {
   setSelectedNodeId: (id: string | null) => void;
   setNodeColor: (id: string, color: string) => void;
   setNodeShape: (id: string, shape: ShapeType) => void;
+  addNodeWithEdge: (node: Node, edge: Edge) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (conn: Connection) => void;
@@ -70,6 +71,11 @@ export const useDiagramStore = create<DiagramState & DiagramActions>(
         nodes: s.nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, shape } } : n
         ),
+      })),
+    addNodeWithEdge: (node, edge) =>
+      set((s) => ({
+        nodes: [...s.nodes, node],
+        edges: [...s.edges, edge],
       })),
     onNodesChange: (changes) => {
       const { nodes } = get();

@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { NodeProps, useReactFlow } from "@xyflow/react";
+import { NodeProps, useReactFlow, Handle, Position } from "@xyflow/react";
 
 const CustomNode = memo(({ data, id }: NodeProps) => {
   const nodeData = data as { label: string; color?: string; shape?: string };
@@ -7,7 +7,10 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
   const [label, setLabel] = useState(nodeData.label);
   const { updateNodeData } = useReactFlow();
 
-  const handleDoubleClick = () => setIsEditing(true);
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+  };
 
   const handleBlur = () => {
     setIsEditing(false);
@@ -39,9 +42,13 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         wordBreak: "break-word",
         whiteSpace: "pre-line",
         boxSizing: "border-box",
-        maxWidth: 240
+        maxWidth: 240,
+        position: "relative"
       }}
     >
+      <Handle type="target" position={Position.Left} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555' }} />
+      
       {isEditing ? (
         <input
           type="text"
