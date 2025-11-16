@@ -12,7 +12,7 @@ import {
   ReactFlowInstance,
   BackgroundVariant,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import "../style.css";
 import { useDiagramStore } from "../_store/use-diagram-store";
 import CustomNode from "./CustomNode";
 import { CollaboratorCursors } from "./CollaboratorCursors";
@@ -44,17 +44,7 @@ export function DiagramCanvas() {
 
   useEffect(() => {
     setActiveMode(DiagramMode.Select);
-    initialize(
-      [
-        {
-          id: "1",
-          type: "input",
-          position: { x: 0, y: 0 },
-          data: { label: "Node 1" },
-        },
-      ],
-      []
-    );
+    initialize([], []);
   }, [initialize, setActiveMode]);
 
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
@@ -115,15 +105,17 @@ export function DiagramCanvas() {
       nodesConnectable={true}
       elementsSelectable={true}
       selectNodesOnDrag={false}
-      style={{
-        cursor: "default",
-      }}
     >
       <DiagramHeader />
+
       <DiagramToolBar />
       <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
       <CollaboratorCursors />
-      <MiniMap position="bottom-left" />
+      <MiniMap
+        position="bottom-left"
+        maskColor="transparent"
+        className="border-2 border-text-foreground rounded-md min-h-fit min-w-fit"
+      />
       <ChatBotPanel />
       <DiagramNodeToolBar />
       {contextMenu && (

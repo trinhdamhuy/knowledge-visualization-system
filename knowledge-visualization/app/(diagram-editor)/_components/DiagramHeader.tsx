@@ -5,7 +5,6 @@ import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import ZoomSelect from "@/components/zoom-select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AvatarGroup,
@@ -17,6 +16,7 @@ import { useDiagramById, useDiagram } from "@/hooks/use-diagram";
 import { EditableTitle } from "@/app/_components/editable-title";
 import { toast } from "sonner";
 import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
+import ZoomSelect from "@/components/zoom-select";
 
 const MAX_SHOWN_USERS = 3;
 
@@ -83,8 +83,6 @@ export function DiagramHeader() {
         </CardContent>
       </Card>
 
-      <ZoomSelect />
-
       {/* Right: Participants */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
@@ -119,7 +117,7 @@ export function DiagramHeader() {
           <Separator orientation="vertical" className="min-h-6" />
 
           <CardDescription className="font-medium">
-            {allUsers.length} online
+            <ZoomSelect />
           </CardDescription>
         </CardContent>
       </Card>

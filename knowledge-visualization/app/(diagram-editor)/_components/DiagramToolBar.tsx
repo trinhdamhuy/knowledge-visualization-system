@@ -1,6 +1,5 @@
 "use client";
-import { CursorArrowRaysIcon } from "@heroicons/react/24/outline";
-import { Toolbar, ToolbarGroup, ToolbarItem } from "@/components/ui/toolbar";
+import { Toolbar, ToolbarGroup } from "@/components/ui/toolbar";
 import {
   Tooltip,
   TooltipContent,
@@ -9,6 +8,8 @@ import {
 import { useCallback } from "react";
 import { useDiagramStore } from "../_store/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
+import { Button } from "@/components/ui/button";
+import { MousePointer2 } from "lucide-react";
 
 export function DiagramToolBar() {
   const { setActiveMode, activeMode } = useDiagramStore();
@@ -20,7 +21,7 @@ export function DiagramToolBar() {
   const TOOLBAR_ITEMS = [
     {
       label: "Select",
-      Icon: CursorArrowRaysIcon,
+      Icon: MousePointer2,
       onClick: handleSelect,
       active: activeMode === DiagramMode.Select,
     },
@@ -36,16 +37,14 @@ export function DiagramToolBar() {
         {TOOLBAR_ITEMS.map((item) => (
           <Tooltip key={item.label}>
             <TooltipTrigger asChild>
-              <ToolbarItem
-                aria-label={item.label}
-                size="sq-lg"
+              <Button
+                data-slot="toolbar-item"
+                variant={item.active ? "default" : "ghost"}
+                size="icon"
                 onClick={item.onClick}
-                className={
-                  item.active ? "bg-primary text-primary-foreground" : ""
-                }
               >
-                <item.Icon className="h-6 w-6" />
-              </ToolbarItem>
+                <item.Icon />
+              </Button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10}>
               {item.label}

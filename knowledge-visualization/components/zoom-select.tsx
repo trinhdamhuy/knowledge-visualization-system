@@ -46,7 +46,7 @@ export default function ZoomSelect() {
 
   return (
     <Select onValueChange={handleZoomChange}>
-      <SelectTrigger className="w-[140px]">
+      <SelectTrigger className="w-[100px] bg-popover">
         <SelectValue placeholder="Zoom" />
       </SelectTrigger>
       <SelectContent>

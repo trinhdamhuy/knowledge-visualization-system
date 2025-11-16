@@ -1,0 +1,46 @@
+@import "@xyflow/react/dist/style.css";
+
+/* Override React Flow cursor styles to default */
+.react-flow__pane {
+  cursor: default !important;
+}
+
+.react-flow__node {
+  cursor: default !important;
+}
+
+.react-flow__node.draggable {
+  cursor: default !important;
+}
+
+.react-flow__node.draggable.dragging {
+  cursor: default !important;
+}
+
+.react-flow__handle {
+  cursor: default !important;
+}
+
+.react-flow__edge {
+  cursor: default !important;
+}
+
+.react-flow__edge-path {
+  cursor: default !important;
+}
+
+.react-flow__connectionline {
+  cursor: default !important;
+}
+
+.react-flow__minimap {
+  cursor: default !important;
+}
+
+.react-flow__controls {
+  cursor: default !important;
+}
+
+.react-flow__controls-button {
+  cursor: pointer !important; /* Giữ pointer cho buttons */
+}

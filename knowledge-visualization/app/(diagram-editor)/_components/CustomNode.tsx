@@ -48,14 +48,8 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
         position: "relative",
       }}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-      />
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
 
       {isEditing ? (
         <input
@@ -77,7 +71,10 @@ const CustomNode = memo(({ data, id }: NodeProps) => {
           }}
         />
       ) : (
-        <span onDoubleClick={handleDoubleClick} style={{ width: "100%" }}>
+        <span
+          onDoubleClick={handleDoubleClick}
+          style={{ cursor: "pointer", width: "100%" }}
+        >
           {nodeData.label}
         </span>
       )}
