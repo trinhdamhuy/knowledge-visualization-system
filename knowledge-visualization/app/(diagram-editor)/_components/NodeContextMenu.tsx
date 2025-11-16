@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { Node } from "@xyflow/react";
 import { useDiagramStore } from "../_store/use-diagram-store";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 interface ContextMenuProps {
   nodeId: string;
@@ -55,9 +57,6 @@ export function NodeContextMenu({
         }
       }
 
-      const extendCount = edges.filter(
-        (e) => e.source === currentNode.id
-      ).length;
       const newNodeId = `${currentNode.id}-ext-${Date.now()}`;
       const newNode: Node = {
         id: newNodeId,
@@ -120,9 +119,6 @@ export function NodeContextMenu({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        handleAddChild();
       }
     };
 
@@ -138,20 +134,23 @@ export function NodeContextMenu({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="fixed bg-background border rounded-lg shadow-lg min-w-[200px] p-1"
+      className="fixed bg-card text-card-foreground border rounded-lg shadow-lg min-w-[200px] p-1"
       style={{
         left: position.x,
         top: position.y,
         zIndex: 10000,
       }}
     >
-      <button
+      <Button
         onClick={handleAddChild}
-        className="w-full flex items-center justify-between px-3 py-2 border-none bg-transparent hover:bg-accent cursor-pointer text-sm text-left rounded transition-colors"
+        variant="ghost"
+        className="w-full justify-between"
       >
-        <span>Add child</span>
-        <span className="text-muted-foreground text-xs font-medium">TAB</span>
-      </button>
+        <div className="flex items-center gap-2">
+          <Plus />
+          <span>Add child</span>
+        </div>
+      </Button>
     </div>
   );
 }
