@@ -13,21 +13,6 @@ interface ContextMenuProps {
 export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps) {
   const { nodes, edges, addNodeWithEdge } = useDiagramStore();
 
-  useEffect(() => {
-    const handleClick = () => onClose();
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    document.addEventListener("click", handleClick);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("click", handleClick);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [onClose]);
-
   const handleAddChild = useCallback(() => {
     const parentNode = nodes.find((n) => n.id === nodeId);
     if (!parentNode) return;
@@ -124,50 +109,42 @@ export function NodeContextMenu({ nodeId, position, onClose }: ContextMenuProps)
     onClose();
   }, [nodeId, nodes, edges, addNodeWithEdge, onClose]);
 
+  useEffect(() => {
+    const handleClick = () => onClose();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        handleAddChild();
+      }
+    };
+
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, handleAddChild]);
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
+      className="fixed bg-background border rounded-lg shadow-lg min-w-[200px] p-1"
       style={{
-        position: "fixed",
         left: position.x,
         top: position.y,
         zIndex: 10000,
-        background: "white",
-        border: "1px solid #e5e7eb",
-        borderRadius: "8px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-        minWidth: "200px",
-        padding: "4px",
-        fontFamily: "system-ui, sans-serif",
       }}
     >
       <button
         onClick={handleAddChild}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 12px",
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
-          fontSize: "14px",
-          textAlign: "left",
-          borderRadius: "4px",
-          transition: "background 0.2s",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        className="w-full flex items-center justify-between px-3 py-2 border-none bg-transparent hover:bg-accent cursor-pointer text-sm text-left rounded transition-colors"
       >
         <span>Add child</span>
-        <span
-          style={{
-            color: "#9ca3af",
-            fontSize: "12px",
-            fontWeight: "500",
-          }}
-        >
+        <span className="text-muted-foreground text-xs font-medium">
           TAB
         </span>
       </button>
