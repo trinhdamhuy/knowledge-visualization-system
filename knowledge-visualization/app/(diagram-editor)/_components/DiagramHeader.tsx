@@ -16,6 +16,8 @@ import { useDiagramById, useDiagram } from "@/hooks/use-diagram";
 import { EditableTitle } from "@/app/_components/editable-title";
 import { toast } from "sonner";
 import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
+import { Panel } from "@xyflow/react";
+import { ThemeToggle } from "@/app/_components/buttons/theme-toggle";
 import ZoomSelect from "@/components/zoom-select";
 
 const MAX_SHOWN_USERS = 3;
@@ -58,7 +60,10 @@ export function DiagramHeader() {
   };
 
   return (
-    <div className="absolute top-3 px-3 w-full flex items-center justify-between z-50">
+    <Panel
+      position="top-center"
+      className="w-full flex items-center justify-between z-50 px-3"
+    >
       {/* Left: Back button and title */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
@@ -116,11 +121,12 @@ export function DiagramHeader() {
           )}
           <Separator orientation="vertical" className="min-h-6" />
 
-          <CardDescription className="font-medium">
+          <CardDescription className="font-medium flex items-center gap-2">
             <ZoomSelect />
+            <ThemeToggle />
           </CardDescription>
         </CardContent>
       </Card>
-    </div>
+    </Panel>
   );
 }

@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "react-aria-components";
 
 export default function ZoomSelect() {
   const { zoomTo, fitView } = useReactFlow();
@@ -46,12 +47,15 @@ export default function ZoomSelect() {
 
   return (
     <Select onValueChange={handleZoomChange}>
-      <SelectTrigger className="w-[100px] bg-popover">
+      <SelectTrigger
+        size="sm"
+        className="w-24 border-none bg-transparent dark:bg-transparent"
+      >
         <SelectValue placeholder="Zoom" />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="best-fit">Best Fit</SelectItem>
-        <div className="mx-2 my-1 border-t" />
+        <Separator className="my-1" />
         {zoomLevels.map((level) => (
           <SelectItem key={level} value={level}>
             {`${(parseFloat(level) * 100).toFixed(0)}%`}

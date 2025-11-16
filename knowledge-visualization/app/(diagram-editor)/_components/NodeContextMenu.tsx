@@ -4,7 +4,7 @@ import { useCallback, useEffect } from "react";
 import { Node } from "@xyflow/react";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 interface ContextMenuProps {
   nodeId: string;
@@ -114,6 +114,25 @@ export function NodeContextMenu({
     onClose();
   }, [nodeId, nodes, edges, addNodeWithEdge, onClose]);
 
+  const options = [
+    {
+      label: "Add child",
+      kbd: <Kbd>+</Kbd>,
+      onClick: handleAddChild,
+    },
+    {
+      label: "Copy node",
+      kbd: (
+        <KbdGroup>
+          <Kbd>Ctrl</Kbd> <Kbd>+</Kbd> <Kbd>C</Kbd>
+        </KbdGroup>
+      ),
+      onClick: () => {
+        console.log("Copy node");
+      },
+    },
+  ];
+
   useEffect(() => {
     const handleClick = () => onClose();
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -141,16 +160,17 @@ export function NodeContextMenu({
         zIndex: 10000,
       }}
     >
-      <Button
-        onClick={handleAddChild}
-        variant="ghost"
-        className="w-full justify-between"
-      >
-        <div className="flex items-center gap-2">
-          <Plus />
-          <span>Add child</span>
-        </div>
-      </Button>
+      {options.map((option) => (
+        <Button
+          key={option.label}
+          onClick={option.onClick}
+          variant="ghost"
+          className="w-full justify-between"
+        >
+          <span>{option.label}</span>
+          {option.kbd}
+        </Button>
+      ))}
     </div>
   );
 }

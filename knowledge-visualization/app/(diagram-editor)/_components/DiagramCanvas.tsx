@@ -78,6 +78,7 @@ export function DiagramCanvas() {
   const onPointerLeave = useCallback(() => {
     updateMyPresence({ cursor: null });
   }, [updateMyPresence]);
+
   return (
     <ReactFlow
       colorMode={
@@ -107,17 +108,16 @@ export function DiagramCanvas() {
       selectNodesOnDrag={false}
     >
       <DiagramHeader />
-
       <DiagramToolBar />
-      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+      <DiagramNodeToolBar />
+      <ChatBotPanel />
+      <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <MiniMap
         position="bottom-left"
         maskColor="transparent"
         className="border-2 border-text-foreground rounded-md min-h-fit min-w-fit"
       />
-      <ChatBotPanel />
-      <DiagramNodeToolBar />
       {contextMenu && (
         <NodeContextMenu
           nodeId={contextMenu.nodeId}

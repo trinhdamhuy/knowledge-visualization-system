@@ -9,7 +9,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { ModeToggle } from "@/app/_components/buttons/mode-toggle";
+import { ThemeToggle } from "@/app/_components/buttons/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { User } from "./buttons/user";
 
@@ -74,7 +74,7 @@ export function AppHeader() {
           <Button variant="ghost" size="icon" className="rounded-full">
             <Bell />
           </Button>
-          <ModeToggle />
+          <ThemeToggle className="rounded-full" />
         </div>
         <User />
       </div>
