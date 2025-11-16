@@ -15,6 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useDiagramStore } from "../_store/use-diagram-store";
 import CustomNode from "./CustomNode";
+import { ChatBotPanel } from "./ChatBotPanel";
 
 const initialNodes: Node[] = [
   {
@@ -89,7 +90,8 @@ export function DiagramCanvas() {
       <DiagramHeader />
       <DiagramToolBar reactFlowInstance={reactFlowInstance} />
       <Background />
-      <MiniMap />
+      <MiniMap position="bottom-left" />
+      <ChatBotPanel />
       <DiagramNodeToolBar />
       {contextMenu && (
         <NodeContextMenu
