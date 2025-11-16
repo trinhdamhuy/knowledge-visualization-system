@@ -1,128 +1,62 @@
 "use client";
-
-import { useCallback, useState, useRef } from "react";
-import { CollaboratorCursors } from "./CollaboratorCursors";
+import { useEffect, useRef } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import {
   ReactFlow,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
   Background,
-  NodeChange,
-  EdgeChange,
-  Connection,
-  BackgroundVariant,
-  Edge,
-  Node,
-  Position,
-  ReactFlowInstance,
   MiniMap,
+  Node,
+  Edge,
+  ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ChatBotPanel } from "./ChatBotPanel";
-import { useTheme } from "next-themes";
-import { useUpdateMyPresence } from "@liveblocks/react";
-
-const nodeDefaults = {
-  sourcePosition: Position.Right,
-  targetPosition: Position.Left,
-};
+import { useDiagramStore } from "../_store/use-diagram-store";
 
 const initialNodes: Node[] = [
   {
     id: "n1",
     position: { x: 0, y: 0 },
     data: { label: "Node 1" },
-    ...nodeDefaults,
-  },
-  {
-    id: "n2",
-    position: { x: 200, y: 0 },
-    data: { label: "Node 2" },
-    ...nodeDefaults,
+    draggable: false,
   },
 ];
-const initialEdges: Edge[] = [{ id: "n1-n2", source: "n1", target: "n2" }];
+const initialEdges: Edge[] = [];
 
 export function DiagramCanvas() {
-  const updateMyPresence = useUpdateMyPresence();
-  const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const {
+    nodes,
+    edges,
+    mode,
+    initialize,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+  } = useDiagramStore();
 
-  const onInit = useCallback((instance: ReactFlowInstance) => {
-    reactFlowInstance.current = instance;
-  }, []);
-
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!reactFlowInstance.current) return;
-
-      const position = reactFlowInstance.current.screenToFlowPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
-
-      updateMyPresence({
-        cursor: { x: Math.round(position.x), y: Math.round(position.y) },
-      });
-    },
-    [updateMyPresence]
-  );
-
-  const onPointerLeave = useCallback(() => {
-    updateMyPresence({ cursor: null });
-  }, [updateMyPresence]);
-
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) =>
-      setNodes(
-        (nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot) as Node[]
-      ),
-    []
-  );
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) =>
-      setEdges((edgesSnapshot: Edge[]) =>
-        applyEdgeChanges(changes, edgesSnapshot)
-      ),
-    []
-  );
-  const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges((edgesSnapshot: Edge[]) => addEdge(params, edgesSnapshot)),
-    []
-  );
+  useEffect(() => {
+    if (nodes.length === 0 && edges.length === 0) {
+      initialize(initialNodes, initialEdges);
+    }
+  }, [nodes.length, edges.length, initialize]);
 
   return (
     <ReactFlow
-      colorMode={
-        theme.resolvedTheme === "dark"
-          ? "dark"
-          : theme.theme === "light"
-          ? "light"
-          : "system"
-      }
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       fitView
-      onInit={onInit}
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
+      panOnDrag={mode === "move"}
+      selectionOnDrag={mode === "select"}
+      onInit={(instance) => (reactFlowInstance.current = instance)}
     >
       <DiagramHeader />
-      <DiagramToolBar />
-      <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-      <CollaboratorCursors />
-      <MiniMap position="bottom-left" />
-      <ChatBotPanel />
+      <DiagramToolBar reactFlowInstance={reactFlowInstance} />
+      <Background />
+      <MiniMap />
     </ReactFlow>
   );
 }
