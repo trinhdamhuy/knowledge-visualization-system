@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -19,10 +18,14 @@ import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
 import { Panel } from "@xyflow/react";
 import { ThemeToggle } from "@/app/_components/buttons/theme-toggle";
 import ZoomSelect from "@/components/zoom-select";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MAX_SHOWN_USERS = 3;
 
 export function DiagramHeader() {
+  const router = useRouter();
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
   const { data: diagram, isLoading } = useDiagramById(diagramId);
@@ -67,16 +70,16 @@ export function DiagramHeader() {
       {/* Left: Back button and title */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
-          <Link href="/home">
-            <Button variant="secondary" size="icon">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={() => router.push("/home")}
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
           <Separator orientation="vertical" className="min-h-6" />
           {isLoading || isLoadingPermission ? (
-            <span className="text-sm font-medium text-muted-foreground">
-              Loading...
-            </span>
+            <Skeleton className="w-24 h-6 rounded-md" />
           ) : (
             <EditableTitle
               value={diagram?.name || "Untitled Diagram"}
@@ -122,8 +125,10 @@ export function DiagramHeader() {
           <Separator orientation="vertical" className="min-h-6" />
 
           <CardDescription className="font-medium flex items-center gap-2">
-            <ZoomSelect />
-            <ThemeToggle />
+            <ButtonGroup>
+              <ZoomSelect />
+              <ThemeToggle variant="outline" size="icon" />
+            </ButtonGroup>
           </CardDescription>
         </CardContent>
       </Card>

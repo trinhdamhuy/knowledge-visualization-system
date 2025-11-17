@@ -11,14 +11,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+type ButtonVariant = React.ComponentProps<typeof Button>["variant"];
+type ButtonSize = React.ComponentProps<typeof Button>["size"];
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  variant = "ghost",
+  size = "icon",
+}: {
+  className?: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+}) {
   const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={className}>
+        <Button variant={variant} size={size} className={className}>
           {theme === "dark" ? (
             <Moon />
           ) : theme === "light" ? (

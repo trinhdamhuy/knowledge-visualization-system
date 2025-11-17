@@ -22,7 +22,9 @@ export function EditableTitle({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const [isSaving, setIsSaving] = useState(false);
+  const [inputWidth, setInputWidth] = useState<number>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
 
   // Update editValue when value prop changes
   useEffect(() => {
@@ -38,9 +40,16 @@ export function EditableTitle({
   }, [isEditing]);
 
   const handleClick = () => {
-    if (!disabled) {
-      setIsEditing(true);
+    if (disabled) return;
+
+    if (titleRef.current) {
+      const width = Math.max(titleRef.current.offsetWidth, 120);
+      setInputWidth(width);
+    } else {
+      setInputWidth(undefined);
     }
+
+    setIsEditing(true);
   };
 
   const handleSave = async () => {
@@ -107,12 +116,14 @@ export function EditableTitle({
           "h-auto min-w-[120px] px-2 py-1 text-sm font-medium",
           className
         )}
+        style={inputWidth ? { width: inputWidth } : undefined}
       />
     );
   }
 
   return (
     <span
+      ref={titleRef}
       onClick={handleClick}
       className={cn(
         "px-2 py-1 text-sm font-medium cursor-pointer hover:bg-secondary/50 rounded transition-colors min-w-[120px] inline-block",
