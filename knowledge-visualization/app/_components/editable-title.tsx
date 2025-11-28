@@ -113,7 +113,7 @@ export function EditableTitle({
         disabled={isSaving || disabled}
         placeholder={placeholder}
         className={cn(
-          "h-auto min-w-[120px] px-2 py-1 text-sm font-medium",
+          "h-auto min-w-[120px] px-2 py-1.5 text-md font-medium",
           className
         )}
         style={inputWidth ? { width: inputWidth } : undefined}
@@ -126,7 +126,7 @@ export function EditableTitle({
       ref={titleRef}
       onClick={handleClick}
       className={cn(
-        "px-2 py-1 text-sm font-medium cursor-pointer hover:bg-secondary/50 rounded transition-colors min-w-[120px] inline-block",
+        "px-2 py-1.5 text-md font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 rounded-md transition-colors min-w-[120px] inline-block",
         disabled && "cursor-default hover:bg-transparent",
         className
       )}

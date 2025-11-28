@@ -71,7 +71,7 @@ export function DiagramHeader() {
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
           <Button
-            variant="secondary"
+            variant="ghost"
             size="icon"
             onClick={() => router.push("/home")}
           >
@@ -85,7 +85,7 @@ export function DiagramHeader() {
               value={diagram?.name || "Untitled Diagram"}
               onSave={handleSaveTitle}
               disabled={isUpdatingDiagram || !diagram || !canEdit}
-              className="text-sm font-medium"
+              className="text-md font-medium"
             />
           )}
         </CardContent>

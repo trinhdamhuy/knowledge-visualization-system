@@ -1,7 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "./theme-provider";
 import NextTopLoader from "nextjs-toploader";
 import { SessionProvider, useSession } from "next-auth/react";
@@ -66,12 +66,7 @@ const DefaultProviders = ({ children }: { children: React.ReactNode }) => {
               />
               <TeamAndLanguageSync />
               {children}
-              <Toaster
-                position="bottom-right"
-                richColors
-                closeButton
-                duration={2000}
-              />
+              <Toaster position="top-center" duration={2000} />
             </ContextMenuDisabler>
           </TeamProvider>
         </QueryClientProvider>
