@@ -213,6 +213,7 @@ export type DiagramWhereInput = {
   recents?: Prisma.RecentListRelationFilter
   trash?: Prisma.XOR<Prisma.TrashNullableScalarRelationFilter, Prisma.TrashWhereInput> | null
   starreds?: Prisma.StarredListRelationFilter
+  files?: Prisma.FileListRelationFilter
 }
 
 export type DiagramOrderByWithRelationInput = {
@@ -231,6 +232,7 @@ export type DiagramOrderByWithRelationInput = {
   recents?: Prisma.RecentOrderByRelationAggregateInput
   trash?: Prisma.TrashOrderByWithRelationInput
   starreds?: Prisma.StarredOrderByRelationAggregateInput
+  files?: Prisma.FileOrderByRelationAggregateInput
 }
 
 export type DiagramWhereUniqueInput = Prisma.AtLeast<{
@@ -252,6 +254,7 @@ export type DiagramWhereUniqueInput = Prisma.AtLeast<{
   recents?: Prisma.RecentListRelationFilter
   trash?: Prisma.XOR<Prisma.TrashNullableScalarRelationFilter, Prisma.TrashWhereInput> | null
   starreds?: Prisma.StarredListRelationFilter
+  files?: Prisma.FileListRelationFilter
 }, "id">
 
 export type DiagramOrderByWithAggregationInput = {
@@ -295,6 +298,7 @@ export type DiagramCreateInput = {
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateInput = {
@@ -310,6 +314,7 @@ export type DiagramUncheckedCreateInput = {
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUpdateInput = {
@@ -325,6 +330,7 @@ export type DiagramUpdateInput = {
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateInput = {
@@ -340,6 +346,7 @@ export type DiagramUncheckedUpdateInput = {
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramCreateManyInput = {
@@ -611,6 +618,20 @@ export type DiagramUpdateOneRequiredWithoutStarredsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.DiagramUpdateToOneWithWhereWithoutStarredsInput, Prisma.DiagramUpdateWithoutStarredsInput>, Prisma.DiagramUncheckedUpdateWithoutStarredsInput>
 }
 
+export type DiagramCreateNestedOneWithoutFilesInput = {
+  create?: Prisma.XOR<Prisma.DiagramCreateWithoutFilesInput, Prisma.DiagramUncheckedCreateWithoutFilesInput>
+  connectOrCreate?: Prisma.DiagramCreateOrConnectWithoutFilesInput
+  connect?: Prisma.DiagramWhereUniqueInput
+}
+
+export type DiagramUpdateOneRequiredWithoutFilesNestedInput = {
+  create?: Prisma.XOR<Prisma.DiagramCreateWithoutFilesInput, Prisma.DiagramUncheckedCreateWithoutFilesInput>
+  connectOrCreate?: Prisma.DiagramCreateOrConnectWithoutFilesInput
+  upsert?: Prisma.DiagramUpsertWithoutFilesInput
+  connect?: Prisma.DiagramWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.DiagramUpdateToOneWithWhereWithoutFilesInput, Prisma.DiagramUpdateWithoutFilesInput>, Prisma.DiagramUncheckedUpdateWithoutFilesInput>
+}
+
 export type DiagramCreateWithoutOwnerInput = {
   id?: string
   name: string
@@ -623,6 +644,7 @@ export type DiagramCreateWithoutOwnerInput = {
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutOwnerInput = {
@@ -637,6 +659,7 @@ export type DiagramUncheckedCreateWithoutOwnerInput = {
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutOwnerInput = {
@@ -691,6 +714,7 @@ export type DiagramCreateWithoutTeamInput = {
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutTeamInput = {
@@ -705,6 +729,7 @@ export type DiagramUncheckedCreateWithoutTeamInput = {
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutTeamInput = {
@@ -745,6 +770,7 @@ export type DiagramCreateWithoutFolderInput = {
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutFolderInput = {
@@ -759,6 +785,7 @@ export type DiagramUncheckedCreateWithoutFolderInput = {
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutFolderInput = {
@@ -799,6 +826,7 @@ export type DiagramCreateWithoutTrashInput = {
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutTrashInput = {
@@ -813,6 +841,7 @@ export type DiagramUncheckedCreateWithoutTrashInput = {
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutTrashInput = {
@@ -843,6 +872,7 @@ export type DiagramUpdateWithoutTrashInput = {
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutTrashInput = {
@@ -857,6 +887,7 @@ export type DiagramUncheckedUpdateWithoutTrashInput = {
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramCreateWithoutSharesInput = {
@@ -871,6 +902,7 @@ export type DiagramCreateWithoutSharesInput = {
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutSharesInput = {
@@ -885,6 +917,7 @@ export type DiagramUncheckedCreateWithoutSharesInput = {
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutSharesInput = {
@@ -915,6 +948,7 @@ export type DiagramUpdateWithoutSharesInput = {
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutSharesInput = {
@@ -929,6 +963,7 @@ export type DiagramUncheckedUpdateWithoutSharesInput = {
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramCreateWithoutRecentsInput = {
@@ -943,6 +978,7 @@ export type DiagramCreateWithoutRecentsInput = {
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutRecentsInput = {
@@ -957,6 +993,7 @@ export type DiagramUncheckedCreateWithoutRecentsInput = {
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutRecentsInput = {
@@ -987,6 +1024,7 @@ export type DiagramUpdateWithoutRecentsInput = {
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutRecentsInput = {
@@ -1001,6 +1039,7 @@ export type DiagramUncheckedUpdateWithoutRecentsInput = {
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramCreateWithoutStarredsInput = {
@@ -1015,6 +1054,7 @@ export type DiagramCreateWithoutStarredsInput = {
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
+  files?: Prisma.FileCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramUncheckedCreateWithoutStarredsInput = {
@@ -1029,6 +1069,7 @@ export type DiagramUncheckedCreateWithoutStarredsInput = {
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
+  files?: Prisma.FileUncheckedCreateNestedManyWithoutDiagramInput
 }
 
 export type DiagramCreateOrConnectWithoutStarredsInput = {
@@ -1059,6 +1100,7 @@ export type DiagramUpdateWithoutStarredsInput = {
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutStarredsInput = {
@@ -1073,6 +1115,83 @@ export type DiagramUncheckedUpdateWithoutStarredsInput = {
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
+}
+
+export type DiagramCreateWithoutFilesInput = {
+  id?: string
+  name: string
+  imageUrl?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
+  owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
+  team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
+  shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
+  recents?: Prisma.RecentCreateNestedManyWithoutDiagramInput
+  trash?: Prisma.TrashCreateNestedOneWithoutDiagramInput
+  starreds?: Prisma.StarredCreateNestedManyWithoutDiagramInput
+}
+
+export type DiagramUncheckedCreateWithoutFilesInput = {
+  id?: string
+  name: string
+  imageUrl?: string | null
+  folderId?: string | null
+  ownerId?: string | null
+  teamId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
+  recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
+  trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
+  starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
+}
+
+export type DiagramCreateOrConnectWithoutFilesInput = {
+  where: Prisma.DiagramWhereUniqueInput
+  create: Prisma.XOR<Prisma.DiagramCreateWithoutFilesInput, Prisma.DiagramUncheckedCreateWithoutFilesInput>
+}
+
+export type DiagramUpsertWithoutFilesInput = {
+  update: Prisma.XOR<Prisma.DiagramUpdateWithoutFilesInput, Prisma.DiagramUncheckedUpdateWithoutFilesInput>
+  create: Prisma.XOR<Prisma.DiagramCreateWithoutFilesInput, Prisma.DiagramUncheckedCreateWithoutFilesInput>
+  where?: Prisma.DiagramWhereInput
+}
+
+export type DiagramUpdateToOneWithWhereWithoutFilesInput = {
+  where?: Prisma.DiagramWhereInput
+  data: Prisma.XOR<Prisma.DiagramUpdateWithoutFilesInput, Prisma.DiagramUncheckedUpdateWithoutFilesInput>
+}
+
+export type DiagramUpdateWithoutFilesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
+  owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
+  team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
+  shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
+  recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
+  trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
+  starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+}
+
+export type DiagramUncheckedUpdateWithoutFilesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
+  recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
+  trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
+  starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramCreateManyOwnerInput = {
@@ -1097,6 +1216,7 @@ export type DiagramUpdateWithoutOwnerInput = {
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutOwnerInput = {
@@ -1111,6 +1231,7 @@ export type DiagramUncheckedUpdateWithoutOwnerInput = {
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateManyWithoutOwnerInput = {
@@ -1145,6 +1266,7 @@ export type DiagramUpdateWithoutTeamInput = {
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutTeamInput = {
@@ -1159,6 +1281,7 @@ export type DiagramUncheckedUpdateWithoutTeamInput = {
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateManyWithoutTeamInput = {
@@ -1193,6 +1316,7 @@ export type DiagramUpdateWithoutFolderInput = {
   recents?: Prisma.RecentUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateWithoutFolderInput = {
@@ -1207,6 +1331,7 @@ export type DiagramUncheckedUpdateWithoutFolderInput = {
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
+  files?: Prisma.FileUncheckedUpdateManyWithoutDiagramNestedInput
 }
 
 export type DiagramUncheckedUpdateManyWithoutFolderInput = {
@@ -1228,12 +1353,14 @@ export type DiagramCountOutputType = {
   shares: number
   recents: number
   starreds: number
+  files: number
 }
 
 export type DiagramCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   shares?: boolean | DiagramCountOutputTypeCountSharesArgs
   recents?: boolean | DiagramCountOutputTypeCountRecentsArgs
   starreds?: boolean | DiagramCountOutputTypeCountStarredsArgs
+  files?: boolean | DiagramCountOutputTypeCountFilesArgs
 }
 
 /**
@@ -1267,6 +1394,13 @@ export type DiagramCountOutputTypeCountStarredsArgs<ExtArgs extends runtime.Type
   where?: Prisma.StarredWhereInput
 }
 
+/**
+ * DiagramCountOutputType without action
+ */
+export type DiagramCountOutputTypeCountFilesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.FileWhereInput
+}
+
 
 export type DiagramSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1284,6 +1418,7 @@ export type DiagramSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   recents?: boolean | Prisma.Diagram$recentsArgs<ExtArgs>
   trash?: boolean | Prisma.Diagram$trashArgs<ExtArgs>
   starreds?: boolean | Prisma.Diagram$starredsArgs<ExtArgs>
+  files?: boolean | Prisma.Diagram$filesArgs<ExtArgs>
   _count?: boolean | Prisma.DiagramCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["diagram"]>
 
@@ -1335,6 +1470,7 @@ export type DiagramInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   recents?: boolean | Prisma.Diagram$recentsArgs<ExtArgs>
   trash?: boolean | Prisma.Diagram$trashArgs<ExtArgs>
   starreds?: boolean | Prisma.Diagram$starredsArgs<ExtArgs>
+  files?: boolean | Prisma.Diagram$filesArgs<ExtArgs>
   _count?: boolean | Prisma.DiagramCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type DiagramIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1358,6 +1494,7 @@ export type $DiagramPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     recents: Prisma.$RecentPayload<ExtArgs>[]
     trash: Prisma.$TrashPayload<ExtArgs> | null
     starreds: Prisma.$StarredPayload<ExtArgs>[]
+    files: Prisma.$FilePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1769,6 +1906,7 @@ export interface Prisma__DiagramClient<T, Null = never, ExtArgs extends runtime.
   recents<T extends Prisma.Diagram$recentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Diagram$recentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RecentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   trash<T extends Prisma.Diagram$trashArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Diagram$trashArgs<ExtArgs>>): Prisma.Prisma__TrashClient<runtime.Types.Result.GetResult<Prisma.$TrashPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   starreds<T extends Prisma.Diagram$starredsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Diagram$starredsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StarredPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  files<T extends Prisma.Diagram$filesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Diagram$filesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2347,6 +2485,30 @@ export type Diagram$starredsArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.StarredScalarFieldEnum | Prisma.StarredScalarFieldEnum[]
+}
+
+/**
+ * Diagram.files
+ */
+export type Diagram$filesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the File
+   */
+  select?: Prisma.FileSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the File
+   */
+  omit?: Prisma.FileOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FileInclude<ExtArgs> | null
+  where?: Prisma.FileWhereInput
+  orderBy?: Prisma.FileOrderByWithRelationInput | Prisma.FileOrderByWithRelationInput[]
+  cursor?: Prisma.FileWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.FileScalarFieldEnum | Prisma.FileScalarFieldEnum[]
 }
 
 /**

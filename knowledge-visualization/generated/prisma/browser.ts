@@ -92,3 +92,8 @@ export type Starred = Prisma.StarredModel
  * 
  */
 export type Notification = Prisma.NotificationModel
+/**
+ * Model File
+ * 
+ */
+export type File = Prisma.FileModel

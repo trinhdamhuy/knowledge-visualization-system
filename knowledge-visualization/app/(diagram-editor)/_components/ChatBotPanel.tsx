@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Paperclip, X } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useUploadFile } from "@/hooks/use-upload-file";
 import { toast } from "sonner";
+import {
+  createFile,
+  deleteFileByUrl,
+  getFilesByDiagramId,
+} from "@/app/_actions/file";
 
 export function ChatBotPanel() {
   const params = useParams();
@@ -30,6 +35,25 @@ export function ChatBotPanel() {
     maxHeight: 300,
   });
   const { uploadFileHandler, deleteFileHandler, loading } = useUploadFile();
+
+  // Load file from database when diagramId changes
+  useEffect(() => {
+    const loadFile = async () => {
+      if (!diagramId) return;
+
+      const files = await getFilesByDiagramId(diagramId);
+      if (files && files.length > 0) {
+        // Get the most recent file
+        const latestFile = files[0];
+        setUploadedFile({
+          fileName: latestFile.fileName,
+          fileUrl: latestFile.fileUrl,
+        });
+      }
+    };
+
+    loadFile();
+  }, [diagramId]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -57,12 +81,26 @@ export function ChatBotPanel() {
     }
 
     const fileUrl = await uploadFileHandler(file, diagramId);
-    if (fileUrl) {
-      setUploadedFile({
-        fileName: file.name,
+    if (fileUrl && diagramId) {
+      // Save file to database
+      const savedFile = await createFile(
+        diagramId,
+        file.name,
         fileUrl,
-      });
-      toast.success("File uploaded successfully");
+        fileExtension
+      );
+
+      if (savedFile) {
+        setUploadedFile({
+          fileName: file.name,
+          fileUrl,
+        });
+        toast.success("File uploaded successfully");
+      } else {
+        toast.error("Failed to save file to database");
+        // Delete from S3 if database save failed
+        await deleteFileHandler(fileUrl);
+      }
     } else {
       toast.error("Failed to upload file");
     }
@@ -75,9 +113,20 @@ export function ChatBotPanel() {
   const handleRemoveFile = async () => {
     if (!uploadedFile) return;
 
+    // Delete from database first
+    const deletedFromDb = await deleteFileByUrl(uploadedFile.fileUrl);
+
+    // Delete from S3
     await deleteFileHandler(uploadedFile.fileUrl);
+
     setUploadedFile(null);
-    toast.success("File removed successfully");
+
+    if (deletedFromDb) {
+      toast.success("File removed successfully");
+    } else {
+      toast.success("File removed from storage");
+    }
+
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
