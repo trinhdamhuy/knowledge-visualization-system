@@ -1,6 +1,6 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
-import { Language } from "@prisma/client";
+import { Language } from "@/generated/prisma/client";
 
 export default getRequestConfig(async () => {
   let locale: Language = Language.en;

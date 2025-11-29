@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getTeamRole } from "./permission";
-import { Permission } from "@prisma/client";
+import { Permission } from "@/generated/prisma/client";
 
 /**
  * Delete a team

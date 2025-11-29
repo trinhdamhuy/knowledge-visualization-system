@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Folder } from "@prisma/client";
+import { Folder } from "@/generated/prisma/client";
 
 /**
  * Create a new folder

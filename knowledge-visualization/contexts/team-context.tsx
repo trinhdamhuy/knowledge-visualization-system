@@ -3,7 +3,7 @@
 import { getStrictContext } from "@/lib/get-strict-context";
 import { useTeamStore } from "@/stores/team-store";
 import { useTeam } from "@/hooks/use-team";
-import { Team } from "@prisma/client";
+import { Team } from "@/generated/prisma/client";
 import { useCallback, useEffect, useMemo } from "react";
 
 interface TeamContextValue {

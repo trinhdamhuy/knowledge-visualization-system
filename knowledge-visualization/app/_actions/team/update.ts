@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { canEditTeam } from "./permission";
-import { Team } from "@prisma/client";
+import { Team } from "@/generated/prisma/client";
 
 /**
  * Update a team

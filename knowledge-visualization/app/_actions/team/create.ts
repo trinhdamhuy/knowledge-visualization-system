@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Team, Permission } from "@prisma/client";
+import { Team, Permission } from "@/generated/prisma/client";
 
 async function createTeam(
   name: string,

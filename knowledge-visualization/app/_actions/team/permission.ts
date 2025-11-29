@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Permission } from "@prisma/client";
+import { Permission } from "@/generated/prisma/client";
 
 /**
  * Get the role (permission) of the current user in a team

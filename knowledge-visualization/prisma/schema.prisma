@@ -1,18 +1,18 @@
 datasource db {
     provider = "postgresql"
-    url      = env("DATABASE_URL")
 }
 
 generator client {
-    provider = "prisma-client-js"
-    output   = "../node_modules/.prisma/client"
+    provider   = "prisma-client"
+    output     = "../generated/prisma"
+    engineType = "client"
 }
 
 generator erd {
     provider    = "prisma-erd-generator"
     output      = "../ERD.png"
     ignoreEnums = true
-    disabled    = DISABLE_ERD
+    disabled    = env("DISABLE_ERD")
 }
 
 enum Language {

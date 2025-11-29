@@ -3,7 +3,7 @@
 import { PasswordChangeErrors } from "../../../enums/errors";
 import { prisma } from "../../../lib/prisma";
 import { getCurrentUser } from "./get";
-import { User } from "@prisma/client";
+import { User } from "@/generated/prisma/client";
 import bcrypt from "bcrypt";
 
 async function updateUser(data: Partial<User>): Promise<User> {

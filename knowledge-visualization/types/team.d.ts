@@ -1,4 +1,4 @@
-import { Team, TeamMember, User } from "@prisma/client";
+import { Team, TeamMember, User } from "@/generated/prisma/client";
 
 /**
  * Team with all relations populated
@@ -8,4 +8,3 @@ export type FullTeam = Team & {
     user: Pick<User, "id" | "name" | "image" | "email">;
   })[];
 };
-

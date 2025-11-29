@@ -1,4 +1,4 @@
-import { Folder, Share, Team, User } from "@prisma/client";
+import { Folder, Share, Team, User } from "@/generated/prisma/client";
 
 /**
  * Folder with all relations populated

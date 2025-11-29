@@ -4,11 +4,11 @@ import Credentials from "next-auth/providers/credentials";
 import { Adapter } from "next-auth/adapters";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./lib/prisma";
-import { Language } from "@prisma/client";
 
 import { authConfig } from "./auth.config";
 import bcrypt from "bcrypt";
 import { createDefaultTeam } from "./app/_actions/team/create";
+import { Language } from "@/generated/prisma/client";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,

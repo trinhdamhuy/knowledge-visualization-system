@@ -7,7 +7,7 @@ import {
   updateTeam,
   deleteTeam,
 } from "@/app/_actions/team";
-import { Team } from "@prisma/client";
+import { Team } from "@/generated/prisma/client";
 
 // Query keys
 export const teamKeys = {

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { canEditDiagram } from "./permission";
-import { Diagram } from "@prisma/client";
+import { Diagram } from "@/generated/prisma/client";
 
 /**
  * Update a diagram

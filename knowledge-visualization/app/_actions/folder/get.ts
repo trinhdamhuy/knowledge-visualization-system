@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import type { GetFoldersParams, GetFoldersResult } from "@/types/folder";
 
 /**

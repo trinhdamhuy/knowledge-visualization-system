@@ -2,12 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Prisma } from "@prisma/client";
-import type {
-  DiagramWithRelations,
-  GetDiagramsParams,
-  GetDiagramsResult,
-} from "@/types/diagram";
+import { Prisma } from "@/generated/prisma/client";
+import type { GetDiagramsParams, GetDiagramsResult } from "@/types/diagram";
 
 /**
  * Get diagrams with pagination

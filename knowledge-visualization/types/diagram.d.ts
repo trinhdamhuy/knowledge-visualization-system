@@ -1,4 +1,4 @@
-import { Diagram, Share, Team, User } from "@prisma/client";
+import { Diagram, Share, Team, User } from "@/generated/prisma/client";
 
 /**
  * Diagram with all relations populated

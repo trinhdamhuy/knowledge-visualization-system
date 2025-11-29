@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Diagram } from "@prisma/client";
+import { Diagram } from "@/generated/prisma/client";
 import { canViewDiagram } from "./permission";
 
 /**

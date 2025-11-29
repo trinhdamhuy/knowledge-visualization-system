@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { canEditFolder } from "./permission";
-import { Folder } from "@prisma/client";
+import { Folder } from "@/generated/prisma/client";
 
 /**
  * Update a folder

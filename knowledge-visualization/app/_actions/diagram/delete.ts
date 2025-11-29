@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { getDiagramRole } from "./permission";
-import { Permission } from "@prisma/client";
+import { Permission } from "@/generated/prisma/client";
 
 /**
  * Delete a diagram (move to trash)

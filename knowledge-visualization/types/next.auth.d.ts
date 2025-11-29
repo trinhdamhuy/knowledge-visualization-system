@@ -1,5 +1,5 @@
 import { DefaultSession, JWT as DefaultJWT } from "next-auth";
-import { Language } from "@prisma/client";
+import { Language } from "@/generated/prisma/client";
 
 declare module "next-auth" {
   interface User extends DefaultUser {

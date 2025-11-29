@@ -7,7 +7,7 @@ import type {
   GetTrashItemsResult,
   TrashItem,
 } from "@/types/trash";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 /**
  * Get trash items (folders and diagrams) with pagination

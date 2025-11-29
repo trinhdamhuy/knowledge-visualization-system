@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { Permission } from "@prisma/client";
+import { Permission } from "@/generated/prisma/client";
 
 /**
  * Helper function to compare permissions and return the highest one

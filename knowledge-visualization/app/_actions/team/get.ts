@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Team } from "@prisma/client";
+import { Team } from "@/generated/prisma/client";
 import { getCurrentUser } from "../user";
 
 async function getTeams(): Promise<Team[] | null> {

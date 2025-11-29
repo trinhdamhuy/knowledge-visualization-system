@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { getFolderRole } from "./permission";
-import { Permission } from "@prisma/client";
+import { Permission } from "@/generated/prisma/client";
 
 /**
  * Delete a folder (move to trash)
