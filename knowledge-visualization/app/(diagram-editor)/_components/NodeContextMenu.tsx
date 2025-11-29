@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect } from "react";
 import { Node } from "@xyflow/react";
-import { useDiagramStore } from "../_stores/use-diagram-store";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { useDiagramSync } from "@/hooks/use-diagram-sync";
 
 interface ContextMenuProps {
   nodeId: string;
@@ -17,28 +17,23 @@ export function NodeContextMenu({
   position,
   onClose,
 }: ContextMenuProps) {
-  const { nodes, edges, addNodeWithEdge } = useDiagramStore();
+  const { nodes, edges, addNodeWithEdge } = useDiagramSync();
 
   const handleAddChild = useCallback(() => {
     const parentNode = nodes.find((n) => n.id === nodeId);
     if (!parentNode) return;
 
-    // Đếm số children hiện tại của node này
     const childrenEdges = edges.filter((e) => e.source === nodeId);
     const childrenCount = childrenEdges.length;
 
-    // Kiểm tra xem node này có phải là child của node khác không (level 1+)
     const isChildNode = edges.some((e) => e.target === nodeId);
 
-    // Kiểm tra xem node này đã có grandchildren chưa (children của children)
     const hasGrandchildren = childrenEdges.some((edge) => {
       const childId = edge.target;
       return edges.some((e) => e.source === childId);
     });
 
-    // Nếu node này là child và đã có children, thì extend (kéo dài theo chiều ngang)
     if (isChildNode && childrenCount > 0 && hasGrandchildren) {
-      // Tìm node cuối cùng trong chuỗi extend
       let currentNode = parentNode;
       let extendEdge = edges.find((e) => e.source === currentNode.id);
 
@@ -46,7 +41,6 @@ export function NodeContextMenu({
         const nextNode = nodes.find((n) => n.id === extendEdge!.target);
         if (!nextNode) break;
 
-        // Kiểm tra xem node này còn extend tiếp không
         const nextExtend = edges.find((e) => e.source === nextNode.id);
         if (nextExtend) {
           currentNode = nextNode;
@@ -60,30 +54,27 @@ export function NodeContextMenu({
       const newNodeId = `${currentNode.id}-ext-${Date.now()}`;
       const newNode: Node = {
         id: newNodeId,
-        type: "custom",
         position: {
           x: currentNode.position.x + 150,
           y: currentNode.position.y,
         },
+        type: "custom",
+        width: 150,
+        height: 50,
         data: {
           label: `New Topic 1`,
-          color: (currentNode.data.color as string) || "#FF97A7",
-          shape: "rectangle",
         },
       };
 
       const newEdge = {
         id: `e-${currentNode.id}-${newNodeId}`,
+        type: "custom",
         source: currentNode.id,
         target: newNodeId,
-        type: "smoothstep",
-        animated: false,
-        style: { stroke: (currentNode.data.color as string) || "#FF97A7" },
       };
 
       addNodeWithEdge(newNode, newEdge);
     } else {
-      const colors = ["#FF97A7", "#A78BFA", "#60A5FA", "#34D399", "#FBBF24"];
       const newNodeId = `${nodeId}-child-${childrenCount + 1}-${Date.now()}`;
       const newNode: Node = {
         id: newNodeId,
@@ -92,10 +83,10 @@ export function NodeContextMenu({
           x: parentNode.position.x + 200,
           y: parentNode.position.y + childrenCount * 80 - childrenCount * 40,
         },
+        width: 150,
+        height: 50,
         data: {
           label: `New Topic ${childrenCount + 1}`,
-          color: colors[childrenCount % colors.length],
-          shape: "rectangle",
         },
       };
 
@@ -103,9 +94,7 @@ export function NodeContextMenu({
         id: `e-${nodeId}-${newNodeId}`,
         source: nodeId,
         target: newNodeId,
-        type: "smoothstep",
-        animated: false,
-        style: { stroke: colors[childrenCount % colors.length] },
+        type: "custom",
       };
 
       addNodeWithEdge(newNode, newEdge);
@@ -124,7 +113,8 @@ export function NodeContextMenu({
       label: "Copy node",
       kbd: (
         <KbdGroup>
-          <Kbd>Ctrl</Kbd> <Kbd>+</Kbd> <Kbd>C</Kbd>
+          <Kbd>Ctrl</Kbd>
+          <Kbd>C</Kbd>
         </KbdGroup>
       ),
       onClick: () => {
@@ -153,7 +143,7 @@ export function NodeContextMenu({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="fixed bg-card text-card-foreground border rounded-lg shadow-lg min-w-[200px] p-1"
+      className="fixed bg-card text-card-foreground border rounded-lg shadow-lg max-w-[200px] p-1"
       style={{
         left: position.x,
         top: position.y,

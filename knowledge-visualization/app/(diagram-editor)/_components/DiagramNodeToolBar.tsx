@@ -28,8 +28,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function DiagramNodeToolBar() {
-  const { selectedNodeId, nodes, setNodeColor, setNodeShape } =
-    useDiagramStore();
   if (!selectedNodeId) return null;
   const node = nodes.find((n) => n.id === selectedNodeId);
   if (!node) return null;

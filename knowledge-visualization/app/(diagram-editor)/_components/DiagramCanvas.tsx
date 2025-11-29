@@ -1,8 +1,8 @@
 "use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
-import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
 import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
@@ -20,6 +20,8 @@ import { ChatBotPanel } from "./ChatBotPanel";
 import { useUpdateMyPresence } from "@liveblocks/react";
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
+import { useDiagramSync } from "@/hooks/use-diagram-sync";
+import { Box } from "lucide-react";
 
 export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
@@ -30,26 +32,22 @@ export function DiagramCanvas() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const {
-    nodes,
-    edges,
-    activeMode,
-    initialize,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    setSelectedNodeId,
-    setActiveMode,
-  } = useDiagramStore();
+  const { activeMode, setActiveMode } = useDiagramStore();
 
+  // Use Liveblocks as single source of truth
+  const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
+    useDiagramSync();
+
+  // Track mouse position for create node mode
+  const [mousePosition, setMousePosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Set default mode on mount
   useEffect(() => {
     setActiveMode(DiagramMode.Select);
-    initialize([], []);
-  }, [initialize, setActiveMode]);
-
-  const onNodeClick = (_: React.MouseEvent, node: Node) => {
-    setSelectedNodeId(node.id);
-  };
+  }, [setActiveMode]);
 
   const onNodeContextMenu = (event: React.MouseEvent, node: Node) => {
     event.preventDefault();
@@ -71,13 +69,47 @@ export function DiagramCanvas() {
       updateMyPresence({
         cursor: { x: Math.round(position.x), y: Math.round(position.y) },
       });
+
+      // Track mouse position for create node mode
+      if (activeMode === DiagramMode.CreateNode) {
+        setMousePosition({ x: e.clientX, y: e.clientY });
+      }
     },
-    [updateMyPresence]
+    [updateMyPresence, activeMode]
   );
 
   const onPointerLeave = useCallback(() => {
     updateMyPresence({ cursor: null });
+    setMousePosition(null);
   }, [updateMyPresence]);
+
+  // Handle click on pane to create node
+  const onPaneClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (activeMode !== DiagramMode.CreateNode || !reactFlowInstance.current)
+        return;
+
+      const position = reactFlowInstance.current.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      const newNodeId = `node-${Date.now()}`;
+      const newNode: Node = {
+        id: newNodeId,
+        type: "custom",
+        position,
+        width: 150,
+        height: 50,
+        data: {
+          label: "New Node",
+        },
+      };
+
+      addNode(newNode);
+    },
+    [activeMode, addNode]
+  );
 
   return (
     <ReactFlow
@@ -90,16 +122,16 @@ export function DiagramCanvas() {
       }
       nodes={nodes}
       edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
+      onNodesChange={updateNodes}
+      onEdgesChange={updateEdges}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
-      onConnect={onConnect}
+      onConnect={addNewEdge}
+      onPaneClick={onPaneClick}
       fitView
       panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
       selectionOnDrag={activeMode === DiagramMode.Select}
       nodeTypes={{ custom: CustomNode }}
-      onNodeClick={onNodeClick}
       onNodeContextMenu={onNodeContextMenu}
       onInit={(instance) => (reactFlowInstance.current = instance)}
       nodesDraggable={true}
@@ -109,7 +141,7 @@ export function DiagramCanvas() {
     >
       <DiagramHeader />
       <DiagramToolBar />
-      <DiagramNodeToolBar />
+      {/* <DiagramNodeToolBar /> */}
       <ChatBotPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
@@ -124,6 +156,20 @@ export function DiagramCanvas() {
           position={contextMenu.position}
           onClose={() => setContextMenu(null)}
         />
+      )}
+      {/* Show Box icon when in create node mode */}
+      {activeMode === DiagramMode.CreateNode && mousePosition && (
+        <div
+          style={{
+            position: "fixed",
+            left: mousePosition.x + 12,
+            top: mousePosition.y - 12,
+            pointerEvents: "none",
+            zIndex: 1000,
+          }}
+        >
+          <Box size={16} />
+        </div>
       )}
     </ReactFlow>
   );
