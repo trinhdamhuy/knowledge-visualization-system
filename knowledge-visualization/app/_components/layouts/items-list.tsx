@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Copy, Grid3X3, List, Plus } from "lucide-react";
+import { Copy, Grid3X3, List } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { MasonryLayout } from "./masonry-layout";
 import { ItemCard } from "../cards/item-card";
@@ -141,14 +141,10 @@ export function ItemsList({
           <div className="flex gap-4 px-8">
             <CreateButton
               label="Create Diagram"
-              icon={<Plus />}
-              onClick={() => setIsCreateDialogOpen(true)}
-            />
-            <CreateButton
-              label="Create Diagram with AI"
               icon={
                 <Sparkles animate loop loopDelay={1000} initialOnAnimateEnd />
               }
+              onClick={() => setIsCreateDialogOpen(true)}
             />
           </div>
           <CreateDiagramDialog
