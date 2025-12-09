@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
-import { deleteFileFromS3 } from "@/lib/file-upload-handler";
+import { deleteFileFromS3, deleteFilesFromS3 } from "@/lib/file-upload-handler";
 
 /**
  * Delete a room from Liveblocks
@@ -138,26 +138,30 @@ async function permanentDeleteFolder(folderId: string): Promise<boolean> {
         });
 
         // Delete files from S3
-        for (const file of files) {
-          try {
-            await deleteFileFromS3(file.fileUrl);
-          } catch (error) {
-            console.error(
-              `Failed to delete file from S3: ${file.fileUrl}`,
-              error
-            );
-            // Continue with deletion even if S3 deletion fails
-          }
+        const success = await deleteFilesFromS3(
+          files.map((file) => file.fileUrl)
+        );
+        if (!success) {
+          console.error(
+            `Failed to delete files from S3: ${files
+              .map((file) => file.fileUrl)
+              .join(", ")}`
+          );
+          return false;
         }
 
         // Delete the Liveblocks room (room ID is the diagram ID)
-        await deleteLiveblocksRoom(diagram.id);
+        const liveblocksSuccess = await deleteLiveblocksRoom(diagram.id);
+        if (!liveblocksSuccess) {
+          console.error(`Failed to delete Liveblocks room: ${diagram.id}`);
+          return false;
+        }
       } catch (error) {
         console.error(
           `Failed to delete diagram ${diagram.id} resources:`,
           error
         );
-        // Continue with folder deletion even if diagram cleanup fails
+        return false;
       }
     }
 
