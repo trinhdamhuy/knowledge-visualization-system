@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
+import { deleteFileFromS3 } from "@/lib/file-upload-handler";
 
 /**
  * Delete a room from Liveblocks
@@ -67,10 +68,26 @@ async function permanentDeleteDiagram(diagramId: string): Promise<boolean> {
       return false;
     }
 
-    // Delete the Liveblocks room first (room ID is the diagram ID)
+    // Get all files associated with the diagram
+    const files = await prisma.file.findMany({
+      where: { diagramId: diagramId },
+      select: { fileUrl: true },
+    });
+
+    // Delete files from S3
+    for (const file of files) {
+      try {
+        await deleteFileFromS3(file.fileUrl);
+      } catch (error) {
+        console.error(`Failed to delete file from S3: ${file.fileUrl}`, error);
+        // Continue with deletion even if S3 deletion fails
+      }
+    }
+
+    // Delete the Liveblocks room (room ID is the diagram ID)
     await deleteLiveblocksRoom(diagramId);
 
-    // Delete the diagram (cascade will delete trash record)
+    // Delete the diagram (cascade will delete trash record and files from DB)
     await prisma.diagram.delete({
       where: { id: diagramId },
     });
@@ -105,7 +122,46 @@ async function permanentDeleteFolder(folderId: string): Promise<boolean> {
       return false;
     }
 
-    // Delete the folder (cascade will delete trash record and children)
+    // Get all diagrams in this folder
+    const diagrams = await prisma.diagram.findMany({
+      where: { folderId: folderId },
+      select: { id: true },
+    });
+
+    // For each diagram, delete its files from S3 and Liveblocks room
+    for (const diagram of diagrams) {
+      try {
+        // Get all files for this diagram
+        const files = await prisma.file.findMany({
+          where: { diagramId: diagram.id },
+          select: { fileUrl: true },
+        });
+
+        // Delete files from S3
+        for (const file of files) {
+          try {
+            await deleteFileFromS3(file.fileUrl);
+          } catch (error) {
+            console.error(
+              `Failed to delete file from S3: ${file.fileUrl}`,
+              error
+            );
+            // Continue with deletion even if S3 deletion fails
+          }
+        }
+
+        // Delete the Liveblocks room (room ID is the diagram ID)
+        await deleteLiveblocksRoom(diagram.id);
+      } catch (error) {
+        console.error(
+          `Failed to delete diagram ${diagram.id} resources:`,
+          error
+        );
+        // Continue with folder deletion even if diagram cleanup fails
+      }
+    }
+
+    // Delete the folder (cascade will delete trash record, children, and diagrams)
     await prisma.folder.delete({
       where: { id: folderId },
     });
