@@ -128,7 +128,6 @@ export function DiagramCanvas() {
       onPointerLeave={onPointerLeave}
       onConnect={addNewEdge}
       onPaneClick={onPaneClick}
-      fitView
       panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
       selectionOnDrag={activeMode === DiagramMode.Select}
       nodeTypes={{ custom: CustomNode }}
