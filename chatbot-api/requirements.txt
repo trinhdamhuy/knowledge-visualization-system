@@ -1,0 +1,8 @@
+fastapi[standard]
+langchain[community, google-genai]
+langchain_postgres
+langchain-text-splitters
+langgraph[checkpoint-postgres]
+psycopg[binary,pool]
+boto3
+dotenv
