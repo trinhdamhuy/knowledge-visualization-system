@@ -1,8 +1,11 @@
 fastapi[standard]
+langchain
 langchain[community, google-genai]
 langchain_postgres
 langchain-text-splitters
-langgraph[checkpoint-postgres]
+langgraph
+langgraph-checkpoint-postgres
 psycopg[binary,pool]
+psycopg2-binary
 boto3
 dotenv

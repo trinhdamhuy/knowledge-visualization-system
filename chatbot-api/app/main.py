@@ -9,16 +9,16 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 from dotenv import load_dotenv
-from edges import (
+from app.edges import (
     grade_documents,
     rewrite_question,
     generate_answer,
     summarize_documents,
 )
-from models.chat_model import model
-from tools import load_file, add_documents, retrieve_documents
-from schemas.states import State
-from schemas.api import *
+from app.models.chat_model import model
+from app.tools import load_file, add_documents, retrieve_documents
+from app.schemas.states import State
+from app.schemas.api import *
 
 load_dotenv()
 
@@ -81,7 +81,7 @@ app.add_middleware(
 
 
 @app.get("/")
-def read_root():
+async def read_root() -> dict:
     return "The chatbot is running"
 
 
