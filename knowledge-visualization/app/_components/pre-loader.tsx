@@ -49,7 +49,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   return (
     <div 
       ref={loaderRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50"
     >
       <div 
         ref={letterRef}
@@ -61,7 +61,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
             className="absolute text-transparent font-bold"
             style={{
               fontSize: '200px',
-              WebkitTextStroke: '3px #5b21b6',
+              WebkitTextStroke: '3px #0C7B93',
               fontFamily: 'Arial Black, sans-serif',
               lineHeight: 1,
               margin: 0,
@@ -72,14 +72,18 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
           
           <span 
             ref={fillRef}
-            className="absolute font-bold text-purple-800"
+            className="absolute font-bold"
             style={{
               fontSize: '200px',
               fontFamily: 'Arial Black, sans-serif',
               lineHeight: 1,
               margin: 0,
               padding: 0,
-              clipPath: 'inset(100% 0% 0% 0%)'
+              clipPath: 'inset(100% 0% 0% 0%)',
+              background: 'linear-gradient(135deg, #142850 0%, #0C7B93 50%, #00A8CC 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
             }}>
             K
           </span>
