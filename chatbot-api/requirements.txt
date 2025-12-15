@@ -4,8 +4,11 @@ langchain[community, google-genai]
 langchain_postgres
 langchain-text-splitters
 langgraph
-langgraph-checkpoint-postgres
 psycopg[binary,pool]
-psycopg2-binary
+langchain-postgres
+langchain-core
+langchain-cohere
+langgraph-checkpoint-postgres
+sqlalchemy
 boto3
 dotenv

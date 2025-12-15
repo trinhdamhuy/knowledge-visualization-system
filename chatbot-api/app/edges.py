@@ -1,10 +1,11 @@
-from langgraph.config import get_stream_writer
-from pydantic import BaseModel, Field
+"""Edges for the chatbot workflow."""
+
 from typing import Literal
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from models.chat_model import model
-from langchain_core.messages import AIMessage, HumanMessage
+from pydantic import BaseModel, Field
+from langgraph.config import get_stream_writer
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from app.schemas.states import State
+from app.models.chat_model import model, tools_by_name
 
 GRADE_PROMPT = (
     "You are a grader assessing relevance of a retrieved document to a user question. \n "
@@ -39,8 +40,7 @@ def grade_documents(
 
     if score == "yes":
         return "generate_answer"
-    else:
-        return "rewrite_question"
+    return "rewrite_question"
 
 
 REWRITE_PROMPT = (
@@ -115,3 +115,14 @@ def summarize_documents(state: State):
     )
     writer.write("Documents summarized successfully.")
     return {"messages": [AIMessage(content=response.summary)], "data": response.summary}
+
+
+def tool_node(state: dict):
+    """Performs the tool call"""
+
+    result = []
+    for tool_call in state["messages"][-1].tool_calls:
+        tool = tools_by_name[tool_call["name"]]
+        observation = tool.invoke(tool_call["args"])
+        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
+    return {"messages": result}

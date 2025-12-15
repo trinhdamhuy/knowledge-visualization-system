@@ -1,29 +1,30 @@
+"""Main file for the chatbot API."""
+
 import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_core.runnables import RunnableConfig
-from langgraph.prebuilt import ToolNode
 from fastapi.middleware.cors import CORSMiddleware
-from langgraph.graph import StateGraph, START, END
+
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
+
+from langgraph.graph import END, START, StateGraph
+from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
+
 from dotenv import load_dotenv
-from app.edges import (
-    grade_documents,
-    rewrite_question,
-    generate_answer,
-    summarize_documents,
-)
-from app.models.chat_model import model
-from app.tools import load_file, add_documents, retrieve_documents
+
 from app.schemas.states import State
-from app.schemas.api import *
+from app.schemas.api import ChatResponse, InitializeRequest
+from app.tools import load_file, add_documents, retrieve_documents
+from app.edges import grade_documents, rewrite_question, summarize_documents, generate_answer
 
 load_dotenv()
 
-DB_URI = os.getenv("DATABASE_URL")
-if not DB_URI:
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable not set")
 APP_URL = os.getenv("APP_URL")
 if not APP_URL:
@@ -31,44 +32,57 @@ if not APP_URL:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(fastapi_app: FastAPI):
+    """Lifespan for the app."""
     async with (
-        AsyncPostgresStore.from_conn_string(DB_URI) as store,
-        AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer,
+        AsyncPostgresStore.from_conn_string(DATABASE_URL) as store,
+        AsyncPostgresSaver.from_conn_string(DATABASE_URL) as checkpointer,
     ):
         await store.setup()
         await checkpointer.setup()
 
-        workflow = StateGraph(state_schema=State).add_sequence(
-            [
-                grade_documents,
-                rewrite_question,
-                ToolNode([retrieve_documents]),
-                generate_answer,
-            ]
-        )
+        workflow = StateGraph(state_schema=State)
+        workflow.add_node("grade_documents", grade_documents)
+        workflow.add_node("rewrite_question", rewrite_question)
+        workflow.add_node("retrieve_documents", ToolNode([retrieve_documents]))
+        workflow.add_node("generate_answer", generate_answer)
 
-        app.state.graph = workflow.compile(checkpointer=checkpointer)
-
-        initialize_workflow = StateGraph(state_schema=State).add_sequence(
-            [
-                ToolNode([load_file]),
-                summarize_documents,
-                ToolNode([add_documents]),
-                generate_answer,
-            ]
+        workflow.add_edge(START, "grade_documents")
+        workflow.add_conditional_edges(
+            "grade_documents",
+            grade_documents,
+            {
+                "generate_answer": "generate_answer",
+                "rewrite_question": "rewrite_question",
+            },
         )
-        app.state.initialize_graph = initialize_workflow.compile(
+        workflow.add_edge("rewrite_question", "retrieve_documents")
+        workflow.add_edge("retrieve_documents", "generate_answer")
+        workflow.add_edge("generate_answer", END)
+        fastapi_app.state.graph = workflow.compile(checkpointer=checkpointer)
+
+        initialize_workflow = StateGraph(state_schema=State)
+        initialize_workflow.add_node("load_file", ToolNode([load_file]))
+        initialize_workflow.add_node("summarize_documents", summarize_documents)
+        initialize_workflow.add_node("add_documents", ToolNode([add_documents]))
+        initialize_workflow.add_node("generate_answer", generate_answer)
+
+        initialize_workflow.add_edge(START, "load_file")
+        initialize_workflow.add_edge("load_file", "summarize_documents")
+        initialize_workflow.add_edge("summarize_documents", "add_documents")
+        initialize_workflow.add_edge("add_documents", "generate_answer")
+        initialize_workflow.add_edge("generate_answer", END)
+        fastapi_app.state.initialize_graph = initialize_workflow.compile(
             checkpointer=checkpointer
         )
 
-        app.state.checkpointer = checkpointer
+        fastapi_app.state.checkpointer = checkpointer
 
         yield
 
 
 # Initialize FastAPI app
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="Chatbot API", description="API for the chatbot")
 
 # Add CORS middleware (allow all origins for development)
 app.add_middleware(
@@ -81,7 +95,8 @@ app.add_middleware(
 
 
 @app.get("/")
-async def read_root() -> dict:
+async def read_root() -> str:
+    """Read the root endpoint."""
     return "The chatbot is running"
 
 
@@ -114,4 +129,4 @@ async def innitialize(request: InitializeRequest) -> ChatResponse:
         print(e)
         raise HTTPException(
             status_code=500, detail="Failed to load and summarize documents"
-        )
+        ) from e
