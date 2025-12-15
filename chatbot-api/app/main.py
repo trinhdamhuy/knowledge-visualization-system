@@ -51,6 +51,7 @@ async def lifespan(fastapi_app: FastAPI):
         await initialize_table()
         vector_store = await create_vector_store()
         fastapi_app.state.vector_store = vector_store
+        fastapi_app.state.store = store
 
         workflow = StateGraph(state_schema=State)
         workflow.add_node("grade_documents", grade_documents)
@@ -70,7 +71,9 @@ async def lifespan(fastapi_app: FastAPI):
         workflow.add_edge("rewrite_question", "retrieve_documents")
         workflow.add_edge("retrieve_documents", "generate_answer")
         workflow.add_edge("generate_answer", END)
-        fastapi_app.state.graph = workflow.compile(checkpointer=checkpointer)
+        fastapi_app.state.graph = workflow.compile(
+            checkpointer=checkpointer, store=store
+        )
 
         # Initialize workflow for loading documents and generating an initial answer
         initialize_workflow = StateGraph(state_schema=State).add_sequence(
@@ -79,7 +82,7 @@ async def lifespan(fastapi_app: FastAPI):
         initialize_workflow.add_edge(START, "load_file")
 
         fastapi_app.state.initialize_graph = initialize_workflow.compile(
-            checkpointer=checkpointer
+            checkpointer=checkpointer, store=store
         )
 
         fastapi_app.state.checkpointer = checkpointer
@@ -113,11 +116,14 @@ async def get_history(diagram_id: str) -> ChatResponse:
     config: RunnableConfig = {
         "configurable": {
             "thread_id": diagram_id,
-            "vector_store": app.state.vector_store,
         }
     }
-    state = await app.state.initialize_graph.aget_state(config).values
-    return ChatResponse(messages=state.get("messages", []))
+    graph_state = await app.state.initialize_graph.aget_state(config)
+    state = graph_state.values
+    return ChatResponse(
+        messages=state.get("messages", []),
+        data=state.get("data", {}),
+    )
 
 
 @app.post("/api/innitialize_documents")

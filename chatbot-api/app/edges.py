@@ -94,12 +94,23 @@ async def retrieve_documents(state: State, config: RunnableConfig):
 
 
 GENERATE_PROMPT = (
-    "You are an assistant for provided documents. \n"
-    "Use the following pieces of context to generate a reactflow mindmap from the documents, based on user request if there are any. \n"
-    "The reactflow mindmap should be in format below: \n"
+    "You are an AI assistant helping the user understand their documents.\n"
+    "User language can be different from the document's language, so you must use the user's language to answer the question, language of the mindmap must be the same as the document's language but can be translated to other language if user asked to do so."
+    "You must produce TWO things:\n"
+    "1) A helpful, conversational answer to the user's request.\n"
+    "2) React Flow mindmap data (as JSON) generated from the documents.\n"
+    "\n"
+    "Requirements:\n"
+    "- In your answer, explain the content clearly like a helpful assistant.\n"
+    "- The mindmap JSON must follow this shape:\n"
     "{{nodes: [{{ id: 'n1', position: {{ x: 0, y: 0 }}, data: {{ label: 'Node 1' }} }},{{ id: 'n2', position: {{ x: 0, y: 100 }}, data: {{ label: 'Node 2' }} }},], edges: [{{ id: 'n1-n2', source: 'n1', target: 'n2' }}]}} \n"
-    "Here is the user request: \n\n {request} \n\n"
-    "Here is the context of the documents: \n\n {context} \n\n"
+    "- The mindmap should reflect the structure and key ideas of the documents, adapted to the user's request.\n"
+    "\n"
+    "User request:\n"
+    "{request}\n"
+    "\n"
+    "Documents context:\n"
+    "{context}\n"
 )
 
 
@@ -127,7 +138,9 @@ async def generate_answer(state: State):
 SUMMARIZE_PROMPT = (
     "You are a summarizer summarizing a list of documents. \n"
     "Here is the list of documents: \n\n {documents} \n\n"
-    "Summarize the documents into a concise summary. \n"
+    "Summarize the documents by breaking them into their main sections, from top to bottom, and provide a concise summary for each section. \n"
+    "Focus on the main ideas and key points of the documents, and provide a concise summary for each section. \n"
+    "The summary should be in the same language as the documents but can be translated to the user's language if user asked to do so. \n"
 )
 
 
