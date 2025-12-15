@@ -7,7 +7,7 @@ langchain-postgres
 langchain-core
 langchain-cohere
 langchain-community
-pymupdf
+pypdf
 langgraph
 langgraph-checkpoint-postgres
 psycopg[binary,pool]

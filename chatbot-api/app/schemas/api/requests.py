@@ -1,6 +1,6 @@
 from typing import Optional, List
 from langchain_core.messages import BaseMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
@@ -8,7 +8,7 @@ class ChatRequest(BaseModel):
 
     user_id: str
     diagram_id: str
-    message: str
+    messages: Optional[List[BaseMessage]] = Field(description="List of chat messages")
 
 
 class InitializeRequest(ChatRequest):

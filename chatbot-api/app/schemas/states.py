@@ -17,3 +17,4 @@ class State(TypedDict):
         default={},
         description="The reactflow mindmap data generated from documents in json format",
     )
+    diagram_id: Optional[str] = Field(default="", description="The diagram id")

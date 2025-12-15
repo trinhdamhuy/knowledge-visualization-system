@@ -6,7 +6,7 @@ embeddings for storing and retrieving document vectors.
 
 import os
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_postgres import PGEngine, PGVectorStore
+from langchain_postgres import Column, PGEngine, PGVectorStore
 from sqlalchemy.ext.asyncio import create_async_engine
 from dotenv import load_dotenv
 
@@ -26,9 +26,21 @@ embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-001")
 
 TABLE_NAME = "chatbot_docs"
 
-store = PGVectorStore.create(
-    engine=pg_engine,
-    table_name=TABLE_NAME,
-    embedding_service=embeddings,
-    metadata_columns=["diagram_id"],
-)
+
+async def initialize_table():
+    """Initialize the vector store."""
+    await pg_engine.ainit_vectorstore_table(
+        table_name=TABLE_NAME,
+        vector_size=3072,
+        metadata_columns=[Column("diagram_id", "TEXT")],
+    )
+
+
+async def create_vector_store() -> PGVectorStore:
+    """Create and return a PGVectorStore instance for the chatbot."""
+    return await PGVectorStore.create(
+        engine=pg_engine,
+        table_name=TABLE_NAME,
+        embedding_service=embeddings,
+        metadata_columns=["diagram_id"],
+    )

@@ -3,8 +3,33 @@
 from typing import Literal
 from pydantic import BaseModel, Field
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from app.schemas.states import State
 from app.models.chat_model import model
+
+
+async def load_file(state: State):
+    """Load a file into documents."""
+    file_url = state["file_url"]
+    if file_url.endswith(".txt"):
+        loader = TextLoader(file_url)
+    elif file_url.endswith(".pdf"):
+        loader = PyPDFLoader(file_url)
+    else:
+        raise ValueError("Unsupported file type")
+    documents = await loader.aload()
+    return {"context": documents}
+
+
+async def add_documents(state: State, config: RunnableConfig):
+    """Add documents to the vector store."""
+    documents = state["context"]
+    diagram_id = state["diagram_id"]
+    vector_store = config["configurable"]["vector_store"]
+    await vector_store.aadd_documents(documents, metadata={"diagram_id": diagram_id})
+    return {"context": documents}
+
 
 GRADE_PROMPT = (
     "You are a grader assessing relevance of a retrieved document to a user question. \n"
@@ -55,6 +80,17 @@ async def rewrite_question(state: State):
     prompt = REWRITE_PROMPT.format(question=question)
     response = await model.ainvoke([{"role": "user", "content": prompt}])
     return {"messages": [HumanMessage(content=response.content)]}
+
+
+async def retrieve_documents(state: State, config: RunnableConfig):
+    """Retrieve documents from the vector store."""
+    question = state["messages"][0].content
+    diagram_id = state["diagram_id"]
+    vector_store = config["configurable"]["vector_store"]
+    retrieved_docs = await vector_store.asimilarity_search(
+        question, k=5, filter={"diagram_id": diagram_id}
+    )
+    return {"context": retrieved_docs}
 
 
 GENERATE_PROMPT = (

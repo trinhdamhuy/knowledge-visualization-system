@@ -9,5 +9,5 @@ class ChatResponse(BaseModel):
 
     messages: Annotated[Sequence[BaseMessage], add_messages] = None
     data: Optional[dict] = Field(
-        default=None, description="The data to be returned to the user"
+        default={}, description="The data to be returned to the user"
     )
