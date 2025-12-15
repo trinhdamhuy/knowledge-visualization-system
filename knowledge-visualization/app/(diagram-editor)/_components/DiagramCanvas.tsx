@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
+import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
 import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
@@ -32,7 +33,7 @@ export function DiagramCanvas() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const { activeMode, setActiveMode } = useDiagramStore();
+  const { activeMode, setActiveMode, setSelectedNodeId } = useDiagramStore();
 
   // Use Liveblocks as single source of truth
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
@@ -56,6 +57,13 @@ export function DiagramCanvas() {
       position: { x: event.clientX, y: event.clientY },
     });
   };
+
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      setSelectedNodeId(node.id);
+    },
+    [setSelectedNodeId]
+  );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
@@ -83,9 +91,12 @@ export function DiagramCanvas() {
     setMousePosition(null);
   }, [updateMyPresence]);
 
-  // Handle click on pane to create node
+  // Handle click on pane to create node or deselect node
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
+      // Deselect node when clicking on pane
+      setSelectedNodeId(null);
+
       if (activeMode !== DiagramMode.CreateNode || !reactFlowInstance.current)
         return;
 
@@ -108,7 +119,7 @@ export function DiagramCanvas() {
 
       addNode(newNode);
     },
-    [activeMode, addNode]
+    [activeMode, addNode, setSelectedNodeId]
   );
 
   return (
@@ -128,6 +139,7 @@ export function DiagramCanvas() {
       onPointerLeave={onPointerLeave}
       onConnect={addNewEdge}
       onPaneClick={onPaneClick}
+      onNodeClick={onNodeClick}
       panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
       selectionOnDrag={activeMode === DiagramMode.Select}
       nodeTypes={{ custom: CustomNode }}
@@ -140,7 +152,7 @@ export function DiagramCanvas() {
     >
       <DiagramHeader />
       <DiagramToolBar />
-      {/* <DiagramNodeToolBar /> */}
+      <DiagramNodeToolBar />
       <ChatBotPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />

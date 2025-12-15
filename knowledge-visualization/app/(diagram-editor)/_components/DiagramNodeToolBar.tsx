@@ -1,4 +1,6 @@
+import { useCallback } from "react";
 import { useDiagramStore } from "../_stores/use-diagram-store";
+import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import {
   Select,
   SelectContent,
@@ -28,12 +30,44 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function DiagramNodeToolBar() {
-  if (!selectedNodeId) return null;
-  const node = nodes.find((n) => n.id === selectedNodeId);
-  if (!node) return null;
+  const { nodes, updateNodeData } = useDiagramSync();
+  const { selectedNodeId } = useDiagramStore();
 
-  const shape = (node.data.shape as string) || "rectangle";
-  const color = (node.data.color as string) || "#FF97A7";
+  const node = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
+
+  const shape = (node?.data?.shape as string) || "rectangle";
+  const color = (node?.data?.color as string) || "#FF97A7";
+  const nodeWidth = (node?.width as number) || 150;
+  const nodeHeight = (node?.height as number) || 50;
+
+  type ShapeType = "rectangle" | "square" | "circle" | "diamond";
+
+  const setNodeShape = useCallback((nodeId: string, newShape: ShapeType) => {
+    // Shapes that need equal width/height (aspect ratio 1:1)
+    const squareShapes = ["square", "circle", "diamond"];
+    const currentIsSquare = squareShapes.includes(shape);
+    const newIsSquare = squareShapes.includes(newShape);
+
+    if (newIsSquare) {
+      // If current shape is already square, keep the size
+      // Otherwise use the smaller dimension to avoid enlargement
+      const size = currentIsSquare
+        ? Math.min(nodeWidth, nodeHeight)
+        : Math.min(Math.max(nodeWidth, nodeHeight), 100);
+      updateNodeData(nodeId, { shape: newShape }, { width: size, height: size });
+    } else {
+      // Rectangle - keep current dimensions or use reasonable default
+      const newWidth = currentIsSquare ? 150 : nodeWidth;
+      const newHeight = currentIsSquare ? 50 : nodeHeight;
+      updateNodeData(nodeId, { shape: newShape }, { width: newWidth, height: newHeight });
+    }
+  }, [shape, nodeWidth, nodeHeight, updateNodeData]);
+
+  const setNodeColor = useCallback((nodeId: string, newColor: string) => {
+    updateNodeData(nodeId, { color: newColor }, undefined);
+  }, [updateNodeData]);
+  
+  if (!selectedNodeId || !node) return null;
 
   return (
     <Card className="fixed right-6 top-[10%] z-999 min-w-2xs">
@@ -49,7 +83,7 @@ export function DiagramNodeToolBar() {
           <Select
             value={shape}
             onValueChange={(value) =>
-              setNodeShape(node.id, value as "rectangle" | "circle")
+              setNodeShape(node.id, value as ShapeType)
             }
           >
             <SelectTrigger className="w-full">
@@ -57,17 +91,18 @@ export function DiagramNodeToolBar() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="rectangle">Rectangle</SelectItem>
+              <SelectItem value="square">Square</SelectItem>
               <SelectItem value="circle">Circle</SelectItem>
+              <SelectItem value="diamond">Diamond</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1.5">Color</label>
           <ColorPicker
-            value={color}
-            onChange={(colorValue) =>
-              setNodeColor(node.id, colorValue as unknown as string)
-            }
+            key={`color-picker-${selectedNodeId}`}
+            defaultValue={color}
+            onValueChange={(newColor) => setNodeColor(node.id, newColor)}
             format="hex"
           >
             <ColorPickerTrigger asChild>
