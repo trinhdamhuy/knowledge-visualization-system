@@ -6,13 +6,27 @@ import {
   Position,
   NodeResizer,
 } from "@xyflow/react";
+import { useDiagramStore } from "../_stores/use-diagram-store";
+import { DiagramMode } from "@/enums/modes";
 
 const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
-  const nodeData = data as { label: string; color?: string; shape?: string };
+  const nodeData = data as {
+    label: string;
+    color?: string;
+    shape?: string;
+    fontFamily?: string;
+    fontSize?: number;
+    fontWeight?: string;
+    fontStyle?: string;
+    textDecoration?: string;
+    textAlign?: string;
+    textColor?: string;
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(nodeData.label);
   const { updateNodeData } = useReactFlow();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { setIsEditingText, setActiveMode } = useDiagramStore();
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -27,17 +41,40 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   };
 
   const handleBlur = () => {
-    setIsEditing(false);
-    if (label.trim()) {
-      updateNodeData(id, { label: label.trim() });
-    } else {
-      setLabel(nodeData.label);
-    }
+    setTimeout(() => {
+      try {
+        // If a toolbar interaction flag is set, keep editing
+        if ((window as any).__isInteractingWithTextToolbar) {
+          textareaRef.current?.focus();
+          return;
+        }
+
+        const toolbar = document.querySelector('[data-text-toolbar]');
+        const active = document.activeElement as HTMLElement | null;
+        if (toolbar && active && toolbar.contains(active)) {
+          textareaRef.current?.focus();
+          return;
+        }
+      } catch (e) {
+        // ignore DOM errors in SSR or restricted environments
+      }
+
+      setIsEditing(false);
+      setIsEditingText(false);
+      setActiveMode(DiagramMode.Select);
+      if (label.trim()) {
+        updateNodeData(id, { label: label.trim() });
+      } else {
+        setLabel(nodeData.label);
+      }
+    }, 0);
   };
 
   const handleStartEdit = () => {
     setLabel(nodeData.label);
     setIsEditing(true);
+    setActiveMode(DiagramMode.EditText);
+    setIsEditingText(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -52,6 +89,17 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const nodeHeight = height || 50;
   const shape = nodeData.shape || "rectangle";
   const nodeColor = nodeData.color || "var(--card)";
+
+  // Text styles
+  const textStyles: React.CSSProperties = {
+    fontFamily: nodeData.fontFamily || "Inter",
+    fontSize: `${nodeData.fontSize || 14}px`,
+    fontWeight: (nodeData.fontWeight as React.CSSProperties["fontWeight"]) || "normal",
+    fontStyle: (nodeData.fontStyle as React.CSSProperties["fontStyle"]) || "normal",
+    textDecoration: nodeData.textDecoration || "none",
+    textAlign: (nodeData.textAlign as React.CSSProperties["textAlign"]) || "center",
+    color: nodeData.textColor || "inherit",
+  };
 
   // Determine if shape needs equal dimensions
   const isSquareShape = ["square", "circle", "diamond"].includes(shape);
@@ -182,6 +230,7 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
             whiteSpace: "pre-wrap",
             position: "relative",
             zIndex: 1,
+            ...textStyles,
           }}
         />
       ) : (
@@ -197,6 +246,7 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
             lineHeight: "1.5",
             position: "relative",
             zIndex: 1,
+            ...textStyles,
           }}
         >
           {nodeData.label}

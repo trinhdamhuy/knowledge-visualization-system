@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
+import { DiagramTextToolBar } from "./DiagramTextToolBar";
 import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
@@ -153,6 +154,7 @@ export function DiagramCanvas() {
       <DiagramHeader />
       <DiagramToolBar />
       <DiagramNodeToolBar />
+      <DiagramTextToolBar />
       <ChatBotPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
