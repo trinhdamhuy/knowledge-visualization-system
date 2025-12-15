@@ -2,15 +2,14 @@
 
 from typing import Literal
 from pydantic import BaseModel, Field
-from langgraph.config import get_stream_writer
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from app.schemas.states import State
-from app.models.chat_model import model, tools_by_name
+from app.models.chat_model import model
 
 GRADE_PROMPT = (
-    "You are a grader assessing relevance of a retrieved document to a user question. \n "
-    "Here is the retrieved document: \n\n {context} \n\n"
-    "Here is the user question: {question} \n"
+    "You are a grader assessing relevance of a retrieved document to a user question. \n"
+    "Context: \n\n {context} \n\n"
+    "Here is the user question: \n\n {question} \n\n"
     "If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n"
     "Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."
 )
@@ -25,7 +24,7 @@ class GradeDocuments(BaseModel):
     )
 
 
-def grade_documents(
+async def grade_documents(
     state: State,
 ) -> Literal["generate_answer", "rewrite_question"]:
     """Determine whether the retrieved documents are relevant to the question."""
@@ -33,8 +32,8 @@ def grade_documents(
     context = "\n".join([doc.page_content for doc in state["context"]])
 
     prompt = GRADE_PROMPT.format(question=question, context=context)
-    response = model.with_structured_output(GradeDocuments).invoke(
-        [HumanMessage(content=prompt)]
+    response = await model.with_structured_output(GradeDocuments).ainvoke(
+        [{"role": "user", "content": prompt}]
     )
     score = response.binary_score
 
@@ -44,27 +43,25 @@ def grade_documents(
 
 
 REWRITE_PROMPT = (
-    "Look at the input and try to reason about the underlying semantic intent / meaning.\n"
-    "Here is the initial question:"
-    "\n ------- \n"
-    "{question}"
-    "\n ------- \n"
-    "Formulate an improved question:"
+    "Look at the input and try to reason about the underlying semantic intent / meaning. \n"
+    + "Here is the initial question: \n\n {question} \n\n"
+    + "Formulate an improved question: \n\n"
 )
 
 
-def rewrite_question(state: State):
+async def rewrite_question(state: State):
     """Rewrite the original user question."""
     question = state["messages"][0].content
     prompt = REWRITE_PROMPT.format(question=question)
-    response = model.invoke([HumanMessage(content=prompt)])
+    response = await model.ainvoke([{"role": "user", "content": prompt}])
     return {"messages": [HumanMessage(content=response.content)]}
 
 
 GENERATE_PROMPT = (
-    "You are an assistant for provided documents."
-    "Use the following pieces of context to generate a reactflow mindmap from the documents, based on user request if there are any. "
-    "The reactflow mindmap should be in json format. "
+    "You are an assistant for provided documents. \n"
+    "Use the following pieces of context to generate a reactflow mindmap from the documents, based on user request if there are any. \n"
+    "The reactflow mindmap should be in format below: \n"
+    "{{nodes: [{{ id: 'n1', position: {{ x: 0, y: 0 }}, data: {{ label: 'Node 1' }} }},{{ id: 'n2', position: {{ x: 0, y: 100 }}, data: {{ label: 'Node 2' }} }},], edges: [{{ id: 'n1-n2', source: 'n1', target: 'n2' }}]}} \n"
     "Here is the user request: \n\n {request} \n\n"
     "Here is the context of the documents: \n\n {context} \n\n"
 )
@@ -80,21 +77,21 @@ class GenerateAnswer(BaseModel):
     )
 
 
-def generate_answer(state: State):
+async def generate_answer(state: State):
     """Generate an answer and fix reactflow mindmap data based on user request if there are any."""
     request = state["messages"][0].content
     context = "\n".join([doc.page_content for doc in state["context"]])
     prompt = GENERATE_PROMPT.format(request=request, context=context)
-    response = model.with_structured_output(GenerateAnswer).invoke(
-        [HumanMessage(content=prompt)]
+    response = await model.with_structured_output(GenerateAnswer).ainvoke(
+        [{"role": "user", "content": prompt}]
     )
     return {"messages": [AIMessage(content=response.answer)], "data": response.data}
 
 
 SUMMARIZE_PROMPT = (
-    "You are a summarizer summarizing a list of documents. "
+    "You are a summarizer summarizing a list of documents. \n"
     "Here is the list of documents: \n\n {documents} \n\n"
-    "Summarize the documents into a concise summary. "
+    "Summarize the documents into a concise summary. \n"
 )
 
 
@@ -104,25 +101,13 @@ class SummarizeDocuments(BaseModel):
     summary: str = Field(default="", description="The summary of the documents")
 
 
-def summarize_documents(state: State):
+async def summarize_documents(
+    state: State,
+):
     """Summarize the documents."""
-    writer = get_stream_writer()
-    writer.write("Summarizing documents...")
     documents = "\n".join([doc.page_content for doc in state["context"]])
     prompt = SUMMARIZE_PROMPT.format(documents=documents)
-    response = model.with_structured_output(SummarizeDocuments).invoke(
-        [HumanMessage(content=prompt)]
+    response = await model.with_structured_output(SummarizeDocuments).ainvoke(
+        [{"role": "user", "content": prompt}]
     )
-    writer.write("Documents summarized successfully.")
     return {"messages": [AIMessage(content=response.summary)], "data": response.summary}
-
-
-def tool_node(state: dict):
-    """Performs the tool call"""
-
-    result = []
-    for tool_call in state["messages"][-1].tool_calls:
-        tool = tools_by_name[tool_call["name"]]
-        observation = tool.invoke(tool_call["args"])
-        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
-    return {"messages": result}

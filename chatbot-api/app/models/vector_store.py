@@ -17,7 +17,7 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable not set")
 
 engine = create_async_engine(
-    "postgresql+asyncpg://postgres:1@localhost:6024/knowledge-visualization"
+    "postgresql+asyncpg://postgres:1@localhost:6024/knowledge-visualization-vector"
 )
 
 pg_engine = PGEngine.from_engine(engine)
@@ -30,4 +30,5 @@ store = PGVectorStore.create(
     engine=pg_engine,
     table_name=TABLE_NAME,
     embedding_service=embeddings,
+    metadata_columns=["diagram_id"],
 )

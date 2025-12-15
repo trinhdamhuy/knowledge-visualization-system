@@ -9,7 +9,7 @@ class State(TypedDict):
     """State schema for the chatbot."""
 
     messages: Annotated[list[BaseMessage], add_messages]
-    file_path: Optional[str] = None
+    file_url: Optional[str] = None
     context: Optional[List[Document]] = Field(
         default=[], description="The context of the documents"
     )

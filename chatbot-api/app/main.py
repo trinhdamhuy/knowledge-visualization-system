@@ -2,11 +2,14 @@
 
 import os
 from contextlib import asynccontextmanager
+from typing import List
+from IPython.display import Image
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from langgraph.graph import END, START, StateGraph
@@ -19,7 +22,12 @@ from dotenv import load_dotenv
 from app.schemas.states import State
 from app.schemas.api import ChatResponse, InitializeRequest
 from app.tools import load_file, add_documents, retrieve_documents
-from app.edges import grade_documents, rewrite_question, summarize_documents, generate_answer
+from app.edges import (
+    grade_documents,
+    rewrite_question,
+    summarize_documents,
+    generate_answer,
+)
 
 load_dotenv()
 
@@ -63,13 +71,11 @@ async def lifespan(fastapi_app: FastAPI):
 
         initialize_workflow = StateGraph(state_schema=State)
         initialize_workflow.add_node("load_file", ToolNode([load_file]))
-        initialize_workflow.add_node("summarize_documents", summarize_documents)
         initialize_workflow.add_node("add_documents", ToolNode([add_documents]))
         initialize_workflow.add_node("generate_answer", generate_answer)
 
         initialize_workflow.add_edge(START, "load_file")
-        initialize_workflow.add_edge("load_file", "summarize_documents")
-        initialize_workflow.add_edge("summarize_documents", "add_documents")
+        initialize_workflow.add_edge("load_file", "add_documents")
         initialize_workflow.add_edge("add_documents", "generate_answer")
         initialize_workflow.add_edge("generate_answer", END)
         fastapi_app.state.initialize_graph = initialize_workflow.compile(
@@ -100,6 +106,19 @@ async def read_root() -> str:
     return "The chatbot is running"
 
 
+@app.get("/api/history")
+async def get_history(diagram_id: str) -> ChatResponse:
+    """Get the history of the chatbot."""
+
+    config: RunnableConfig = {
+        "configurable": {
+            "thread_id": diagram_id,
+        }
+    }
+    state = await app.state.initialize_graph.aget_state(config).values
+    return ChatResponse(messages=state.get("messages", []))
+
+
 @app.post("/api/innitialize_documents")
 async def innitialize(request: InitializeRequest) -> ChatResponse:
     """Load the documents into the vector store, then summarize the documents.
@@ -108,8 +127,10 @@ async def innitialize(request: InitializeRequest) -> ChatResponse:
 
     try:
         input_dict = State(
-            messages=[HumanMessage(content=request.message, id=request.user_id)],
-            file_path=request.file_path,
+            messages=[
+                HumanMessage(content=request.message, id=request.user_id),
+            ],
+            file_url=request.file_url,
             context=[],
             data={},
         )
@@ -119,7 +140,7 @@ async def innitialize(request: InitializeRequest) -> ChatResponse:
             }
         }
 
-        _ = await app.state.initialize_graph.update_state(config, input_dict)
+        _ = await app.state.initialize_graph.aupdate_state(config, input_dict)
         result = await app.state.initialize_graph.ainvoke(input_dict, config)
         return ChatResponse(
             messages=result["messages"],

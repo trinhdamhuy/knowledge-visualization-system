@@ -8,10 +8,10 @@ class ChatRequest(BaseModel):
 
     user_id: str
     diagram_id: str
-    message: Optional[List[BaseMessage]] = None
+    message: str
 
 
 class InitializeRequest(ChatRequest):
     """Request schema for the initialize endpoint."""
 
-    file_path: str
+    file_url: str

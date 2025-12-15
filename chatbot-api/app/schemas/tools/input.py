@@ -5,7 +5,7 @@ from langchain_core.documents import Document
 class LoadFileInput(BaseModel):
     """Input schema for the load_file tool."""
 
-    file_path: str
+    file_url: str
 
 
 class AddDocumentsInput(BaseModel):

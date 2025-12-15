@@ -3,12 +3,15 @@ langchain
 langchain[community, google-genai]
 langchain_postgres
 langchain-text-splitters
-langgraph
-psycopg[binary,pool]
 langchain-postgres
 langchain-core
 langchain-cohere
+langchain-community
+pymupdf
+langgraph
 langgraph-checkpoint-postgres
+psycopg[binary,pool]
 sqlalchemy
 boto3
 dotenv
+unstructured
