@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PreLoader from "./_components/pre-loader";
 import StickyHeader from "./_components/sticky-header";
+import Link from "next/link";
 import {
   FaBrain,
   FaNetworkWired,
@@ -10,9 +11,28 @@ import {
   FaEye,
 } from "react-icons/fa";
 import { HiSparkles } from "react-icons/hi";
+import { LogoCloud } from "@/components/logo-cloud";
+import { TestimonialsColumn } from "@/components/testimonials-columns";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showPreloader, setShowPreloader] = useState(false);
+
+  useEffect(() => {
+    const hasSeenPreloader = localStorage.getItem("knovion_preloader_seen");
+
+    if (hasSeenPreloader) {
+      setIsLoading(false);
+      setShowPreloader(false);
+    } else {
+      setShowPreloader(true);
+    }
+  }, []);
+
+  const handlePreloaderComplete = () => {
+    localStorage.setItem("knovion_preloader_seen", "true");
+    setIsLoading(false);
+  };
 
   const features = [
     {
@@ -53,74 +73,124 @@ export default function Home() {
     },
   ];
 
-  const steps = [
+  const testimonials = [
     {
-      step: "01",
-      title: "Import Your Knowledge",
-      description:
-        "Upload documents, notes, or paste text. Support for PDFs, Word docs, markdown, and more.",
-      gradient: "from-blue-500 to-cyan-500",
+      text: "Knovion completely changed how I organize my research. Connecting complex concepts is now intuitive and effortless.",
+      image: "https://randomuser.me/api/portraits/women/1.jpg",
+      name: "Nguyen Minh Anh",
+      role: "PhD Researcher",
     },
     {
-      step: "02",
-      title: "AI Analysis",
-      description:
-        "Our AI extracts key concepts, identifies relationships, and builds your knowledge graph automatically.",
-      gradient: "from-purple-500 to-pink-500",
+      text: "The AI auto-analysis feature saves me hours of work. Hidden relationships in data are displayed clearly and beautifully.",
+      image: "https://randomuser.me/api/portraits/men/2.jpg",
+      name: "Tran Duc Huy",
+      role: "Data Scientist",
     },
     {
-      step: "03",
-      title: "Explore & Discover",
-      description:
-        "Navigate your visual knowledge network, discover insights, and make connections you never saw before.",
-      gradient: "from-orange-500 to-red-500",
+      text: "My students love using Knovion for revision. Interactive mind maps help them grasp knowledge much faster.",
+      image: "https://randomuser.me/api/portraits/women/3.jpg",
+      name: "Le Thi Huong",
+      role: "University Lecturer",
+    },
+    {
+      text: "Finally a tool that helps me manage massive knowledge from online courses in a systematic way.",
+      image: "https://randomuser.me/api/portraits/men/4.jpg",
+      name: "Pham Van Nam",
+      role: "Computer Science Student",
+    },
+    {
+      text: "Real-time collaboration is incredibly useful for our research team. Everyone can contribute and track progress seamlessly.",
+      image: "https://randomuser.me/api/portraits/women/5.jpg",
+      name: "Hoang Thi Mai",
+      role: "R&D Team Lead",
+    },
+    {
+      text: "Beautiful and user-friendly interface. I've tried many mind map tools but Knovion excels in visualization capabilities.",
+      image: "https://randomuser.me/api/portraits/women/6.jpg",
+      name: "Vu Thanh Ha",
+      role: "UX Designer",
+    },
+    {
+      text: "Knovion helps me prepare more professional presentations. Clients are impressed with the visual knowledge delivery.",
+      image: "https://randomuser.me/api/portraits/men/7.jpg",
+      name: "Do Quang Minh",
+      role: "Business Consultant",
+    },
+    {
+      text: "As a content creator, I need clear idea organization. Knovion is an essential tool in my workflow.",
+      image: "https://randomuser.me/api/portraits/women/8.jpg",
+      name: "Bui Ngoc Linh",
+      role: "Content Creator",
+    },
+    {
+      text: "PDF document import is super convenient. AI automatically extracts key concepts, saving me tons of time.",
+      image: "https://randomuser.me/api/portraits/men/9.jpg",
+      name: "Ngo Dinh Khoa",
+      role: "Legal Consultant",
     },
   ];
 
+  const firstColumn = testimonials.slice(0, 3);
+  const secondColumn = testimonials.slice(3, 6);
+  const thirdColumn = testimonials.slice(6, 9);
+
   return (
     <>
-      {isLoading && <PreLoader onComplete={() => setIsLoading(false)} />}
+      {showPreloader && isLoading && (
+        <PreLoader onComplete={handlePreloaderComplete} />
+      )}
 
       <main
         className={`transition-opacity duration-500 w-full ${
-          isLoading ? "opacity-0" : "opacity-100"
+          showPreloader && isLoading ? "opacity-0" : "opacity-100"
         }`}
       >
         {/* Hero Section */}
-        <section className="relative min-h-screen bg-linear-to-br from-indigo-950 via-purple-900 to-slate-900 w-full overflow-hidden">
+        <section className="relative min-h-screen bg-gradient-to-br from-white via-sky-50 to-cyan-50 w-full overflow-hidden">
           <StickyHeader />
 
           {/* Animated background grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f46e510_1px,transparent_1px),linear-gradient(to_bottom,#4f46e510_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e910_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e910_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
 
-          <div className="relative min-h-screen flex items-center justify-center px-4 md:px-8 pt-32 md:pt-40 pb-20">
-            <div className="max-w-6xl mx-auto text-center space-y-12">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-300 text-sm backdrop-blur-sm">
+          <div className="relative min-h-screen flex items-center justify-center px-4 md:px-8 pt-24 pb-20">
+            <div className="max-w-6xl mx-auto text-center space-y-8">
+              {/* Large KNOVION text */}
+              <h1
+                className="text-6xl md:text-8xl lg:text-9xl font-black"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #142850 0%, #0C7B93 50%, #00A8CC 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  fontFamily: "Arial Black, sans-serif",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                KNOVION
+              </h1>
+
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-100 border border-sky-200 rounded-full text-sky-700 text-sm backdrop-blur-sm">
                 <HiSparkles className="w-4 h-4" />
                 <span>Next-Gen Knowledge Management</span>
               </div>
 
-              <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-linear-to-r from-purple-400 via-pink-400 to-purple-400 leading-tight">
-                KNOVION
-              </h1>
-
-              <p className="text-2xl md:text-4xl font-light text-purple-200 max-w-4xl mx-auto leading-relaxed">
+              <p className="text-2xl md:text-4xl font-light text-slate-700 max-w-4xl mx-auto leading-relaxed">
                 Visualize. Connect. Understand.
               </p>
 
-              <p className="text-lg md:text-xl text-purple-300/80 max-w-3xl mx-auto">
+              <p className="text-lg md:text-xl text-slate-500 max-w-3xl mx-auto">
                 Transform complex information into interactive visual networks.
                 Discover hidden connections and insights through intelligent
                 knowledge mapping.
               </p>
 
               <div className="flex flex-wrap gap-4 justify-center pt-8">
-                <button className="px-8 py-4 bg-linear-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:scale-105 transition-transform shadow-lg shadow-purple-500/50">
-                  Start Visualizing
-                </button>
-                <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg hover:bg-white/20 transition-colors border border-white/20">
-                  Watch Demo
-                </button>
+                <Link href="/login">
+                  <button className="px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-sky-500/30">
+                    Start Visualizing
+                  </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -143,9 +213,9 @@ export default function Home() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="group p-8 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200 hover:border-purple-300 hover:-translate-y-2"
+                  className="group p-8 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-sky-200 hover:-translate-y-2"
                 >
-                  <div className="w-16 h-16 bg-linear-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 bg-gradient-to-br from-sky-400 to-blue-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
                     {feature.icon}
                   </div>
                   <h3 className="text-2xl font-bold text-slate-900 mb-4">
@@ -160,82 +230,82 @@ export default function Home() {
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section className="min-h-screen bg-linear-to-br from-purple-50 to-pink-50 py-20 px-4 md:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
+        {/* Logo Cloud Section */}
+        <section className="bg-white py-20 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
               <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                How It Works
+                Trusted by Industry Leaders
               </h2>
               <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Three simple steps to transform your knowledge
+                Join thousands of professionals and organizations who trust Knovion
+              </p>
+            </div>
+            <div className="mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
+              <LogoCloud />
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section className="bg-slate-50 py-20 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
+                What Our Users Say
+              </h2>
+              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+                See how Knovion is transforming the way people visualize and manage knowledge
               </p>
             </div>
 
-            <div className="space-y-24">
-              {steps.map((item, index) => (
-                <div
-                  key={index}
-                  className={`flex flex-col ${
-                    index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-                  } items-center gap-12`}
-                >
-                  <div className="flex-1">
-                    <div
-                      className={`inline-block px-6 py-2 bg-linear-to-r ${item.gradient} text-white font-black text-4xl rounded-2xl mb-6`}
-                    >
-                      {item.step}
-                    </div>
-                    <h3 className="text-4xl font-bold text-slate-900 mb-6">
-                      {item.title}
-                    </h3>
-                    <p className="text-xl text-slate-600 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-                  <div className="flex-1">
-                    <div
-                      className={`w-full aspect-square bg-linear-to-br ${item.gradient} rounded-3xl shadow-2xl opacity-20`}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="flex max-h-[740px] justify-center gap-6 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]">
+              <TestimonialsColumn duration={16} testimonials={firstColumn} />
+              <TestimonialsColumn
+                className="hidden md:block"
+                duration={20}
+                testimonials={secondColumn}
+              />
+              <TestimonialsColumn
+                className="hidden lg:block"
+                duration={18}
+                testimonials={thirdColumn}
+              />
             </div>
           </div>
         </section>
 
         {/* CTA Section */}
-        <section className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 py-20 px-4 md:px-8 flex items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f46e510_1px,transparent_1px),linear-gradient(to_bottom,#4f46e510_1px,transparent_1px)] bg-size-[4rem_4rem]" />
+        <section className="min-h-screen bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 py-20 px-4 md:px-8 flex items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-size-[4rem_4rem]" />
 
           <div className="relative max-w-4xl mx-auto text-center space-y-8">
             <h2 className="text-5xl md:text-7xl font-black text-white mb-6">
               Ready to Visualize Your Knowledge?
             </h2>
-            <p className="text-xl md:text-2xl text-purple-200">
+            <p className="text-xl md:text-2xl text-sky-100">
               Join thousands of researchers, students, and professionals who use
-              KNOVION
+              <span className="font-bold text-white"> KNOVION</span>
             </p>
             <div className="flex flex-wrap gap-4 justify-center pt-8">
-              <button className="px-10 py-5 bg-white text-purple-900 font-bold text-lg rounded-lg hover:scale-105 transition-transform shadow-xl">
-                Get Started Free
-              </button>
-              <button className="px-10 py-5 bg-purple-600/30 backdrop-blur-sm text-white font-bold text-lg rounded-lg hover:bg-purple-600/50 transition-colors border-2 border-purple-400">
-                Schedule Demo
-              </button>
+              <Link href="/login">
+                <button className="px-8 py-4 bg-white text-slate-900 font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-white/30">
+                  Get Started Now
+                </button>
+              </Link>
             </div>
 
-            <div className="pt-12 flex items-center justify-center gap-8 text-purple-300">
+            <div className="pt-12 flex items-center justify-center gap-8 text-sky-100">
               <div className="text-center">
                 <div className="text-3xl font-bold text-white">10K+</div>
                 <div className="text-sm">Active Users</div>
               </div>
-              <div className="w-px h-12 bg-purple-500/30" />
+              <div className="w-px h-12 bg-white/30" />
               <div className="text-center">
                 <div className="text-3xl font-bold text-white">1M+</div>
                 <div className="text-sm">Knowledge Nodes</div>
               </div>
-              <div className="w-px h-12 bg-purple-500/30" />
+              <div className="w-px h-12 bg-white/30" />
               <div className="text-center">
                 <div className="text-3xl font-bold text-white">99.9%</div>
                 <div className="text-sm">Uptime</div>

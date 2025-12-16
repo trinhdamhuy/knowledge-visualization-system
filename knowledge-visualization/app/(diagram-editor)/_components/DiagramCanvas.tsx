@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
+import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
 import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
@@ -32,7 +33,7 @@ export function DiagramCanvas() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const { activeMode, setActiveMode } = useDiagramStore();
+  const { activeMode, setActiveMode, setSelectedNodeIds } = useDiagramStore();
 
   // Use Liveblocks as single source of truth
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
@@ -56,6 +57,23 @@ export function DiagramCanvas() {
       position: { x: event.clientX, y: event.clientY },
     });
   };
+
+  const { selectedNodeIds } = useDiagramStore();
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (event.ctrlKey || event.metaKey) {
+        // Multi-select logic: toggle node in array
+        if (selectedNodeIds.includes(node.id)) {
+          setSelectedNodeIds(selectedNodeIds.filter(id => id !== node.id));
+        } else {
+          setSelectedNodeIds([...selectedNodeIds, node.id]);
+        }
+      } else {
+        setSelectedNodeIds([node.id]);
+      }
+    },
+    [selectedNodeIds, setSelectedNodeIds]
+  );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
@@ -83,9 +101,12 @@ export function DiagramCanvas() {
     setMousePosition(null);
   }, [updateMyPresence]);
 
-  // Handle click on pane to create node
+  // Handle click on pane to create node or deselect node
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
+      // Deselect node when clicking on pane
+      setSelectedNodeIds([]);
+
       if (activeMode !== DiagramMode.CreateNode || !reactFlowInstance.current)
         return;
 
@@ -108,8 +129,12 @@ export function DiagramCanvas() {
 
       addNode(newNode);
     },
-    [activeMode, addNode]
+    [activeMode, addNode, setSelectedNodeIds]
   );
+
+  const onSelectionChange = useCallback((params: { nodes: Node[] }) => {
+    setSelectedNodeIds(params.nodes.map((n) => n.id));
+  }, [setSelectedNodeIds]);
 
   return (
     <ReactFlow
@@ -128,6 +153,8 @@ export function DiagramCanvas() {
       onPointerLeave={onPointerLeave}
       onConnect={addNewEdge}
       onPaneClick={onPaneClick}
+      onNodeClick={onNodeClick}
+      onSelectionChange={onSelectionChange}
       panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
       selectionOnDrag={activeMode === DiagramMode.Select}
       nodeTypes={{ custom: CustomNode }}
@@ -140,7 +167,7 @@ export function DiagramCanvas() {
     >
       <DiagramHeader />
       <DiagramToolBar />
-      {/* <DiagramNodeToolBar /> */}
+      <DiagramNodeToolBar />
       <ChatBotPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
