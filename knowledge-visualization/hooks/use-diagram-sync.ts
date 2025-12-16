@@ -150,6 +150,49 @@ export function useDiagramSync() {
     []
   );
 
+  // Mutation to update node data (shape, color, etc.) and node properties (width, height)
+  const updateNodeData = useMutation(
+    (
+      { storage },
+      nodeId: string,
+      data: Record<string, unknown>,
+      nodeProps?: { width?: number; height?: number }
+    ) => {
+      const storageNodes = storage.get("nodes");
+      if (!storageNodes) return;
+
+      const nodeObj = storageNodes.get(nodeId);
+      if (!nodeObj) return;
+
+      // Get current node data
+      const currentNode =
+        nodeObj && typeof nodeObj === "object" && "toObject" in nodeObj
+          ? (nodeObj as unknown as { toObject: () => Node }).toObject()
+          : (nodeObj as unknown as Node);
+
+      // Merge new data with existing data and update node properties
+      const updatedNode: Node = {
+        ...currentNode,
+        // Update width/height if provided
+        width: nodeProps?.width ?? currentNode.width,
+        height: nodeProps?.height ?? currentNode.height,
+        // Add measured to trigger React Flow to recalculate edges
+        measured: {
+          width: nodeProps?.width ?? currentNode.width ?? 150,
+          height: nodeProps?.height ?? currentNode.height ?? 50,
+        },
+        data: {
+          ...currentNode.data,
+          ...data,
+        },
+      };
+
+      // Update in storage
+      storageNodes.set(nodeId, new LiveObject(updatedNode as unknown as LsonObject));
+    },
+    []
+  );
+
   return {
     nodes,
     edges,
@@ -158,5 +201,6 @@ export function useDiagramSync() {
     addNewEdge,
     addNode,
     addNodeWithEdge,
+    updateNodeData,
   };
 }
