@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, Merriweather, Noto_Sans_JP } from "next/font/google";
+import { Noto_Sans_JP, Roboto } from "next/font/google";
 import "./globals.css";
 import DefaultProviders from "../providers/default-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-const inter = Inter({
+const roboto = Roboto({
   subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const merriweather = Merriweather({
-  weight: ["300", "700", "900"],
-  subsets: ["latin"],
-  variable: "--font-merriweather",
+  variable: "--font-roboto",
 });
 
 const notoSansJP = Noto_Sans_JP({
@@ -36,9 +30,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body
-        className={`${inter.variable} ${merriweather.variable} ${notoSansJP.variable} antialiased`}
-      >
+      <body className={`${roboto.variable} ${notoSansJP.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <DefaultProviders>
             <main

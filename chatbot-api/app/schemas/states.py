@@ -1,4 +1,4 @@
-from typing import Annotated, TypedDict, Optional, List
+from typing import Annotated, TypedDict, Optional, List, Literal
 from langchain_core.messages import BaseMessage
 from langchain_core.documents import Document
 from langgraph.graph.message import add_messages
@@ -13,8 +13,5 @@ class State(TypedDict):
     context: Optional[List[Document]] = Field(
         default=[], description="The context of the documents"
     )
-    data: Optional[dict] = Field(
-        default={},
-        description="The reactflow mindmap data generated from documents in json format",
-    )
     diagram_id: Optional[str] = Field(default="", description="The diagram id")
+    mode: Optional[Literal["generate", "chat"]] = None
