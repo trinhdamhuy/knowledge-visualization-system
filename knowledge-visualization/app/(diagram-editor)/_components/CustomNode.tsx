@@ -26,7 +26,7 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const [label, setLabel] = useState(nodeData.label);
   const { updateNodeData } = useReactFlow();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { setIsEditingText, setActiveMode } = useDiagramStore();
+  const { setActiveMode } = useDiagramStore();
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -60,7 +60,6 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
       }
 
       setIsEditing(false);
-      setIsEditingText(false);
       setActiveMode(DiagramMode.Select);
       if (label.trim()) {
         updateNodeData(id, { label: label.trim() });
@@ -73,8 +72,7 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const handleStartEdit = () => {
     setLabel(nodeData.label);
     setIsEditing(true);
-    setActiveMode(DiagramMode.EditText);
-    setIsEditingText(true);
+    setActiveMode(DiagramMode.Select);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
