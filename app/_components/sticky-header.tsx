@@ -1,147 +1,116 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useState } from "react";
 import Link from "next/link";
 import { HiMenu, HiX } from "react-icons/hi";
+import { ThemeToggle } from "@/app/_components/buttons/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export default function StickyHeader() {
-  const headerRef = useRef<HTMLDivElement>(null);
-  const logoRef = useRef<HTMLDivElement>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
 
   return (
-    <>
-      {/* Header - chỉ hiện khi scroll */}
-      <nav
-        ref={headerRef}
-        className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ${
-          isScrolled
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-full opacity-0"
-        }`}
-        style={{
-          backgroundColor: "rgba(14, 165, 233, 0.95)",
-          backdropFilter: "blur(12px)",
-        }}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 md:px-8 py-3">
+    <div className="sticky top-0 left-0 right-0 z-50 w-full">
+      {/* Header */}
+      <nav className="w-full border-b border-border/40 bg-background/50 backdrop-blur-lg transition-all duration-300">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-8">
           {/* Logo */}
-          <Link href="/" className="flex-shrink-0">
-            <div
-              ref={logoRef}
-              className="font-bold text-white text-xl md:text-2xl tracking-wide"
-              style={{
-                fontFamily: "Arial Black, sans-serif",
-              }}
-            >
+          <Link href="/" className="shrink-0">
+            <div className="bg-linear-to-r from-sky-500 via-cyan-400 to-indigo-500 bg-clip-text text-xl font-extrabold tracking-wide text-transparent md:text-2xl">
               KNOVION
             </div>
           </Link>
 
-          {/* Desktop Buttons */}
-          <div className="hidden md:flex gap-3 items-center">
-            <Link href="/login">
-              <button className="px-5 py-2 bg-white/20 backdrop-blur-sm text-white font-semibold text-sm rounded-lg border border-white/30 hover:bg-white/30 transition-all duration-200">
-                Login
-              </button>
-            </Link>
-
-            <Link href="/sign-up">
-              <button className="px-5 py-2 bg-white text-sky-600 font-semibold text-sm rounded-lg hover:bg-sky-50 transition-all duration-200 shadow-md">
-                Sign Up
-              </button>
-            </Link>
+          {/* Desktop Actions */}
+          <div className="hidden items-center gap-4 md:flex">
+            <ThemeToggle className="rounded-full" />
+            <div className="flex items-center gap-2">
+              <Link href="/login">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-border/60 bg-background/60 backdrop-blur-md"
+                >
+                  Login
+                </Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button
+                  size="sm"
+                  className="rounded-full bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 text-white shadow-md shadow-sky-500/30 hover:from-sky-500 hover:via-cyan-500 hover:to-indigo-500"
+                >
+                  Sign Up
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          {/* Mobile Hamburger Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="md:hidden p-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-all duration-200"
-            aria-label="Open menu"
-          >
-            <HiMenu className="w-6 h-6" />
-          </button>
+          {/* Mobile Actions */}
+          <div className="flex items-center gap-2 md:hidden">
+            <ThemeToggle className="rounded-full" />
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="inline-flex items-center justify-center rounded-xl bg-foreground/5 p-2 text-foreground hover:bg-foreground/10"
+              aria-label="Open menu"
+            >
+              <HiMenu className="h-6 w-6" />
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Menu Button - hiện khi chưa scroll (chỉ trên mobile) */}
-      <button
-        onClick={() => setIsMobileMenuOpen(true)}
-        className={`md:hidden fixed top-4 right-4 z-50 p-3 rounded-xl bg-white/90 text-slate-700 shadow-lg transition-all duration-300 ${
-          isScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
-        aria-label="Open menu"
-      >
-        <HiMenu className="w-6 h-6" />
-      </button>
-
       {/* Mobile Sidebar Menu */}
       <div
-        className={`md:hidden fixed inset-y-0 right-0 z-[60] w-80 max-w-[85vw] bg-white shadow-2xl transform transition-transform duration-300 ease-out ${
+        className={`fixed inset-y-0 right-0 z-40 w-80 max-w-[85vw] transform bg-background/95 shadow-2xl ring-1 ring-border/60 transition-transform duration-300 ease-out md:hidden ${
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Close Button */}
         <button
           onClick={() => setIsMobileMenuOpen(false)}
-          className="absolute top-4 right-4 p-2 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+          className="absolute right-4 top-4 rounded-full bg-foreground/5 p-2 text-foreground hover:bg-foreground/10"
           aria-label="Close menu"
         >
-          <HiX className="w-6 h-6 text-slate-700" />
+          <HiX className="h-6 w-6" />
         </button>
 
         {/* Menu Header */}
-        <div className="p-6 pt-16 border-b border-slate-100">
-          <div
-            className="font-bold text-2xl"
-            style={{
-              background:
-                "linear-gradient(135deg, #142850 0%, #0C7B93 50%, #00A8CC 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
+        <div className="border-b border-border/60 p-6 pt-16">
+          <div className="bg-linear-to-r from-sky-500 via-cyan-400 to-indigo-500 bg-clip-text text-2xl font-extrabold text-transparent">
             KNOVION
           </div>
-          <p className="text-slate-500 text-sm mt-2">Knowledge Visualization</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Knowledge Visualization
+          </p>
         </div>
 
         {/* Menu Buttons */}
         <div className="flex flex-col gap-3 p-6">
           <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-            <button className="w-full px-6 py-3 bg-slate-100 text-slate-700 font-semibold text-base rounded-lg hover:bg-slate-200 transition-all duration-200">
+            <Button
+              variant="outline"
+              className="w-full justify-center rounded-xl border-border bg-background/60"
+            >
               Login
-            </button>
+            </Button>
           </Link>
 
           <Link href="/sign-up" onClick={() => setIsMobileMenuOpen(false)}>
-            <button className="w-full px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold text-base rounded-lg hover:from-sky-600 hover:to-blue-700 transition-all duration-200 shadow-lg">
+            <Button className="w-full justify-center rounded-xl bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 text-white shadow-lg shadow-sky-500/30">
               Sign Up
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
 
       {/* Overlay */}
       {isMobileMenuOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-[59] backdrop-blur-sm"
+        <button
+          aria-label="Close menu overlay"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
-    </>
+    </div>
   );
 }

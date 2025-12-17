@@ -1,326 +1,321 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import PreLoader from "./_components/pre-loader";
-import StickyHeader from "./_components/sticky-header";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  FaBrain,
-  FaNetworkWired,
-  FaBolt,
-  FaDatabase,
-  FaEye,
-} from "react-icons/fa";
-import { HiSparkles } from "react-icons/hi";
-import { LogoCloud } from "@/components/logo-cloud";
+import StickyHeader from "./_components/sticky-header";
 import { TestimonialsColumn } from "@/components/testimonials-columns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "@/components/animate-ui/icons/sparkles";
+import { RetroGrid } from "@/components/ui/retro-grid";
+import { motion } from "motion/react";
+
+const FEATURES = [
+  {
+    title: "AI-Powered Insights",
+    description:
+      "Automatically extract key concepts, relationships, and structures from documents, PDFs, and notes.",
+    badge: "AI-first",
+  },
+  {
+    title: "Interactive Knowledge Graphs",
+    description:
+      "Explore interactive knowledge networks with smooth zoom and pan, and multiple perspectives.",
+    badge: "Graph view",
+  },
+  {
+    title: "Real-time Collaboration",
+    description:
+      "Co-create knowledge maps with your team in real time with clear access control.",
+    badge: "Live",
+  },
+  {
+    title: "Smart Organization",
+    description:
+      "Smart tagging, structure, and instant search so you never lose track of important information.",
+    badge: "Structured",
+  },
+  {
+    title: "Multi-view Visualization",
+    description:
+      "Switch between graph, timeline, and hierarchical views to match how you think.",
+    badge: "Multi-view",
+  },
+  {
+    title: "Beautiful by Default",
+    description:
+      "System-aware dark/light themes and refined typography keep your knowledge readable and beautiful.",
+    badge: "Design",
+  },
+] as const;
+
+const TESTIMONIALS = [
+  {
+    text: "Knovion turned my messy collection of documents into a clear, visual knowledge map, perfect for long-term research.",
+    name: "Minh Anh Nguyen",
+    role: "PhD Researcher",
+    image: "https://randomuser.me/api/portraits/women/1.jpg",
+  },
+  {
+    text: 'I no longer just store information; I can actually "see" how everything connects.',
+    name: "Duc Huy Tran",
+    role: "Data Scientist",
+    image: "https://randomuser.me/api/portraits/men/2.jpg",
+  },
+  {
+    text: "My students understand abstract concepts much faster when I explain them with Knovion.",
+    name: "Huong Le",
+    role: "University Lecturer",
+    image: "https://randomuser.me/api/portraits/women/3.jpg",
+  },
+  {
+    text: "I learn from many online sources; Knovion is where I gather, connect, and review everything.",
+    name: "Nam Pham",
+    role: "CS Student",
+    image: "https://randomuser.me/api/portraits/men/4.jpg",
+  },
+  {
+    text: "Real-time collaboration is incredibly helpful for our R&D team. Everyone sees the bigger picture as it evolves.",
+    name: "Mai Hoang",
+    role: "R&D Lead",
+    image: "https://randomuser.me/api/portraits/women/5.jpg",
+  },
+  {
+    text: "The interface is beautiful and thoughtful — exactly the kind of tool I want to open every day to think and create.",
+    name: "Thanh Ha Vu",
+    role: "UX Designer",
+    image: "https://randomuser.me/api/portraits/women/6.jpg",
+  },
+] as const;
+
+function FadeInSection({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-10% 0px" }}
+      transition={{ duration: 0.7, ease: "easeOut", delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [showPreloader, setShowPreloader] = useState(false);
-
-  useEffect(() => {
-    const hasSeenPreloader = localStorage.getItem("knovion_preloader_seen");
-
-    if (hasSeenPreloader) {
-      setTimeout(() => {
-        setIsLoading(false);
-        setShowPreloader(false);
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setShowPreloader(true);
-      }, 1000);
-    }
-  }, []);
-
-  const handlePreloaderComplete = () => {
-    localStorage.setItem("knovion_preloader_seen", "true");
-    setIsLoading(false);
-  };
-
-  const features = [
-    {
-      icon: <FaBrain className="w-12 h-12" />,
-      title: "AI-Powered Insights",
-      description:
-        "Automatically extract key concepts and relationships from your content using advanced AI",
-    },
-    {
-      icon: <FaNetworkWired className="w-12 h-12" />,
-      title: "Interactive Networks",
-      description:
-        "Explore knowledge through dynamic, zoomable network diagrams with intuitive navigation",
-    },
-    {
-      icon: <FaBolt className="w-12 h-12" />,
-      title: "Real-time Collaboration",
-      description:
-        "Work together with your team in real-time, sharing insights and building knowledge",
-    },
-    {
-      icon: <FaDatabase className="w-12 h-12" />,
-      title: "Smart Organization",
-      description:
-        "Intelligent tagging and categorization keeps your knowledge structured and searchable",
-    },
-    {
-      icon: <FaEye className="w-12 h-12" />,
-      title: "Multiple Views",
-      description:
-        "Switch between graph, timeline, and hierarchical views to suit your thinking style",
-    },
-    {
-      icon: <HiSparkles className="w-12 h-12" />,
-      title: "Beautiful Visualizations",
-      description:
-        "Stunning, customizable visual themes that make complex data easy to understand",
-    },
-  ];
-
-  const testimonials = [
-    {
-      text: "Knovion completely changed how I organize my research. Connecting complex concepts is now intuitive and effortless.",
-      image: "https://randomuser.me/api/portraits/women/1.jpg",
-      name: "Nguyen Minh Anh",
-      role: "PhD Researcher",
-    },
-    {
-      text: "The AI auto-analysis feature saves me hours of work. Hidden relationships in data are displayed clearly and beautifully.",
-      image: "https://randomuser.me/api/portraits/men/2.jpg",
-      name: "Tran Duc Huy",
-      role: "Data Scientist",
-    },
-    {
-      text: "My students love using Knovion for revision. Interactive mind maps help them grasp knowledge much faster.",
-      image: "https://randomuser.me/api/portraits/women/3.jpg",
-      name: "Le Thi Huong",
-      role: "University Lecturer",
-    },
-    {
-      text: "Finally a tool that helps me manage massive knowledge from online courses in a systematic way.",
-      image: "https://randomuser.me/api/portraits/men/4.jpg",
-      name: "Pham Van Nam",
-      role: "Computer Science Student",
-    },
-    {
-      text: "Real-time collaboration is incredibly useful for our research team. Everyone can contribute and track progress seamlessly.",
-      image: "https://randomuser.me/api/portraits/women/5.jpg",
-      name: "Hoang Thi Mai",
-      role: "R&D Team Lead",
-    },
-    {
-      text: "Beautiful and user-friendly interface. I've tried many mind map tools but Knovion excels in visualization capabilities.",
-      image: "https://randomuser.me/api/portraits/women/6.jpg",
-      name: "Vu Thanh Ha",
-      role: "UX Designer",
-    },
-    {
-      text: "Knovion helps me prepare more professional presentations. Clients are impressed with the visual knowledge delivery.",
-      image: "https://randomuser.me/api/portraits/men/7.jpg",
-      name: "Do Quang Minh",
-      role: "Business Consultant",
-    },
-    {
-      text: "As a content creator, I need clear idea organization. Knovion is an essential tool in my workflow.",
-      image: "https://randomuser.me/api/portraits/women/8.jpg",
-      name: "Bui Ngoc Linh",
-      role: "Content Creator",
-    },
-    {
-      text: "PDF document import is super convenient. AI automatically extracts key concepts, saving me tons of time.",
-      image: "https://randomuser.me/api/portraits/men/9.jpg",
-      name: "Ngo Dinh Khoa",
-      role: "Legal Consultant",
-    },
-  ];
-
-  const firstColumn = testimonials.slice(0, 3);
-  const secondColumn = testimonials.slice(3, 6);
-  const thirdColumn = testimonials.slice(6, 9);
+  const firstColumn = TESTIMONIALS.slice(0, 2);
+  const secondColumn = TESTIMONIALS.slice(2, 4);
+  const thirdColumn = TESTIMONIALS.slice(4, 6);
 
   return (
-    <>
-      {showPreloader && isLoading && (
-        <PreLoader onComplete={handlePreloaderComplete} />
-      )}
+    <main className="relative min-h-screen w-full bg-linear-to-b from-background via-background/95 to-background text-foreground">
+      <StickyHeader />
+      {/* Hero */}
+      <section className="relative mx-auto flex min-h-[80vh] max-w-6xl flex-col items-center overflow-hidden px-4 pb-24 pt-24 md:px-8 lg:pt-32">
+        <FadeInSection className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 p-1 text-xs font-medium text-muted-foreground backdrop-blur-md">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-indigo-500 text-[10px] text-white shadow-sm shadow-sky-500/40">
+            <Sparkles size={14} />
+          </span>
+          <span className="hidden sm:inline">Next-gen knowledge canvas</span>
+          <span className="inline sm:hidden">Visual knowledge, reimagined</span>
+          <span className="ml-2 rounded-full bg-linear-to-r from-emerald-500/15 to-sky-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-500 dark:text-emerald-300">
+            AI-native
+          </span>
+        </FadeInSection>
 
-      <main
-        className={`transition-opacity duration-500 w-full ${
-          showPreloader && isLoading ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        {/* Hero Section */}
-        <section className="relative min-h-screen bg-linear-to-br from-white via-sky-50 to-cyan-50 w-full overflow-hidden">
-          <StickyHeader />
+        <FadeInSection className="mt-10 flex flex-col items-center gap-8 text-center">
+          <h1 className="bg-linear-to-br from-sky-500 via-cyan-400 to-indigo-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-7xl">
+            Visualize your
+            <span className="block bg-linear-to-r from-foreground to-foreground/80 bg-clip-text pb-8">
+              knowledge as a living graph.
+            </span>
+          </h1>
 
-          {/* Animated background grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e910_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e910_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+          <p className="max-w-2xl text-base text-muted-foreground sm:text-lg md:text-xl">
+            Knovion is your space for visual knowledge — where notes, documents,
+            and ideas connect into a living map that is easy to see, remember,
+            and share.
+          </p>
 
-          <div className="relative min-h-screen flex items-center justify-center px-4 md:px-8 pt-24 pb-20">
-            <div className="max-w-6xl mx-auto text-center space-y-8">
-              {/* Large KNOVION text */}
-              <h1
-                className="text-6xl md:text-8xl lg:text-9xl font-black"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #142850 0%, #0C7B93 50%, #00A8CC 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  fontFamily: "Arial Black, sans-serif",
-                  letterSpacing: "0.05em",
-                }}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+            <Link href="/login">
+              <Button
+                size="lg"
+                className="rounded-full bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 px-7 text-base font-semibold text-white shadow-lg shadow-sky-500/30 transition-transform hover:-translate-y-0.5 hover:shadow-sky-500/40"
               >
-                KNOVION
-              </h1>
+                Start visualizing
+              </Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button
+                variant="outline"
+                size="lg"
+                className="rounded-full border-border/70 bg-background/70 px-6 text-base font-medium backdrop-blur-md"
+              >
+                Create a new workspace
+              </Button>
+            </Link>
+          </div>
 
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-sky-100 border border-sky-200 rounded-full text-sky-700 text-sm backdrop-blur-sm">
-                <HiSparkles className="w-4 h-4" />
-                <span>Next-Gen Knowledge Management</span>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground sm:text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 ring-1 ring-emerald-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Real-time collaboration
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 ring-1 ring-sky-500/30">
+              <span className="h-1 w-3 rounded-full bg-linear-to-r from-sky-400 to-indigo-400" />
+              AI-assisted mapping
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 ring-1 ring-violet-500/30">
+              Dark & Light theme
+            </span>
+          </div>
+        </FadeInSection>
+      </section>
+      {/* Feature grid */}
+      <section className="relative mx-auto w-full max-w-6xl px-4 pb-20 md:px-8 lg:pb-28">
+        <FadeInSection className="mb-10 flex flex-col items-start justify-between gap-4 sm:mb-12 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-500 dark:text-sky-300">
+              Features
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+              Designed for people who think in maps and graphs.
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+            Every feature is built around one goal: helping you understand
+            better, not just store more.
+          </p>
+        </FadeInSection>
+
+        <FadeInSection
+          className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
+          delay={0.05}
+        >
+          {FEATURES.map((feature) => (
+            <Card
+              key={feature.title}
+              className="group relative overflow-hidden border-border/70 bg-background/80 shadow-sm transition-all hover:-translate-y-1 hover:border-sky-500/60 hover:shadow-lg hover:shadow-sky-500/20"
+            >
+              <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                <div className="absolute inset-0 bg-linear-to-r from-sky-500/5 via-cyan-500/8 to-indigo-500/10 dark:from-sky-500/10 dark:via-cyan-500/12 dark:to-indigo-500/14" />
               </div>
+              <CardHeader className="relative space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-600 ring-1 ring-sky-500/30 dark:text-sky-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                  {feature.badge}
+                </div>
+                <CardTitle className="text-base font-semibold sm:text-lg">
+                  {feature.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative pb-6 text-sm text-muted-foreground sm:text-[15px]">
+                {feature.description}
+              </CardContent>
+            </Card>
+          ))}
+        </FadeInSection>
+      </section>
+      {/* Testimonials */}
+      <section className="relative mx-auto w-full max-w-6xl px-4 pb-20 pt-16 md:px-8 lg:pb-28">
+        <FadeInSection className="mb-10 text-center sm:mb-14">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-violet-500 dark:text-violet-300">
+            Voices
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+            People who let Knovion think alongside them.
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+            Hear from researchers, students, and product teams who use Knovion
+            every day.
+          </p>
+        </FadeInSection>
 
-              <p className="text-2xl md:text-4xl font-light text-slate-700 max-w-4xl mx-auto leading-relaxed">
-                Visualize. Connect. Understand.
+        <FadeInSection
+          className="flex max-h-[540px] justify-center gap-6 overflow-hidden pt-2 md:gap-8"
+          delay={0.05}
+        >
+          <TestimonialsColumn duration={18} testimonials={firstColumn} />
+          <TestimonialsColumn
+            className="hidden md:block"
+            duration={22}
+            testimonials={secondColumn}
+          />
+          <TestimonialsColumn
+            className="hidden lg:block"
+            duration={20}
+            testimonials={thirdColumn}
+          />
+        </FadeInSection>
+      </section>
+      {/* CTA */}
+      <section className="relative mx-auto w-full max-w-5xl px-4 pb-24 md:px-8 lg:pb-32">
+        <FadeInSection>
+          <Card className="relative overflow-hidden border-border/70 bg-background/95 shadow-xl shadow-sky-500/10">
+            <RetroGrid
+              cellSize={80}
+              opacity={0.35}
+              lightLineColor="rgba(56,189,248,0.45)"
+              darkLineColor="rgba(129,140,248,0.45)"
+            />
+
+            <div className="relative flex flex-col items-center gap-6 px-6 py-10 text-center sm:px-10 sm:py-12 md:py-14">
+              <p className="inline-flex items-center gap-2 rounded-full bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground ring-1 ring-border/80 backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                Ready for your next deep thinking session
+              </p>
+              <h2 className="bg-linear-to-r from-foreground via-foreground/90 to-foreground/75 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-3xl md:text-4xl">
+                Start your first knowledge map with Knovion.
+              </h2>
+              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                Log in to continue where you left off, or create a new account
+                and build your first knowledge graph in minutes.
               </p>
 
-              <p className="text-lg md:text-xl text-slate-500 max-w-3xl mx-auto">
-                Transform complex information into interactive visual networks.
-                Discover hidden connections and insights through intelligent
-                knowledge mapping.
-              </p>
-
-              <div className="flex flex-wrap gap-4 justify-center pt-8">
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <Link href="/login">
-                  <button className="px-8 py-4 bg-linear-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-sky-500/30">
-                    Start Visualizing
-                  </button>
+                  <Button
+                    size="lg"
+                    className="rounded-full bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 px-7 text-base font-semibold text-white shadow-lg shadow-sky-500/30 hover:-translate-y-0.5 hover:shadow-sky-500/40"
+                  >
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/sign-up">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full border-border/70 bg-background/80 px-6 text-base font-medium backdrop-blur"
+                  >
+                    Create a free account
+                  </Button>
                 </Link>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Features Section */}
-        <section className="min-h-screen bg-slate-50 py-20 px-4 md:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                Powerful Features
-              </h2>
-              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Everything you need to visualize and manage knowledge
-                effectively
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="group p-8 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-sky-200 hover:-translate-y-2"
-                >
-                  <div className="w-16 h-16 bg-linear-to-br from-sky-400 to-blue-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">
-                    {feature.title}
-                  </h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    {feature.description}
-                  </p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground sm:text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span>Unlimited personal knowledge nodes</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Logo Cloud Section */}
-        <section className="bg-white py-20 px-4 md:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                Trusted by Industry Leaders
-              </h2>
-              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Join thousands of professionals and organizations who trust
-                Knovion
-              </p>
-            </div>
-            <div className="mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
-              <LogoCloud />
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials Section */}
-        <section className="bg-slate-50 py-20 px-4 md:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6">
-                What Our Users Say
-              </h2>
-              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                See how Knovion is transforming the way people visualize and
-                manage knowledge
-              </p>
-            </div>
-
-            <div className="flex max-h-[740px] justify-center gap-6 overflow-hidden mask-[linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]">
-              <TestimonialsColumn duration={16} testimonials={firstColumn} />
-              <TestimonialsColumn
-                className="hidden md:block"
-                duration={20}
-                testimonials={secondColumn}
-              />
-              <TestimonialsColumn
-                className="hidden lg:block"
-                duration={18}
-                testimonials={thirdColumn}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="min-h-screen bg-linear-to-br from-sky-500 via-blue-600 to-indigo-700 py-20 px-4 md:px-8 flex items-center justify-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-size-[4rem_4rem]" />
-
-          <div className="relative max-w-4xl mx-auto text-center space-y-8">
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-6">
-              Ready to Visualize Your Knowledge?
-            </h2>
-            <p className="text-xl md:text-2xl text-sky-100">
-              Join thousands of researchers, students, and professionals who use
-              <span className="font-bold text-white"> KNOVION</span>
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center pt-8">
-              <Link href="/login">
-                <button className="px-8 py-4 bg-white text-slate-900 font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-white/30">
-                  Get Started Now
-                </button>
-              </Link>
-            </div>
-
-            <div className="pt-12 flex items-center justify-center gap-8 text-sky-100">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-white">10K+</div>
-                <div className="text-sm">Active Users</div>
-              </div>
-              <div className="w-px h-12 bg-white/30" />
-              <div className="text-center">
-                <div className="text-3xl font-bold text-white">1M+</div>
-                <div className="text-sm">Knowledge Nodes</div>
-              </div>
-              <div className="w-px h-12 bg-white/30" />
-              <div className="text-center">
-                <div className="text-3xl font-bold text-white">99.9%</div>
-                <div className="text-sm">Uptime</div>
+                <div className="h-3 w-px bg-border/70" />
+                <div className="flex items-center gap-2">
+                  <span className="h-1 w-3 rounded-full bg-linear-to-r from-sky-400 to-indigo-400" />
+                  <span>Theme synced with your operating system</span>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
-      </main>
-    </>
+          </Card>
+        </FadeInSection>
+      </section>
+    </main>
   );
 }
