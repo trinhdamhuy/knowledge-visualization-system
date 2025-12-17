@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import PreLoader from "./_components/pre-loader";
 import StickyHeader from "./_components/sticky-header";
@@ -22,10 +23,14 @@ export default function Home() {
     const hasSeenPreloader = localStorage.getItem("knovion_preloader_seen");
 
     if (hasSeenPreloader) {
-      setIsLoading(false);
-      setShowPreloader(false);
+      setTimeout(() => {
+        setIsLoading(false);
+        setShowPreloader(false);
+      }, 1000);
     } else {
-      setShowPreloader(true);
+      setTimeout(() => {
+        setShowPreloader(true);
+      }, 1000);
     }
   }, []);
 
@@ -146,11 +151,11 @@ export default function Home() {
         }`}
       >
         {/* Hero Section */}
-        <section className="relative min-h-screen bg-gradient-to-br from-white via-sky-50 to-cyan-50 w-full overflow-hidden">
+        <section className="relative min-h-screen bg-linear-to-br from-white via-sky-50 to-cyan-50 w-full overflow-hidden">
           <StickyHeader />
 
           {/* Animated background grid */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e910_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e910_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0ea5e910_1px,transparent_1px),linear-gradient(to_bottom,#0ea5e910_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
 
           <div className="relative min-h-screen flex items-center justify-center px-4 md:px-8 pt-24 pb-20">
             <div className="max-w-6xl mx-auto text-center space-y-8">
@@ -187,7 +192,7 @@ export default function Home() {
 
               <div className="flex flex-wrap gap-4 justify-center pt-8">
                 <Link href="/login">
-                  <button className="px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-sky-500/30">
+                  <button className="px-8 py-4 bg-linear-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg shadow-sky-500/30">
                     Start Visualizing
                   </button>
                 </Link>
@@ -215,7 +220,7 @@ export default function Home() {
                   key={index}
                   className="group p-8 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 hover:border-sky-200 hover:-translate-y-2"
                 >
-                  <div className="w-16 h-16 bg-gradient-to-br from-sky-400 to-blue-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 bg-linear-to-br from-sky-400 to-blue-500 rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
                     {feature.icon}
                   </div>
                   <h3 className="text-2xl font-bold text-slate-900 mb-4">
@@ -238,7 +243,8 @@ export default function Home() {
                 Trusted by Industry Leaders
               </h2>
               <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Join thousands of professionals and organizations who trust Knovion
+                Join thousands of professionals and organizations who trust
+                Knovion
               </p>
             </div>
             <div className="mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)]">
@@ -255,11 +261,12 @@ export default function Home() {
                 What Our Users Say
               </h2>
               <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                See how Knovion is transforming the way people visualize and manage knowledge
+                See how Knovion is transforming the way people visualize and
+                manage knowledge
               </p>
             </div>
 
-            <div className="flex max-h-[740px] justify-center gap-6 overflow-hidden [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]">
+            <div className="flex max-h-[740px] justify-center gap-6 overflow-hidden mask-[linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)]">
               <TestimonialsColumn duration={16} testimonials={firstColumn} />
               <TestimonialsColumn
                 className="hidden md:block"
@@ -276,7 +283,7 @@ export default function Home() {
         </section>
 
         {/* CTA Section */}
-        <section className="min-h-screen bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 py-20 px-4 md:px-8 flex items-center justify-center relative overflow-hidden">
+        <section className="min-h-screen bg-linear-to-br from-sky-500 via-blue-600 to-indigo-700 py-20 px-4 md:px-8 flex items-center justify-center relative overflow-hidden">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-size-[4rem_4rem]" />
 
           <div className="relative max-w-4xl mx-auto text-center space-y-8">
