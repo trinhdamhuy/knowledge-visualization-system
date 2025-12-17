@@ -11,12 +11,13 @@ async function getCookieData() {
     }, 1000)
   );
 }
+
 export default getRequestConfig(async () => {
   let locale: Language = Language.en;
+  const cookieData = await getCookieData();
 
   try {
-    const cookieStore = await getCookieData();
-    const localeCookie = cookieStore as unknown as Record<
+    const localeCookie = cookieData as unknown as Record<
       string,
       string
     >["locale"] as Language;
