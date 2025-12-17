@@ -6,8 +6,9 @@ const withNextIntl = createNextIntlPlugin("./languages/i18n/request.ts");
 const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
+    proxyClientMaxBodySize: "50mb",
     serverActions: {
-      bodySizeLimit: "10mb",
+      bodySizeLimit: "50mb",
     },
   },
   images: {

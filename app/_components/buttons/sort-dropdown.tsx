@@ -15,24 +15,24 @@ import { useState } from "react";
 import type { DiagramSortBy, SortDirection } from "@/types";
 
 interface SortDropdownProps {
-  sortBy: DiagramSortBy | string;
-  sortDirection: SortDirection;
-  onSortByChange: (sortBy: DiagramSortBy | string) => void;
-  onSortDirectionChange: (sortDirection: SortDirection) => void;
+  sortBy?: DiagramSortBy | string;
+  sortDirection?: SortDirection;
+  onSortByChange?: (sortBy: DiagramSortBy | string) => void;
+  onSortDirectionChange?: (sortDirection: SortDirection) => void;
   sortByOptions?: Array<{ label: string; value: DiagramSortBy | string }>;
 }
 
 export function SortDropdown({
-  sortBy,
-  sortDirection,
-  onSortByChange,
-  onSortDirectionChange,
+  sortBy = "updatedAt",
+  sortDirection = "desc",
+  onSortByChange = () => {},
+  onSortDirectionChange = () => {},
   sortByOptions: customSortByOptions,
 }: SortDropdownProps) {
   const defaultSortByOptions: { label: string; value: DiagramSortBy }[] = [
     {
       label: "Name",
-      value: "title",
+      value: "name",
     },
     {
       label: "Date created",
