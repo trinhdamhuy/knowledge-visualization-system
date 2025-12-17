@@ -5,13 +5,25 @@ import PageTitle from "../_components/page-title";
 import { cookies } from "next/headers";
 import { MainWrapper } from "./_components/main-wrapper";
 
+async function getCookieData() {
+  const cookieStore = await cookies();
+  const cookieData = cookieStore.getAll();
+  return new Promise((resolve) =>
+    setTimeout(() => {
+      resolve(cookieData);
+    }, 1000)
+  );
+}
+
 export default async function Layout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+  const cookieData = await getCookieData();
+  const defaultOpen =
+    (cookieData as unknown as Record<string, string>["sidebar_state"]) ===
+    "true";
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
