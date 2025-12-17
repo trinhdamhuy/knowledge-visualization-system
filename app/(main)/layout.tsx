@@ -21,9 +21,8 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   const cookieData = await getCookieData();
-  const defaultOpen =
-    (cookieData as unknown as Record<string, string>["sidebar_state"]) ===
-    "true";
+  // @ts-expect-error - cookieData is of type unknown
+  const defaultOpen = cookieData.find((cookie) => cookie.name === "sidebar_state")?.value === "true";
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>

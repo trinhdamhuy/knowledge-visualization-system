@@ -68,9 +68,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Create default team for user if they don't have any team
         // Run asynchronously to not block login process
-        createDefaultTeam(user.id!, user.name, user.image).catch((error) => {
-          console.error("Failed to create default team:", error);
-        });
+        await createDefaultTeam(user.id!, user.name, user.image).catch(
+          (error) => {
+            console.error("Failed to create default team:", error);
+          }
+        );
       }
 
       return token;

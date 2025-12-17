@@ -4,6 +4,7 @@ import "./globals.css";
 import DefaultProviders from "../providers/default-provider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -47,6 +48,7 @@ export default async function RootLayout({
             </main>
           </DefaultProviders>
         </NextIntlClientProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
