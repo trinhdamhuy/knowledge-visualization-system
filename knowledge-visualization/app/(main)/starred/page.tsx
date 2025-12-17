@@ -11,22 +11,9 @@ import { SortDropdown } from "@/app/_components/buttons/sort-dropdown";
 
 export default function StarredPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const {
-    items,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useStarredDiagrams();
-  const {
-    selectedItems,
-    isSelecting,
-    selectionBox,
-    selectionRef,
-    handleCardClick,
-    handleMouseDown,
-    setCardRef,
-  } = useItemSelection();
+  const { items, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useStarredDiagrams();
+  const { selectedItems, handleCardClick, setCardRef } = useItemSelection();
 
   // Infinite scroll observer
   const loadMoreRef = useRef<HTMLDivElement>(null);

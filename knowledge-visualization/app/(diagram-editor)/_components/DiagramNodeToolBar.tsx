@@ -69,7 +69,6 @@ interface NodeStyle {
 }
 
 export function DiagramNodeToolBar() {
-
   const { nodes, updateNodeData } = useDiagramSync();
   const { selectedNodeIds } = useDiagramStore();
 
@@ -131,11 +130,19 @@ export function DiagramNodeToolBar() {
           const size = currentIsSquare
             ? Math.min(currentWidth, currentHeight)
             : Math.min(Math.max(currentWidth, currentHeight), 100);
-          updateNodeData(nodeId, { shape: newShape }, { width: size, height: size });
+          updateNodeData(
+            nodeId,
+            { shape: newShape },
+            { width: size, height: size }
+          );
         } else {
           const newWidth = currentIsSquare ? 150 : currentWidth;
           const newHeight = currentIsSquare ? 50 : currentHeight;
-          updateNodeData(nodeId, { shape: newShape }, { width: newWidth, height: newHeight });
+          updateNodeData(
+            nodeId,
+            { shape: newShape },
+            { width: newWidth, height: newHeight }
+          );
         }
       });
     },
@@ -148,24 +155,9 @@ export function DiagramNodeToolBar() {
   const preventBlur = (e: React.MouseEvent | React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    try {
-      (window as any).__isInteractingWithTextToolbar = true;
-    } catch (err) {
-      /* ignore */
-    }
   };
 
-  const clearInteractFlag = () => {
-    try {
-      setTimeout(() => {
-        (window as any).__isInteractingWithTextToolbar = false;
-      }, 0);
-    } catch (err) {
-      /* ignore */
-    }
-  };
-
-  const isMixed = (value: StyleValue<any>) => value === "mixed";
+  const isMixed = (value: StyleValue<number | string>) => value === "mixed";
 
   return (
     <Card
@@ -173,12 +165,12 @@ export function DiagramNodeToolBar() {
       className="fixed right-6 top-[10%] z-999 min-w-[320px] max-h-[90vh] overflow-y-auto"
       onMouseDown={preventBlur}
       onPointerDown={preventBlur}
-      onPointerUp={clearInteractFlag}
-      onMouseUp={clearInteractFlag}
     >
       <CardHeader className="pb-3">
         <CardTitle>
-          {selectedNodes.length === 1 ? "Node Properties" : `Properties (${selectedNodes.length} nodes)`}
+          {selectedNodes.length === 1
+            ? "Node Properties"
+            : `Properties (${selectedNodes.length} nodes)`}
         </CardTitle>
         <CardDescription>
           {selectedNodes.length === 1
@@ -195,12 +187,20 @@ export function DiagramNodeToolBar() {
           <div>
             <label className="block text-sm font-medium mb-1.5">Shape</label>
             <Select
-              value={isMixed(unifiedStyle.shape) ? "" : (unifiedStyle.shape as string)}
+              value={
+                isMixed(unifiedStyle.shape)
+                  ? ""
+                  : (unifiedStyle.shape as string)
+              }
               onValueChange={setNodesShape}
             >
               <SelectTrigger className="w-full">
                 <SelectValue
-                  placeholder={isMixed(unifiedStyle.shape) ? "Mixed shapes" : "Select a shape"}
+                  placeholder={
+                    isMixed(unifiedStyle.shape)
+                      ? "Mixed shapes"
+                      : "Select a shape"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
@@ -217,8 +217,14 @@ export function DiagramNodeToolBar() {
             <label className="block text-sm font-medium mb-1.5">Color</label>
             <ColorPicker
               key={`color-picker-${selectedNodeIds.join(",")}`}
-              defaultValue={isMixed(unifiedStyle.color) ? "#FF97A7" : (unifiedStyle.color as string)}
-              onValueChange={(newColor) => updateSelectedNodesStyle({ color: newColor })}
+              defaultValue={
+                isMixed(unifiedStyle.color)
+                  ? "#FF97A7"
+                  : (unifiedStyle.color as string)
+              }
+              onValueChange={(newColor) =>
+                updateSelectedNodesStyle({ color: newColor })
+              }
               format="hex"
             >
               <ColorPickerTrigger asChild>
@@ -260,12 +266,22 @@ export function DiagramNodeToolBar() {
           <div>
             <label className="block text-sm font-medium mb-1.5">Font</label>
             <Select
-              value={isMixed(unifiedStyle.fontFamily) ? "" : (unifiedStyle.fontFamily as string)}
-              onValueChange={(value) => updateSelectedNodesStyle({ fontFamily: value })}
+              value={
+                isMixed(unifiedStyle.fontFamily)
+                  ? ""
+                  : (unifiedStyle.fontFamily as string)
+              }
+              onValueChange={(value) =>
+                updateSelectedNodesStyle({ fontFamily: value })
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue
-                  placeholder={isMixed(unifiedStyle.fontFamily) ? "Mixed fonts" : "Select font"}
+                  placeholder={
+                    isMixed(unifiedStyle.fontFamily)
+                      ? "Mixed fonts"
+                      : "Select font"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
@@ -286,12 +302,20 @@ export function DiagramNodeToolBar() {
           <div>
             <label className="block text-sm font-medium mb-1.5">Size</label>
             <Select
-              value={isMixed(unifiedStyle.fontSize) ? "" : String(unifiedStyle.fontSize)}
-              onValueChange={(value) => updateSelectedNodesStyle({ fontSize: Number(value) })}
+              value={
+                isMixed(unifiedStyle.fontSize)
+                  ? ""
+                  : String(unifiedStyle.fontSize)
+              }
+              onValueChange={(value) =>
+                updateSelectedNodesStyle({ fontSize: Number(value) })
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue
-                  placeholder={isMixed(unifiedStyle.fontSize) ? "Mixed sizes" : "Size"}
+                  placeholder={
+                    isMixed(unifiedStyle.fontSize) ? "Mixed sizes" : "Size"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
@@ -349,7 +373,8 @@ export function DiagramNodeToolBar() {
               <Toggle
                 size="sm"
                 className={
-                  isMixed(unifiedStyle.textDecoration) || unifiedStyle.textDecoration === "underline"
+                  isMixed(unifiedStyle.textDecoration) ||
+                  unifiedStyle.textDecoration === "underline"
                     ? unifiedStyle.textDecoration === "underline"
                       ? "bg-slate-200 dark:bg-slate-700"
                       : "bg-slate-300 dark:bg-slate-600"
@@ -368,7 +393,8 @@ export function DiagramNodeToolBar() {
               <Toggle
                 size="sm"
                 className={
-                  isMixed(unifiedStyle.textDecoration) || unifiedStyle.textDecoration === "line-through"
+                  isMixed(unifiedStyle.textDecoration) ||
+                  unifiedStyle.textDecoration === "line-through"
                     ? unifiedStyle.textDecoration === "line-through"
                       ? "bg-slate-200 dark:bg-slate-700"
                       : "bg-slate-300 dark:bg-slate-600"
@@ -389,7 +415,9 @@ export function DiagramNodeToolBar() {
 
           {/* Text Alignment */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Alignment</label>
+            <label className="block text-sm font-medium mb-1.5">
+              Alignment
+            </label>
             <div className="flex items-center gap-1 flex-wrap">
               <Toggle
                 size="sm"
@@ -416,7 +444,9 @@ export function DiagramNodeToolBar() {
                     : ""
                 }
                 isSelected={unifiedStyle.textAlign === "center"}
-                onChange={() => updateSelectedNodesStyle({ textAlign: "center" })}
+                onChange={() =>
+                  updateSelectedNodesStyle({ textAlign: "center" })
+                }
                 aria-label="Align center"
               >
                 <AlignCenter className="h-4 w-4" />
@@ -431,7 +461,9 @@ export function DiagramNodeToolBar() {
                     : ""
                 }
                 isSelected={unifiedStyle.textAlign === "right"}
-                onChange={() => updateSelectedNodesStyle({ textAlign: "right" })}
+                onChange={() =>
+                  updateSelectedNodesStyle({ textAlign: "right" })
+                }
                 aria-label="Align right"
               >
                 <AlignRight className="h-4 w-4" />
@@ -446,7 +478,9 @@ export function DiagramNodeToolBar() {
                     : ""
                 }
                 isSelected={unifiedStyle.textAlign === "justify"}
-                onChange={() => updateSelectedNodesStyle({ textAlign: "justify" })}
+                onChange={() =>
+                  updateSelectedNodesStyle({ textAlign: "justify" })
+                }
                 aria-label="Justify"
               >
                 <AlignJustify className="h-4 w-4" />
@@ -456,11 +490,19 @@ export function DiagramNodeToolBar() {
 
           {/* Font Color */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Font Color</label>
+            <label className="block text-sm font-medium mb-1.5">
+              Font Color
+            </label>
             <ColorPicker
               key={`text-color-picker-${selectedNodeIds.join(",")}`}
-              defaultValue={isMixed(unifiedStyle.textColor) ? "#000000" : (unifiedStyle.textColor as string)}
-              onValueChange={(newColor) => updateSelectedNodesStyle({ textColor: newColor })}
+              defaultValue={
+                isMixed(unifiedStyle.textColor)
+                  ? "#000000"
+                  : (unifiedStyle.textColor as string)
+              }
+              onValueChange={(newColor) =>
+                updateSelectedNodesStyle({ textColor: newColor })
+              }
               format="hex"
             >
               <ColorPickerTrigger asChild>
@@ -470,7 +512,9 @@ export function DiagramNodeToolBar() {
                 >
                   <ColorPickerSwatch className="size-6" />
                   <span className="text-sm">
-                    {isMixed(unifiedStyle.textColor) ? "Mixed" : unifiedStyle.textColor}
+                    {isMixed(unifiedStyle.textColor)
+                      ? "Mixed"
+                      : unifiedStyle.textColor}
                   </span>
                 </Button>
               </ColorPickerTrigger>
