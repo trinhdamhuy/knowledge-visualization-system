@@ -17,8 +17,8 @@ import type * as Prisma from "./prismaNamespace"
 
 const config: runtime.GetPrismaClientConfig = {
   "previewFeatures": [],
-  "clientVersion": "7.0.1",
-  "engineVersion": "f09f2815f091dbba658cdcd2264306d88bb5bda6",
+  "clientVersion": "7.1.0",
+  "engineVersion": "ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba",
   "activeProvider": "postgresql",
   "inlineSchema": "datasource db {\n  provider = \"postgresql\"\n}\n\ngenerator client {\n  provider   = \"prisma-client\"\n  output     = \"../generated/prisma\"\n  engineType = \"client\"\n}\n\ngenerator erd {\n  provider    = \"prisma-erd-generator\"\n  output      = \"../ERD.png\"\n  ignoreEnums = true\n  disabled    = env(\"DISABLE_ERD\")\n}\n\nenum Language {\n  ja\n  en\n}\n\nenum Permission {\n  OWNER\n  EDITOR\n  VIEWER\n}\n\nenum NotificationType {\n  DIAGRAM_SHARED\n  FOLDER_SHARED\n  TEAM_SHARED\n  USER_INVITED\n}\n\nenum Plan {\n  Free\n  Plus\n  Pro\n}\n\nmodel Account {\n  id                String  @id @default(cuid())\n  userId            String  @map(\"user_id\")\n  type              String\n  provider          String\n  providerAccountId String  @map(\"provider_account_id\")\n  refresh_token     String? @db.Text\n  access_token      String? @db.Text\n  expires_at        Int?\n  token_type        String?\n  scope             String?\n  id_token          String? @db.Text\n  session_state     String?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([provider, providerAccountId])\n}\n\nmodel Session {\n  id           String   @id @default(cuid())\n  sessionToken String   @unique @map(\"session_token\")\n  userId       String   @map(\"user_id\")\n  expires      DateTime\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n}\n\nmodel User {\n  id            String    @id @default(cuid())\n  name          String?\n  email         String?   @unique\n  emailVerified DateTime? @map(\"email_verified\")\n  image         String?\n  password      String?\n  language      Language  @default(en)\n  createdAt     DateTime  @default(now())\n  updatedAt     DateTime  @updatedAt\n  plan          Plan      @default(Free)\n\n  accounts Account[]\n  sessions Session[]\n\n  teamMembers    TeamMember[]\n  createdFolders Folder[]       @relation(\"FolderOwner\")\n  diagrams       Diagram[]      @relation(\"DiagramOwner\")\n  shares         Share[]\n  recents        Recent[]\n  trashes        Trash[]\n  starreds       Starred[]\n  notifications  Notification[]\n}\n\nmodel VerificationToken {\n  id      String   @id @default(cuid())\n  email   String\n  token   String   @unique\n  expires DateTime\n\n  @@unique([email, token])\n}\n\nmodel PasswordResetToken {\n  id      String   @id @default(cuid())\n  email   String\n  token   String   @unique\n  expires DateTime\n\n  @@unique([email, token])\n}\n\nmodel PasswordChangeToken {\n  id          String   @id @default(cuid())\n  email       String\n  token       String   @unique\n  newPassword String\n  expires     DateTime\n\n  @@unique([email, token])\n}\n\nmodel Team {\n  id        String   @id @default(cuid())\n  name      String\n  imageUrl  String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  plan      Plan     @default(Free)\n\n  members  TeamMember[]\n  folders  Folder[]\n  diagrams Diagram[]\n}\n\nmodel TeamMember {\n  id         String     @id @default(cuid())\n  teamId     String\n  userId     String\n  permission Permission @default(VIEWER)\n  joinedAt   DateTime   @default(now())\n\n  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([teamId, userId])\n}\n\nmodel Folder {\n  id        String   @id @default(cuid())\n  name      String\n  ownerId   String   @map(\"owner_id\")\n  parentId  String?\n  teamId    String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  parent Folder? @relation(\"FolderHierarchy\", fields: [parentId], references: [id], onDelete: Cascade)\n  owner  User    @relation(\"FolderOwner\", fields: [ownerId], references: [id])\n  team   Team?   @relation(fields: [teamId], references: [id], onDelete: Cascade)\n  trash  Trash?\n\n  children Folder[]  @relation(\"FolderHierarchy\")\n  diagrams Diagram[]\n  shares   Share[]\n\n  @@unique([name, parentId, teamId])\n}\n\nmodel Diagram {\n  id        String   @id @default(cuid())\n  name      String\n  imageUrl  String?\n  folderId  String?\n  ownerId   String?\n  teamId    String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  folder   Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)\n  owner    User?     @relation(\"DiagramOwner\", fields: [ownerId], references: [id], onDelete: Cascade)\n  team     Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)\n  shares   Share[]\n  recents  Recent[]\n  trash    Trash?\n  starreds Starred[]\n  files    File[]\n}\n\nmodel Trash {\n  id           String   @id @default(cuid())\n  folderId     String?  @unique\n  diagramId    String?  @unique\n  deletedById  String   @map(\"deleted_by_id\")\n  deletedAt    DateTime @default(now())\n  autoDeleteAt DateTime @default(dbgenerated(\"NOW() + INTERVAL '30 days'\")) @map(\"auto_delete_at\")\n\n  diagram   Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)\n  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)\n  deletedBy User     @relation(fields: [deletedById], references: [id])\n\n  @@index([deletedById])\n  @@index([deletedAt])\n  @@index([autoDeleteAt])\n}\n\nmodel Share {\n  id         String     @id @default(cuid())\n  folderId   String?\n  diagramId  String?\n  userId     String?\n  permission Permission @default(VIEWER)\n  sharedAt   DateTime   @default(now())\n\n  diagram Diagram? @relation(fields: [diagramId], references: [id], onDelete: Cascade)\n  folder  Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)\n  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)\n}\n\nmodel Recent {\n  id        String   @id @default(cuid())\n  userId    String\n  diagramId String\n  viewedAt  DateTime @default(now())\n\n  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)\n\n  @@unique([userId, diagramId])\n}\n\nmodel Starred {\n  id        String   @id @default(cuid())\n  userId    String\n  diagramId String\n  starredAt DateTime @default(now())\n\n  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)\n\n  @@unique([userId, diagramId])\n}\n\nmodel Notification {\n  id        String           @id @default(cuid())\n  userId    String\n  title     String\n  content   String\n  type      NotificationType\n  relatedId String?          @map(\"related_id\")\n  read      Boolean          @default(false)\n  createdAt DateTime         @default(now())\n  updatedAt DateTime         @updatedAt\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n}\n\nmodel File {\n  id        String   @id @default(cuid())\n  fileName  String\n  fileUrl   String\n  fileType  String\n  diagramId String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  diagram Diagram @relation(fields: [diagramId], references: [id], onDelete: Cascade)\n\n  @@index([diagramId])\n}\n",
   "runtimeDataModel": {
@@ -62,7 +62,7 @@ export interface PrismaClientConstructor {
    * const accounts = await prisma.account.findMany()
    * ```
    * 
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+   * Read more in our [docs](https://pris.ly/d/client).
    */
 
   new <
@@ -84,7 +84,7 @@ export interface PrismaClientConstructor {
  * const accounts = await prisma.account.findMany()
  * ```
  * 
- * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client).
+ * Read more in our [docs](https://pris.ly/d/client).
  */
 
 export interface PrismaClient<
@@ -113,7 +113,7 @@ export interface PrismaClient<
    * const result = await prisma.$executeRaw`UPDATE User SET cool = ${true} WHERE email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -125,7 +125,7 @@ export interface PrismaClient<
    * const result = await prisma.$executeRawUnsafe('UPDATE User SET cool = $1 WHERE email = $2 ;', true, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $executeRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<number>;
 
@@ -136,7 +136,7 @@ export interface PrismaClient<
    * const result = await prisma.$queryRaw`SELECT * FROM User WHERE id = ${1} OR email = ${'user@email.com'};`
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRaw<T = unknown>(query: TemplateStringsArray | Prisma.Sql, ...values: any[]): Prisma.PrismaPromise<T>;
 
@@ -148,7 +148,7 @@ export interface PrismaClient<
    * const result = await prisma.$queryRawUnsafe('SELECT * FROM User WHERE id = $1 OR email = $2;', 1, 'user@email.com')
    * ```
    *
-   * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/raw-database-access).
+   * Read more in our [docs](https://pris.ly/d/raw-queries).
    */
   $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Prisma.PrismaPromise<T>;
 
