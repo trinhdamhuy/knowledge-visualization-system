@@ -97,8 +97,8 @@ async def grade_documents(
     state: State,
 ) -> Literal["generate_answer", "rewrite_question", "no_relevant_data"]:
     """Run LLM to grade relevance and store the result in the state."""
-    question = state["messages"][0].content
-    context_docs = state.get("context", [])
+    question = state["messages"][-1].content
+    context_docs = state["context"]
 
     # Check if no documents were retrieved
     if not context_docs or len(context_docs) == 0:
@@ -126,7 +126,7 @@ REWRITE_PROMPT = (
 
 async def rewrite_question(state: State):
     """Rewrite the original user question."""
-    question = state["messages"][0].content
+    question = state["messages"][-1].content
     prompt = REWRITE_PROMPT.format(question=question)
     response = await model.ainvoke([{"role": "user", "content": prompt}])
     return {"messages": [HumanMessage(content=response.content)]}
@@ -230,7 +230,7 @@ async def generate_answer(state: State):
     """Generate an answer based on user request (text only, no mindmap data)."""
 
     request = state["messages"][0].content
-    context_docs = state.get("context", [])
+    context_docs = state["context"]
 
     writer = get_stream_writer()
     writer({"current_status": "Generating answer..."})
@@ -403,9 +403,9 @@ async def generate_mindmap_data(state: State):
     writer = get_stream_writer()
     writer({"current_status": "Generating mindmap data..."})
 
-    request = state["messages"][0].content
+    request = state["messages"][-1].content
     context_docs = state["context"]
-    data = state["messages"][0].additional_kwargs.get("data") or {}
+    data = state["messages"][-1].additional_kwargs["mindmap_data"] or {}
 
     # Check if context contains a summary document (from summarize_documents)
     # If summary exists, use it; otherwise use original documents
@@ -514,22 +514,21 @@ async def route_mode(
 ) -> Literal["load_file", "generate_mindmap_data", "retrieve_documents"]:
     """
     Decide workflow branch based on user-provided mode and file conditions.
-    - mode = "generate" + file_url -> load_file
-    - mode = "generate" + not file_url -> generate_mindmap_data
+    - mode = "generate" + need_initialize_data -> load_file
+    - mode = "generate" + not need_initialize_data -> generate_mindmap_data
     - mode = "chat" -> retrieve_documents
     """
 
     writer = get_stream_writer()
     writer({"current_status": "Calculating how the workflow should proceed..."})
 
-    mode = state.get("mode")
+    mode = state["mode"]
+    need_initialize_data = state["need_initialize_data"]
 
     if mode == "generate":
-        if state.get("file_url").endswith(".pdf") or state.get("file_url").endswith(
-            ".txt"
-        ):
+        if need_initialize_data:
             return "load_file"
-        return "generate_mindmap_data"
-
-    # Default to chat flow
-    return "retrieve_documents"
+        else:
+            return "generate_mindmap_data"
+    else:
+        return "retrieve_documents"

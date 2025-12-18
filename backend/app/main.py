@@ -18,8 +18,13 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 
 
-from app.schemas.states import State
-from app.schemas.api import ChatResponse, ChatRequest, DeleteResponse, DeleteRequest
+from app.schemas import (
+    State,
+    ChatResponse,
+    ChatRequest,
+    DeleteResponse,
+    DeleteRequest,
+)
 from app.edges import (
     add_documents,
     grade_documents,
@@ -204,7 +209,7 @@ async def chat(request: ChatRequest):
                     content=request.messages[-1].content,
                     additional_kwargs={
                         "user_id": request.user_id,
-                        "data": request.data,
+                        "mindmap_data": request.mindmap_data,
                     },
                 ),
             ],
@@ -212,6 +217,7 @@ async def chat(request: ChatRequest):
             file_url=request.file_url,
             context=context,
             mode=request.mode,
+            need_initialize_data=request.need_initialize_data,
         )
 
         result = await app.state.graph.ainvoke(input_dict, config)
@@ -248,13 +254,17 @@ async def stream_generator(
         messages=[
             HumanMessage(
                 content=request.messages[-1].content,
-                additional_kwargs={"user_id": request.user_id, "data": request.data},
+                additional_kwargs={
+                    "user_id": request.user_id,
+                    "mindmap_data": request.mindmap_data,
+                },
             ),
         ],
         diagram_id=request.diagram_id,
         file_url=request.file_url,
         context=context,
         mode=request.mode,
+        need_initialize_data=request.need_initialize_data,
     )
 
     async for chunk in app.state.graph.astream(

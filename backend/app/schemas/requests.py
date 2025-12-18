@@ -19,9 +19,13 @@ class ChatRequest(BaseModel):
         description="Source file URL, optional for generate mode (will load if different from stored or if no file was loaded before)",
     )
     messages: Optional[List[BaseMessage]] = Field(description="List of chat messages")
-    data: Optional[dict] = Field(
+    mindmap_data: Optional[dict] = Field(
         default={},
         description="Data payload (e.g., existing mindmap data for generate mode)",
+    )
+    need_initialize_data: Optional[bool] = Field(
+        default=False,
+        description="Whether to initialize the data for the generate mode",
     )
 
 

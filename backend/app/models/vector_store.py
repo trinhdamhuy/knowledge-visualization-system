@@ -91,14 +91,6 @@ def get_vector_store() -> PGVectorStore:
     return instance
 
 
-async def create_vector_store() -> PGVectorStore:
-    """Create and return a PGVectorStore instance for the chatbot.
-
-    Deprecated: Use init_vector_store() and get_vector_store() instead.
-    """
-    return await init_vector_store()
-
-
 async def delete_by_filter(filter_dict: dict) -> int:
     """Delete documents from the vector store matching the filter.
 

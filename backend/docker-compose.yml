@@ -13,6 +13,8 @@ services:
     ports:
       - "${POSTGRES_PORT}:5432"
     restart: unless-stopped
+    networks:
+      - knovion-network
 
   chatbot-api:
     build: .
@@ -32,6 +34,12 @@ services:
     depends_on:
       - pgvector
     restart: unless-stopped
+    networks:
+      - knovion-network
+
+networks:
+  knovion-network:
+    driver: bridge
 
 volumes:
   pgvector:
