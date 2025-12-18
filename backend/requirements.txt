@@ -1,0 +1,17 @@
+fastapi[standard]
+langchain
+langchain[community, google-genai]
+langchain_postgres
+langchain-text-splitters
+langchain-postgres
+langchain-core
+langchain-cohere
+langchain-community
+pypdf
+langgraph
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
+sqlalchemy
+boto3
+dotenv
+unstructured
