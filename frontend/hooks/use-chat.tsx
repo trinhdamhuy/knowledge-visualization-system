@@ -5,9 +5,9 @@ import {
   getChatHistory,
   deleteChatHistory,
   deleteDiagramStore,
-  streamChat,
+  sendChatRequest,
 } from "@/app/_actions/chat";
-import type { HistoryResponse, BaseResponse, ChatRequest } from "@/types/chat";
+import type { ChatRequest } from "@/types/chat";
 
 // Query keys
 export const chatKeys = {
@@ -16,7 +16,7 @@ export const chatKeys = {
   history: (diagramId: string) => [...chatKeys.histories(), diagramId] as const,
 };
 
-interface StreamChatParams extends ChatRequest {}
+interface SendChatRequestParams extends ChatRequest {}
 
 interface DeleteChatHistoryParams {
   diagramId: string;
@@ -41,10 +41,10 @@ export const useChat = () => {
     });
   };
 
-  // Mutation: Stream chat
-  const streamChatMutation = useMutation({
-    mutationFn: async (params: StreamChatParams) => {
-      return await streamChat(params);
+  // Mutation: Send chat request
+  const sendChatRequestMutation = useMutation({
+    mutationFn: async (params: SendChatRequestParams) => {
+      return await sendChatRequest(params);
     },
     onSuccess: (data, variables) => {
       if (data) {
@@ -94,8 +94,8 @@ export const useChat = () => {
     useChatHistory,
 
     // Mutations
-    streamChat: streamChatMutation.mutateAsync,
-    streamChatMutation,
+    sendChatRequest: sendChatRequestMutation.mutateAsync,
+    sendChatRequestMutation,
     deleteChatHistory: deleteChatHistoryMutation.mutateAsync,
     deleteChatHistoryMutation,
     deleteDiagramStore: deleteDiagramStoreMutation.mutateAsync,

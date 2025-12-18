@@ -97,7 +97,7 @@ export function ChatBotPanel() {
   } = useFile();
   const {
     useChatHistory,
-    streamChatMutation,
+    sendChatRequestMutation,
     deleteDiagramStore,
     deleteChatHistory,
   } = useChat();
@@ -265,7 +265,7 @@ export function ChatBotPanel() {
 
     try {
       // Wait for API to return success (message saved to database)
-      await streamChatMutation.mutateAsync({
+      await sendChatRequestMutation.mutateAsync({
         user_id: userId,
         diagram_id: diagramId,
         mode: mode,
@@ -606,16 +606,41 @@ export function ChatBotPanel() {
                       renderMessage(msg, index)
                     )
                   )}
-                  {currentStatus && (
-                    <div className="flex gap-3 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <Bot className="size-5 text-primary-foreground" />
-                      </div>
-                      <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic">
-                        <Shimmer>{currentStatus}</Shimmer>
-                      </div>
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {currentStatus && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{
+                          duration: 0.4,
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
+                        className="flex gap-3 mb-4"
+                      >
+                        <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                          <Bot className="size-5 text-primary-foreground" />
+                        </div>
+                        <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
+                          <AnimatePresence>
+                            <motion.span
+                              key={currentStatus}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{
+                                duration: 0.25,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                              className="inline-block"
+                            >
+                              <Shimmer>{currentStatus}</Shimmer>
+                            </motion.span>
+                          </AnimatePresence>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <div ref={messagesEndRef} />
                 </div>
 

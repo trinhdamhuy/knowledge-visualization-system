@@ -466,11 +466,32 @@ async def generate_mindmap_data(state: State):
     # Convert to dict for JSON serialization
     mindmap_dict = response.model_dump()
 
+    # Generate a natural response about the mindmap generation
+    writer({"current_status": "Generating response..."})
+
+    response_prompt = (
+        "You are an AI assistant that has just generated a mindmap from documents.\n"
+        "User request:\n"
+        f"{request}\n"
+        "\n"
+        "The mindmap has been successfully created with:\n"
+        f"- {len(mindmap_dict.get('nodes', []))} nodes\n"
+        f"- {len(mindmap_dict.get('edges', []))} edges\n"
+        "\n"
+        "Provide a natural, conversational response to the user about the mindmap that was generated.\n"
+        "User language can be different from the document's language, so you MUST ALWAYS use the user's language to answer.\n"
+        "Keep the response brief and friendly. Mention that the mindmap has been created and is ready to be imported.\n"
+        "Do NOT repeat the exact phrase 'Mindmap generated successfully' - be more natural and conversational.\n"
+        "Use Markdown formatting if needed for clarity.\n"
+    )
+
+    ai_response = await model.ainvoke([{"role": "user", "content": response_prompt}])
+
     return {
         "messages": [
             AIMessage(
                 name="mindmap",
-                content="Mindmap generated successfully",
+                content=ai_response.content,
                 additional_kwargs={"mindmap_data": mindmap_dict},
             )
         ]

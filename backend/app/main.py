@@ -192,7 +192,7 @@ async def delete_diagram_store(request: DeleteRequest):
     )
 
 
-async def process_stream_chat(
+async def process_chat(
     request: ChatRequest,
     app_state,
 ) -> None:
@@ -302,20 +302,12 @@ async def process_stream_chat(
                 print(f"Failed to send stream_complete event to Liveblocks: {e}")
 
 
-@app.post("/api/stream-chat", response_model=BaseResponse)
-async def stream_chat(
+@app.post("/api/chat", response_model=BaseResponse)
+async def chat(
     request: ChatRequest,
 ):
     """
     Process chat request and send broadcast events to Liveblocks.
-    Frontend only receives data via broadcast events, not SSE.
-    Returns a simple response indicating the request was accepted.
     """
-    # Process stream in background (fire and forget)
-    # This allows the endpoint to return immediately while streaming continues
-    asyncio.create_task(process_stream_chat(request, app.state))
-
-    return BaseResponse(
-        status=200,
-        message="Chat request accepted. Streaming via broadcast events.",
-    )
+    asyncio.create_task(process_chat(request, app.state))
+    return BaseResponse(status=200, message="Chat request accepted")
