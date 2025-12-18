@@ -97,3 +97,34 @@ async def create_vector_store() -> PGVectorStore:
     Deprecated: Use init_vector_store() and get_vector_store() instead.
     """
     return await init_vector_store()
+
+
+async def delete_by_filter(filter_dict: dict) -> int:
+    """Delete documents from the vector store matching the filter.
+
+    Args:
+        filter_dict: Dictionary of filter conditions (e.g., {"diagram_id": "some_id"})
+
+    Returns:
+        Number of deleted rows
+    """
+    schema_name = "public"  # Default schema name used by langchain_postgres
+
+    # Build filter clause - support simple equality filters
+    if filter_dict:
+        conditions = []
+        param_dict = {}
+        for idx, (key, value) in enumerate(filter_dict.items()):
+            param_name = f"filter_{idx}"
+            conditions.append(f'"{key}" = :{param_name}')
+            param_dict[param_name] = value
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+    else:
+        where_clause = ""
+        param_dict = {}
+
+    query = f'DELETE FROM "{schema_name}"."{TABLE_NAME}" {where_clause}'
+
+    async with engine.begin() as conn:
+        result = await conn.execute(text(query), param_dict)
+        return result.rowcount

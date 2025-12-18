@@ -17,7 +17,7 @@ async def load_file(state: State):
     """Load a file into documents."""
 
     writer = get_stream_writer()
-    writer("Loading file...")
+    writer({"current_status": "Loading file..."})
 
     file_url = state["file_url"]
     if file_url.endswith(".txt"):
@@ -25,7 +25,7 @@ async def load_file(state: State):
     elif file_url.endswith(".pdf"):
         loader = PyPDFLoader(file_url)
     else:
-        writer("Can not load file")
+        writer({"current_status": "Can not load file"})
         raise ValueError("Unsupported file type")
     documents = await loader.aload()
 
@@ -36,7 +36,7 @@ async def add_documents(state: State):
     """Add documents to the vector store."""
 
     writer = get_stream_writer()
-    writer("Adding documents...")
+    writer({"current_status": "Adding documents..."})
 
     vector_store = get_vector_store()
 
@@ -44,6 +44,7 @@ async def add_documents(state: State):
     context = state["context"]
 
     if not diagram_id:
+        writer({"current_status": "Diagram ID not found"})
         raise ValueError("Diagram ID not found")
 
     # Add metadata directly to each document instead of passing separately
@@ -61,7 +62,7 @@ async def retrieve_documents(state: State):
     """Retrieve documents from the vector store."""
 
     writer = get_stream_writer()
-    writer("Retrieving documents...")
+    writer({"current_status": "Searching for relevant documents..."})
 
     question = state["messages"][-1].content
     diagram_id = state["diagram_id"]
@@ -70,6 +71,7 @@ async def retrieve_documents(state: State):
     retrieved_docs = await vector_store.asimilarity_search(
         question, k=5, filter={"diagram_id": diagram_id}
     )
+    writer({"current_status": "Found relevant documents"})
     return {"context": retrieved_docs}
 
 
@@ -231,7 +233,7 @@ async def generate_answer(state: State):
     context_docs = state.get("context", [])
 
     writer = get_stream_writer()
-    writer("Generating answer...")
+    writer({"current_status": "Generating answer..."})
 
     # Check if context is empty or no relevant documents
     if not context_docs or len(context_docs) == 0:
@@ -399,7 +401,7 @@ async def generate_mindmap_data(state: State):
     """Generate React Flow mindmap data based on user request and documents."""
 
     writer = get_stream_writer()
-    writer("Generating mindmap data...")
+    writer({"current_status": "Generating mindmap data..."})
 
     request = state["messages"][0].content
     context_docs = state["context"]
@@ -488,7 +490,7 @@ async def summarize_documents(
     """Summarize the documents."""
 
     writer = get_stream_writer()
-    writer("Summarizing documents...")
+    writer({"current_status": "Summarizing documents..."})
 
     documents = "\n".join([doc.page_content for doc in state["context"]])
     prompt = SUMMARIZE_PROMPT.format(documents=documents)
@@ -516,6 +518,9 @@ async def route_mode(
     - mode = "generate" + not file_url -> generate_mindmap_data
     - mode = "chat" -> retrieve_documents
     """
+
+    writer = get_stream_writer()
+    writer({"current_status": "Calculating how the workflow should proceed..."})
 
     mode = state.get("mode")
 

@@ -23,3 +23,9 @@ class ChatRequest(BaseModel):
         default={},
         description="Data payload (e.g., existing mindmap data for generate mode)",
     )
+
+
+class DeleteRequest(BaseModel):
+    """Request schema for deleting chat history or diagram store."""
+
+    diagram_id: str

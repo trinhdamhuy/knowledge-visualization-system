@@ -3,7 +3,7 @@
 import os
 import json
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Dict
+from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
@@ -19,7 +19,7 @@ from langgraph.store.postgres.aio import AsyncPostgresStore
 
 
 from app.schemas.states import State
-from app.schemas.api import ChatResponse, ChatRequest
+from app.schemas.api import ChatResponse, ChatRequest, DeleteResponse, DeleteRequest
 from app.edges import (
     add_documents,
     grade_documents,
@@ -31,8 +31,11 @@ from app.edges import (
     summarize_documents,
     route_mode,
 )
-from app.models.vector_store import init_vector_store, initialize_table
-from app.models.vector_store import get_vector_store
+from app.models.vector_store import (
+    init_vector_store,
+    initialize_table,
+    delete_by_filter,
+)
 
 
 load_dotenv()
@@ -143,8 +146,8 @@ async def read_root() -> str:
     return "The chatbot is running"
 
 
-@app.get("/api/chat-history")
-async def diagram_history(diagram_id: str) -> ChatResponse:
+@app.get("/api/chat-history", response_model=ChatResponse)
+async def diagram_history(diagram_id: str):
     """Get the history of the chatbot."""
 
     config: RunnableConfig = {
@@ -155,25 +158,31 @@ async def diagram_history(diagram_id: str) -> ChatResponse:
     graph_state = await app.state.graph.aget_state(config)
     state = graph_state.values
     return ChatResponse(
+        status=200,
         messages=state.get("messages", []),
     )
 
 
-@app.post("/api/delete-chat-history")
-async def delete_chat_history(diagram_id: str) -> Dict[str, str]:
+@app.delete("/api/delete-chat-history", response_model=DeleteResponse)
+async def delete_chat_history(request: DeleteRequest):
     """Delete the chat history for a given diagram_id."""
-    await app.state.checkpointer.adelete_thread(thread_id=diagram_id)
-    return {"status": "success"}
+    await app.state.checkpointer.adelete_thread(thread_id=request.diagram_id)
+    return DeleteResponse(status=200, message="Chat history deleted successfully")
 
 
-@app.post("/api/delete-diagram-store")
-async def delete_diagram_store(diagram_id: str) -> Dict[str, str]:
+@app.delete("/api/delete-diagram-store", response_model=DeleteResponse)
+async def delete_diagram_store(request: DeleteRequest):
     """Delete the diagram store for a given diagram_id."""
-    await get_vector_store().adelete(filter={"diagram_id": diagram_id})
-    return {"status": "success"}
+    deleted_count = await delete_by_filter(
+        filter_dict={"diagram_id": request.diagram_id}
+    )
+    return DeleteResponse(
+        status=200,
+        message=f"Diagram store deleted successfully. {deleted_count} documents removed.",
+    )
 
 
-@app.post("/api/chat")
+@app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Chat with the chatbot."""
     try:
@@ -193,8 +202,10 @@ async def chat(request: ChatRequest):
             messages=[
                 HumanMessage(
                     content=request.messages[-1].content,
-                    id=request.user_id,
-                    additional_kwargs={"data": request.data},
+                    additional_kwargs={
+                        "user_id": request.user_id,
+                        "data": request.data,
+                    },
                 ),
             ],
             diagram_id=request.diagram_id,
@@ -206,6 +217,7 @@ async def chat(request: ChatRequest):
         result = await app.state.graph.ainvoke(input_dict, config)
 
         return ChatResponse(
+            status=200,
             messages=result["messages"],
         )
     except Exception as e:
@@ -236,8 +248,7 @@ async def stream_generator(
         messages=[
             HumanMessage(
                 content=request.messages[-1].content,
-                id=request.user_id,
-                additional_kwargs={"data": request.data},
+                additional_kwargs={"user_id": request.user_id, "data": request.data},
             ),
         ],
         diagram_id=request.diagram_id,
@@ -251,10 +262,16 @@ async def stream_generator(
         config=config,
         stream_mode="custom",
     ):
-        yield json.dumps({"type": "chunk", "content": chunk}) + "\n\n"
+        # Convert dict chunk to SSE format
+        if isinstance(chunk, dict):
+            # Format as Server-Sent Events: data: {json}\n\n
+            json_str = json.dumps(chunk, default=str)
+            yield f"data: {json_str}\n\n"
+        else:
+            yield chunk
 
 
-@app.post("/api/chat")
+@app.post("/api/stream-chat")
 async def stream_chat(request: ChatRequest):
     """Stream the chat response."""
 
