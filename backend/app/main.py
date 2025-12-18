@@ -3,13 +3,12 @@
 import os
 import json
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 from dotenv import load_dotenv
+import httpx
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -20,10 +19,10 @@ from langgraph.store.postgres.aio import AsyncPostgresStore
 
 from app.schemas import (
     State,
-    ChatResponse,
     ChatRequest,
-    DeleteResponse,
     DeleteRequest,
+    BaseResponse,
+    HistoryResponse,
 )
 from app.edges import (
     add_documents,
@@ -64,6 +63,12 @@ CONNECTION_STRING = (
 APP_URL = os.getenv("APP_URL")
 if not APP_URL:
     raise ValueError("APP_URL environment variable not set")
+
+LIVEBLOCKS_SECRET_KEY = os.getenv("LIVEBLOCKS_SECRET_KEY")
+if not LIVEBLOCKS_SECRET_KEY:
+    raise ValueError("LIVEBLOCKS_SECRET_KEY environment variable not set")
+
+LIVEBLOCKS_API_URL = "https://api.liveblocks.io/v2"
 
 
 @asynccontextmanager
@@ -151,7 +156,7 @@ async def read_root() -> str:
     return "The chatbot is running"
 
 
-@app.get("/api/chat-history", response_model=ChatResponse)
+@app.get("/api/chat-history", response_model=HistoryResponse)
 async def diagram_history(diagram_id: str):
     """Get the history of the chatbot."""
 
@@ -162,81 +167,37 @@ async def diagram_history(diagram_id: str):
     }
     graph_state = await app.state.graph.aget_state(config)
     state = graph_state.values
-    return ChatResponse(
+    return HistoryResponse(
         status=200,
         messages=state.get("messages", []),
     )
 
 
-@app.delete("/api/delete-chat-history", response_model=DeleteResponse)
+@app.delete("/api/delete-chat-history", response_model=BaseResponse)
 async def delete_chat_history(request: DeleteRequest):
     """Delete the chat history for a given diagram_id."""
     await app.state.checkpointer.adelete_thread(thread_id=request.diagram_id)
-    return DeleteResponse(status=200, message="Chat history deleted successfully")
+    return BaseResponse(status=200, message="Chat history deleted successfully")
 
 
-@app.delete("/api/delete-diagram-store", response_model=DeleteResponse)
+@app.delete("/api/delete-diagram-store", response_model=BaseResponse)
 async def delete_diagram_store(request: DeleteRequest):
     """Delete the diagram store for a given diagram_id."""
     deleted_count = await delete_by_filter(
         filter_dict={"diagram_id": request.diagram_id}
     )
-    return DeleteResponse(
+    return BaseResponse(
         status=200,
         message=f"Diagram store deleted successfully. {deleted_count} documents removed.",
     )
 
 
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """Chat with the chatbot."""
-    try:
-        config: RunnableConfig = {
-            "configurable": {
-                "thread_id": request.diagram_id,
-            }
-        }
-        graph_state = await app.state.graph.aget_state(config)
-        state = graph_state.values
-
-        # For generate mode with new file_url, we'll rebuild context from file
-        # For chat mode, we keep existing context
-        context = state.get("context", [])
-
-        input_dict = State(
-            messages=[
-                HumanMessage(
-                    content=request.messages[-1].content,
-                    additional_kwargs={
-                        "user_id": request.user_id,
-                        "mindmap_data": request.mindmap_data,
-                    },
-                ),
-            ],
-            diagram_id=request.diagram_id,
-            file_url=request.file_url,
-            context=context,
-            mode=request.mode,
-            need_initialize_data=request.need_initialize_data,
-        )
-
-        result = await app.state.graph.ainvoke(input_dict, config)
-
-        return ChatResponse(
-            status=200,
-            messages=result["messages"],
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate response: {str(e)}"
-        ) from e
-
-
-async def stream_generator(
+@app.post("/api/stream-chat", response_model=BaseResponse)
+async def stream_chat(
     request: ChatRequest,
-) -> AsyncGenerator[str, None]:
+):
     """
-    Generates SSE events from the LangGraph execution.
+    Generates SSE events from the LangGraph execution and sends broadcast events to Liveblocks.
     """
     config: RunnableConfig = {
         "configurable": {
@@ -267,25 +228,60 @@ async def stream_generator(
         need_initialize_data=request.need_initialize_data,
     )
 
-    async for chunk in app.state.graph.astream(
-        input_dict,
-        config=config,
-        stream_mode="custom",
-    ):
-        # Convert dict chunk to SSE format
-        if isinstance(chunk, dict):
-            # Format as Server-Sent Events: data: {json}\n\n
-            json_str = json.dumps(chunk, default=str)
-            yield f"data: {json_str}\n\n"
-        else:
-            yield chunk
+    room_id = request.diagram_id
+    broadcast_url = f"{LIVEBLOCKS_API_URL}/rooms/{room_id}/broadcast_event"
 
+    async with httpx.AsyncClient() as client:
+        async for chunk in app.state.graph.astream(
+            input_dict,
+            config=config,
+            stream_mode="custom",
+        ):
+            # Send broadcast event to Liveblocks for each chunk
+            if isinstance(chunk, dict):
+                try:
+                    # Prepare broadcast event payload
+                    event_payload = {
+                        "type": "stream_chunk",
+                        "payload": chunk,
+                    }
 
-@app.post("/api/stream-chat")
-async def stream_chat(request: ChatRequest):
-    """Stream the chat response."""
+                    # Send broadcast event to Liveblocks
+                    response = await client.post(
+                        broadcast_url,
+                        headers={
+                            "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                        json=event_payload,
+                        timeout=10.0,
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPError as e:
+                    # Log error but continue streaming
+                    print(f"Failed to send broadcast event to Liveblocks: {e}")
 
-    return StreamingResponse(
-        stream_generator(request),
-        media_type="text/event-stream",
-    )
+                # Also yield SSE format for backward compatibility
+                json_str = json.dumps(chunk, default=str)
+                yield f"data: {json_str}\n\n"
+            else:
+                # For non-dict chunks, send as broadcast event too
+                try:
+                    event_payload = {
+                        "type": "stream_chunk",
+                        "payload": {"chunk": str(chunk)},
+                    }
+                    response = await client.post(
+                        broadcast_url,
+                        headers={
+                            "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                        json=event_payload,
+                        timeout=10.0,
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPError as e:
+                    print(f"Failed to send broadcast event to Liveblocks: {e}")
+
+                yield chunk

@@ -15,3 +15,4 @@ sqlalchemy
 boto3
 dotenv
 unstructured
+httpx

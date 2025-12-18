@@ -4,15 +4,15 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 
 
-class ChatResponse(BaseModel):
-    """Response schema for the initialize endpoint."""
-
-    status: Literal[200, 400, 500]
-    messages: Annotated[Sequence[BaseMessage], add_messages] = None
-
-
-class DeleteResponse(BaseModel):
-    """Response schema for the delete endpoint."""
+class BaseResponse(BaseModel):
+    """Response schema for chat and delete endpoint."""
 
     status: Literal[200, 400, 500]
     message: str
+
+
+class HistoryResponse(BaseModel):
+    """Response schema for chat history endpoint."""
+
+    status: Literal[200, 400, 500]
+    messages: Annotated[Sequence[BaseMessage], add_messages] = None

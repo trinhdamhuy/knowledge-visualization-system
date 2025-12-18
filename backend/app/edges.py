@@ -528,7 +528,5 @@ async def route_mode(
     if mode == "generate":
         if need_initialize_data:
             return "load_file"
-        else:
-            return "generate_mindmap_data"
-    else:
-        return "retrieve_documents"
+        return "generate_mindmap_data"
+    return "retrieve_documents"

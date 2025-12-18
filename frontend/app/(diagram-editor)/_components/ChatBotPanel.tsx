@@ -164,7 +164,7 @@ export function ChatBotPanel() {
               duration: 0.3,
               ease: [0.16, 1, 0.3, 1], // Custom easing for smooth animation
             }}
-            className="fixed bottom-3 right-3 w-xl z-50"
+            className="fixed bottom-3 right-3 w-3xl z-50"
           >
             <Card>
               <CardHeader className="flex items-center justify-between">
