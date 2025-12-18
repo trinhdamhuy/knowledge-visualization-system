@@ -60,9 +60,9 @@ CONNECTION_STRING = (
     f":{POSTGRES_PORT}/{POSTGRES_DB}"
 )
 
-APP_URL = os.getenv("APP_URL")
-if not APP_URL:
-    raise ValueError("APP_URL environment variable not set")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+if not FRONTEND_URL:
+    raise ValueError("FRONTEND_URL environment variable not set")
 
 LIVEBLOCKS_SECRET_KEY = os.getenv("LIVEBLOCKS_SECRET_KEY")
 if not LIVEBLOCKS_SECRET_KEY:
@@ -143,7 +143,7 @@ app = FastAPI(lifespan=lifespan, title="Chatbot API", description="API for the c
 # Add CORS middleware (allow all origins for development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[APP_URL],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

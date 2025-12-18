@@ -20,7 +20,7 @@ services:
     build: .
     container_name: knovion-chatbot-api
     environment:
-      APP_URL: ${APP_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
 
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -29,6 +29,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+      LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
     ports:
       - "8000:8000"
     depends_on:

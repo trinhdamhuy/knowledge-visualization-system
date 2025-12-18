@@ -81,6 +81,7 @@ export function ChatBotPanel() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 72,
     maxHeight: 300,
@@ -186,10 +187,51 @@ export function ChatBotPanel() {
 
   const userCache = userQueries.data || {};
 
+  // Function to scroll to bottom
+  const scrollToBottom = (smooth: boolean = true) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(() => {
+        if (smooth) {
+          // Use scrollIntoView for smooth scrolling
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        } else {
+          // Use scrollTop for instant scrolling
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+    }
+  };
+
+  // Scroll to bottom when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      // Delay to ensure panel animation completes and DOM is ready
+      // Use double requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            scrollToBottom(true); // Smooth scroll when opening
+          }, 150);
+        });
+      });
+    }
+  }, [isOpen]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (isOpen && messages.length > 0) {
+      scrollToBottom(true); // Smooth scroll when messages update
+    }
+  }, [messages, isOpen]);
+
+  // Scroll to bottom when currentStatus changes (streaming)
+  useEffect(() => {
+    if (isOpen && currentStatus) {
+      scrollToBottom(true);
+    }
+  }, [currentStatus, isOpen]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -551,7 +593,10 @@ export function ChatBotPanel() {
               </CardHeader>
               <CardContent className="flex flex-col flex-1 min-h-0 gap-2">
                 {/* Messages area */}
-                <div className="flex-1 overflow-y-auto pr-2 mb-2">
+                <div
+                  ref={messagesContainerRef}
+                  className="flex-1 overflow-y-auto"
+                >
                   {messages.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">
                       No messages yet. Start a conversation!

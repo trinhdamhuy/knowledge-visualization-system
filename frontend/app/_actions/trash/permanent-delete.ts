@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { deleteFileFromS3, deleteFilesFromS3 } from "@/lib/file-upload-handler";
+import { deleteChatHistory } from "../chat/delete-history";
+import { deleteDiagramStore } from "../chat/delete-store";
 
 /**
  * Delete a room from Liveblocks
@@ -87,6 +89,21 @@ async function permanentDeleteDiagram(diagramId: string): Promise<boolean> {
     // Delete the Liveblocks room (room ID is the diagram ID)
     await deleteLiveblocksRoom(diagramId);
 
+    // Delete chat history and store for this diagram
+    try {
+      await deleteChatHistory(diagramId);
+    } catch (error) {
+      console.error("Failed to delete chat history:", error);
+      // Continue even if chat history deletion fails
+    }
+
+    try {
+      await deleteDiagramStore(diagramId);
+    } catch (error) {
+      console.error("Failed to delete diagram store:", error);
+      // Continue even if store deletion fails
+    }
+
     // Delete the diagram (cascade will delete trash record and files from DB)
     await prisma.diagram.delete({
       where: { id: diagramId },
@@ -155,6 +172,27 @@ async function permanentDeleteFolder(folderId: string): Promise<boolean> {
         if (!liveblocksSuccess) {
           console.error(`Failed to delete Liveblocks room: ${diagram.id}`);
           return false;
+        }
+
+        // Delete chat history and store for this diagram
+        try {
+          await deleteChatHistory(diagram.id);
+        } catch (error) {
+          console.error(
+            `Failed to delete chat history for diagram ${diagram.id}:`,
+            error
+          );
+          // Continue even if chat history deletion fails
+        }
+
+        try {
+          await deleteDiagramStore(diagram.id);
+        } catch (error) {
+          console.error(
+            `Failed to delete diagram store for diagram ${diagram.id}:`,
+            error
+          );
+          // Continue even if store deletion fails
         }
       } catch (error) {
         console.error(
