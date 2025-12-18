@@ -188,7 +188,46 @@ export function useDiagramSync() {
       };
 
       // Update in storage
-      storageNodes.set(nodeId, new LiveObject(updatedNode as unknown as LsonObject));
+      storageNodes.set(
+        nodeId,
+        new LiveObject(updatedNode as unknown as LsonObject)
+      );
+    },
+    []
+  );
+
+  // Mutation to import mindmap data (replace or merge)
+  const importMindmapData = useMutation(
+    (
+      { storage },
+      mindmapData: { nodes: Node[]; edges: Edge[] },
+      replaceExisting: boolean
+    ) => {
+      const storageNodes = storage.get("nodes");
+      const storageEdges = storage.get("edges");
+      if (!storageNodes || !storageEdges) return;
+
+      if (replaceExisting) {
+        // Clear existing nodes and edges
+        storageNodes.forEach((_, id) => storageNodes.delete(id));
+        storageEdges.forEach((_, id) => storageEdges.delete(id));
+      }
+
+      // Add new nodes
+      mindmapData.nodes.forEach((node) => {
+        storageNodes.set(
+          node.id,
+          new LiveObject(node as unknown as LsonObject)
+        );
+      });
+
+      // Add new edges
+      mindmapData.edges.forEach((edge) => {
+        storageEdges.set(
+          edge.id,
+          new LiveObject(edge as unknown as LsonObject)
+        );
+      });
     },
     []
   );
@@ -202,5 +241,6 @@ export function useDiagramSync() {
     addNode,
     addNodeWithEdge,
     updateNodeData,
+    importMindmapData,
   };
 }

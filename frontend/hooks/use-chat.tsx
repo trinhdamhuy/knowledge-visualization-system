@@ -48,10 +48,13 @@ export const useChat = () => {
     },
     onSuccess: (data, variables) => {
       if (data) {
-        // Invalidate chat history for this diagram
-        queryClient.invalidateQueries({
-          queryKey: chatKeys.history(variables.diagram_id),
-        });
+        // Wait a bit to ensure backend has saved the message to database
+        // then invalidate chat history for this diagram
+        setTimeout(() => {
+          queryClient.invalidateQueries({
+            queryKey: chatKeys.history(variables.diagram_id),
+          });
+        }, 300);
       }
     },
   });

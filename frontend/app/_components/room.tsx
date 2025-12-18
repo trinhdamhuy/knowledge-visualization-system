@@ -52,6 +52,7 @@ export const Room = ({ children, diagramId, fallback }: RoomProps) => {
         initialStorage={{
           nodes: new LiveMap<string, LiveObject<LsonObject>>(),
           edges: new LiveMap<string, LiveObject<LsonObject>>(),
+          chatbotStatus: new LiveObject({ isBusy: false }),
         }}
       >
         {children}

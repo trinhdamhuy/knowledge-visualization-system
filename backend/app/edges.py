@@ -104,6 +104,14 @@ async def grade_documents(
     if not context_docs or len(context_docs) == 0:
         return "no_relevant_data"
 
+    # Prevent infinite loop: limit to 3 rewrite attempts (4 total HumanMessages including original)
+    # Each rewrite creates a new HumanMessage, so if we have >= 4 HumanMessages, force generate_answer
+    human_message_count = sum(
+        1 for msg in state["messages"] if msg.__class__.__name__ == "HumanMessage"
+    )
+    if human_message_count >= 4:
+        return "no_relevant_data"
+
     context = "\n".join([doc.page_content for doc in context_docs])
 
     prompt = GRADE_PROMPT.format(question=question, context=context)

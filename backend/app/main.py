@@ -1,7 +1,7 @@
 """Main file for the chatbot API."""
 
 import os
-import json
+import asyncio
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import httpx
@@ -192,19 +192,20 @@ async def delete_diagram_store(request: DeleteRequest):
     )
 
 
-@app.post("/api/stream-chat", response_model=BaseResponse)
-async def stream_chat(
+async def process_stream_chat(
     request: ChatRequest,
-):
+    app_state,
+) -> None:
     """
-    Generates SSE events from the LangGraph execution and sends broadcast events to Liveblocks.
+    Process chat request and send broadcast events to Liveblocks.
+    Frontend only receives data via broadcast events, not SSE.
     """
     config: RunnableConfig = {
         "configurable": {
             "thread_id": request.diagram_id,
         }
     }
-    graph_state = await app.state.graph.aget_state(config)
+    graph_state = await app_state.graph.aget_state(config)
     state = graph_state.values
 
     # For generate mode with new file_url, we'll rebuild context from file
@@ -232,56 +233,89 @@ async def stream_chat(
     broadcast_url = f"{LIVEBLOCKS_API_URL}/rooms/{room_id}/broadcast_event"
 
     async with httpx.AsyncClient() as client:
-        async for chunk in app.state.graph.astream(
-            input_dict,
-            config=config,
-            stream_mode="custom",
-        ):
-            # Send broadcast event to Liveblocks for each chunk
-            if isinstance(chunk, dict):
-                try:
-                    # Prepare broadcast event payload
-                    event_payload = {
-                        "type": "stream_chunk",
-                        "payload": chunk,
-                    }
+        try:
+            async for chunk in app.state.graph.astream(
+                input_dict,
+                config=config,
+                stream_mode="custom",
+            ):
+                # Send broadcast event to Liveblocks for each chunk
+                if isinstance(chunk, dict):
+                    try:
+                        # Prepare broadcast event payload
+                        event_payload = {
+                            "type": "stream_chunk",
+                            "payload": chunk,
+                        }
 
-                    # Send broadcast event to Liveblocks
-                    response = await client.post(
-                        broadcast_url,
-                        headers={
-                            "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
-                            "Content-Type": "application/json",
-                        },
-                        json=event_payload,
-                        timeout=10.0,
-                    )
-                    response.raise_for_status()
-                except httpx.HTTPError as e:
-                    # Log error but continue streaming
-                    print(f"Failed to send broadcast event to Liveblocks: {e}")
+                        # Send broadcast event to Liveblocks
+                        response = await client.post(
+                            broadcast_url,
+                            headers={
+                                "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
+                                "Content-Type": "application/json",
+                            },
+                            json=event_payload,
+                            timeout=10.0,
+                        )
+                        response.raise_for_status()
+                    except httpx.HTTPError as e:
+                        # Log error but continue streaming
+                        print(f"Failed to send broadcast event to Liveblocks: {e}")
+                else:
+                    # For non-dict chunks, send as broadcast event too
+                    try:
+                        event_payload = {
+                            "type": "stream_chunk",
+                            "payload": {"chunk": str(chunk)},
+                        }
+                        response = await client.post(
+                            broadcast_url,
+                            headers={
+                                "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
+                                "Content-Type": "application/json",
+                            },
+                            json=event_payload,
+                            timeout=10.0,
+                        )
+                        response.raise_for_status()
+                    except httpx.HTTPError as e:
+                        print(f"Failed to send broadcast event to Liveblocks: {e}")
+        finally:
+            # Send stream_complete event to set chatbot status to idle
+            try:
+                complete_event = {
+                    "type": "stream_complete",
+                    "payload": {},
+                }
+                response = await client.post(
+                    broadcast_url,
+                    headers={
+                        "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json=complete_event,
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+            except httpx.HTTPError as e:
+                print(f"Failed to send stream_complete event to Liveblocks: {e}")
 
-                # Also yield SSE format for backward compatibility
-                json_str = json.dumps(chunk, default=str)
-                yield f"data: {json_str}\n\n"
-            else:
-                # For non-dict chunks, send as broadcast event too
-                try:
-                    event_payload = {
-                        "type": "stream_chunk",
-                        "payload": {"chunk": str(chunk)},
-                    }
-                    response = await client.post(
-                        broadcast_url,
-                        headers={
-                            "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
-                            "Content-Type": "application/json",
-                        },
-                        json=event_payload,
-                        timeout=10.0,
-                    )
-                    response.raise_for_status()
-                except httpx.HTTPError as e:
-                    print(f"Failed to send broadcast event to Liveblocks: {e}")
 
-                yield chunk
+@app.post("/api/stream-chat", response_model=BaseResponse)
+async def stream_chat(
+    request: ChatRequest,
+):
+    """
+    Process chat request and send broadcast events to Liveblocks.
+    Frontend only receives data via broadcast events, not SSE.
+    Returns a simple response indicating the request was accepted.
+    """
+    # Process stream in background (fire and forget)
+    # This allows the endpoint to return immediately while streaming continues
+    asyncio.create_task(process_stream_chat(request, app.state))
+
+    return BaseResponse(
+        status=200,
+        message="Chat request accepted. Streaming via broadcast events.",
+    )

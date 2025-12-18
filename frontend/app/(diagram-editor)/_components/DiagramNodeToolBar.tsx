@@ -162,7 +162,7 @@ export function DiagramNodeToolBar() {
   return (
     <Card
       data-text-toolbar
-      className="fixed right-6 top-[10%] z-999 min-w-[320px] max-h-[90vh] overflow-y-auto"
+      className="fixed right-6 top-[10%] z-10 min-w-[320px] max-h-[90vh] overflow-y-auto"
       onMouseDown={preventBlur}
       onPointerDown={preventBlur}
     >
