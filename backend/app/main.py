@@ -1,13 +1,15 @@
 """Main file for the chatbot API."""
 
 import os
+import json
 from contextlib import asynccontextmanager
-from typing import Dict
+from typing import AsyncGenerator, Dict
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -172,7 +174,7 @@ async def delete_diagram_store(diagram_id: str) -> Dict[str, str]:
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(request: ChatRequest):
     """Chat with the chatbot."""
     try:
         config: RunnableConfig = {
@@ -202,7 +204,6 @@ async def chat(request: ChatRequest) -> ChatResponse:
         )
 
         result = await app.state.graph.ainvoke(input_dict, config)
-        _ = await app.state.graph.aupdate_state(config, result)
 
         return ChatResponse(
             messages=result["messages"],
@@ -211,3 +212,53 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=500, detail=f"Failed to generate response: {str(e)}"
         ) from e
+
+
+async def stream_generator(
+    request: ChatRequest,
+) -> AsyncGenerator[str, None]:
+    """
+    Generates SSE events from the LangGraph execution.
+    """
+    config: RunnableConfig = {
+        "configurable": {
+            "thread_id": request.diagram_id,
+        }
+    }
+    graph_state = await app.state.graph.aget_state(config)
+    state = graph_state.values
+
+    # For generate mode with new file_url, we'll rebuild context from file
+    # For chat mode, we keep existing context
+    context = state.get("context", [])
+
+    input_dict = State(
+        messages=[
+            HumanMessage(
+                content=request.messages[-1].content,
+                id=request.user_id,
+                additional_kwargs={"data": request.data},
+            ),
+        ],
+        diagram_id=request.diagram_id,
+        file_url=request.file_url,
+        context=context,
+        mode=request.mode,
+    )
+
+    async for chunk in app.state.graph.astream(
+        input_dict,
+        config=config,
+        stream_mode="custom",
+    ):
+        yield json.dumps({"type": "chunk", "content": chunk}) + "\n\n"
+
+
+@app.post("/api/chat")
+async def stream_chat(request: ChatRequest):
+    """Stream the chat response."""
+
+    return StreamingResponse(
+        stream_generator(request),
+        media_type="text/event-stream",
+    )

@@ -2,9 +2,12 @@
 
 from typing import Literal, List, Dict
 from pydantic import BaseModel, Field
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langgraph.config import get_stream_writer
+
 from app.schemas.states import State
 from app.models.chat_model import model
 from app.models.vector_store import get_vector_store
@@ -13,12 +16,16 @@ from app.models.vector_store import get_vector_store
 async def load_file(state: State):
     """Load a file into documents."""
 
+    writer = get_stream_writer()
+    writer("Loading file...")
+
     file_url = state["file_url"]
     if file_url.endswith(".txt"):
         loader = TextLoader(file_url)
     elif file_url.endswith(".pdf"):
         loader = PyPDFLoader(file_url)
     else:
+        writer("Can not load file")
         raise ValueError("Unsupported file type")
     documents = await loader.aload()
 
@@ -27,6 +34,9 @@ async def load_file(state: State):
 
 async def add_documents(state: State):
     """Add documents to the vector store."""
+
+    writer = get_stream_writer()
+    writer("Adding documents...")
 
     vector_store = get_vector_store()
 
@@ -49,6 +59,9 @@ async def add_documents(state: State):
 
 async def retrieve_documents(state: State):
     """Retrieve documents from the vector store."""
+
+    writer = get_stream_writer()
+    writer("Retrieving documents...")
 
     question = state["messages"][-1].content
     diagram_id = state["diagram_id"]
@@ -217,6 +230,9 @@ async def generate_answer(state: State):
     request = state["messages"][0].content
     context_docs = state.get("context", [])
 
+    writer = get_stream_writer()
+    writer("Generating answer...")
+
     # Check if context is empty or no relevant documents
     if not context_docs or len(context_docs) == 0:
         prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
@@ -382,6 +398,9 @@ MINDMAP_PROMPT = (
 async def generate_mindmap_data(state: State):
     """Generate React Flow mindmap data based on user request and documents."""
 
+    writer = get_stream_writer()
+    writer("Generating mindmap data...")
+
     request = state["messages"][0].content
     context_docs = state["context"]
     data = state["messages"][0].additional_kwargs.get("data") or {}
@@ -468,6 +487,9 @@ async def summarize_documents(
 ):
     """Summarize the documents."""
 
+    writer = get_stream_writer()
+    writer("Summarizing documents...")
+
     documents = "\n".join([doc.page_content for doc in state["context"]])
     prompt = SUMMARIZE_PROMPT.format(documents=documents)
     response = await model.with_structured_output(SummarizeDocuments).ainvoke(
@@ -494,6 +516,7 @@ async def route_mode(
     - mode = "generate" + not file_url -> generate_mindmap_data
     - mode = "chat" -> retrieve_documents
     """
+
     mode = state.get("mode")
 
     if mode == "generate":
