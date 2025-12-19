@@ -80,21 +80,23 @@ The system follows a **microservices architecture** with clear separation of con
 
 ### Backend Technologies
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **FastAPI** | 0.115+ | High-performance async Python web framework |
+| Technology | Version/Info | Purpose |
+|------------|--------------|---------|
+| **FastAPI** | ^0.115 | High-performance async Python web framework |
 | **Python** | 3.13 | Programming language |
-| **LangChain** | 0.3+ | LLM application framework |
-| **LangGraph** | 0.2+ | Stateful workflow orchestration for LLMs |
+| **LangChain** | ^0.3 | LLM application framework |
+| **LangGraph** | ^0.2 | Stateful workflow orchestration for LLMs |
 | **Google Gemini** | API | AI model for text generation and analysis |
 | **pgvector** | pg16 | Vector similarity search in PostgreSQL |
-| **SQLAlchemy** | 2.0+ | SQL toolkit and ORM |
-| **Psycopg** | 3.0+ | PostgreSQL adapter with binary and pool support |
-| **PyPDF** | Latest | PDF processing library |
-| **Boto3** | Latest | AWS SDK for Python |
-| **httpx** | Latest | Async HTTP client |
-| **python-dotenv** | Latest | Environment variable management |
-| **unstructured** | Latest | Text extraction from various formats |
+| **SQLAlchemy** | ^2.0 | SQL toolkit and ORM |
+| **Psycopg** | ^3.0 | PostgreSQL adapter with binary and pool support |
+| **PyPDF** | Latest stable | PDF processing library |
+| **Boto3** | Latest stable | AWS SDK for Python |
+| **httpx** | Latest stable | Async HTTP client |
+| **python-dotenv** | Latest stable | Environment variable management |
+| **unstructured** | Latest stable | Text extraction from various formats |
+
+*Note: Backend uses unpinned dependencies to leverage latest stable versions. Version numbers indicate minimum compatible versions.*
 
 ### Database & Infrastructure
 
