@@ -157,8 +157,8 @@ async def read_root() -> str:
 
 
 @app.get("/api/chat-history", response_model=HistoryResponse)
-async def diagram_history(diagram_id: str):
-    """Get the history of the chatbot."""
+async def diagram_history(diagram_id: str, limit: int = 10, offset: int = 0):
+    """Get the history of the chatbot with pagination."""
 
     config: RunnableConfig = {
         "configurable": {
@@ -167,9 +167,34 @@ async def diagram_history(diagram_id: str):
     }
     graph_state = await app.state.graph.aget_state(config)
     state = graph_state.values
+    all_messages = state.get("messages", [])
+
+    # Get total count
+    total = len(all_messages)
+
+    # Reverse messages to get newest first, then slice for pagination
+    # We want to show newest messages first, so we reverse the list
+    reversed_messages = list(reversed(all_messages))
+
+    # Calculate pagination (offset from the end since we show newest first)
+    # If offset is 0, we show the last 'limit' messages
+    # If offset is 10, we show messages from position 10 to 10+limit
+    start_index = offset
+    end_index = offset + limit
+
+    paginated_messages = reversed_messages[start_index:end_index]
+
+    # Check if there are more messages
+    has_more = end_index < len(reversed_messages)
+
+    # Reverse back to chronological order (oldest first) for display
+    paginated_messages = list(reversed(paginated_messages))
+
     return HistoryResponse(
         status=200,
-        messages=state.get("messages", []),
+        messages=paginated_messages,
+        has_more=has_more,
+        total=total,
     )
 
 

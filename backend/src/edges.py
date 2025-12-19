@@ -58,13 +58,34 @@ async def add_documents(state: State):
     return {"context": context}
 
 
+def get_question_for_retrieval(state: State) -> str:
+    """Get the question to use for retrieval: rewritten question if available, otherwise original question."""
+    # Find the original user message (first HumanMessage)
+    original_message = None
+    for msg in state["messages"]:
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            break
+
+    if (
+        original_message
+        and original_message.additional_kwargs
+        and "rewritten_question" in original_message.additional_kwargs
+    ):
+        # Use rewritten question if available
+        return original_message.additional_kwargs["rewritten_question"]
+
+    # Fallback to last message content
+    return state["messages"][-1].content
+
+
 async def retrieve_documents(state: State):
     """Retrieve documents from the vector store."""
 
     writer = get_stream_writer()
     writer({"current_status": "Searching for relevant documents..."})
 
-    question = state["messages"][-1].content
+    question = get_question_for_retrieval(state)
     diagram_id = state["diagram_id"]
     vector_store = get_vector_store()
 
@@ -98,7 +119,7 @@ async def grade_documents(
     state: State,
 ) -> Literal["generate_answer", "rewrite_question", "no_relevant_data"]:
     """Run LLM to grade relevance and store the result in the state."""
-    question = state["messages"][-1].content
+    question = get_question_for_retrieval(state)
     context_docs = state["context"]
 
     # Check if no documents were retrieved
@@ -106,13 +127,21 @@ async def grade_documents(
         # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
         return "no_relevant_data"
 
-    # Prevent infinite loop: limit to 3 rewrite attempts (4 total HumanMessages including original)
-    # Each rewrite creates a new HumanMessage, so if we have >= 4 HumanMessages, force generate_answer
-    human_message_count = sum(
-        1 for msg in state["messages"] if msg.__class__.__name__ == "HumanMessage"
-    )
-    if human_message_count >= 4:
-        # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
+    # Find the original user message to check rewrite count
+    original_message = None
+    for msg in state["messages"]:
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            break
+
+    # Prevent infinite loop: limit to 1 rewrite attempt
+    # Check if rewritten_question already exists in additional_kwargs
+    if (
+        original_message
+        and original_message.additional_kwargs
+        and "rewritten_question" in original_message.additional_kwargs
+    ):
+        # Already rewritten once, force generate_answer
         return "no_relevant_data"
 
     context = "\n".join([doc.page_content for doc in context_docs])
@@ -139,14 +168,59 @@ REWRITE_PROMPT = (
 
 
 async def rewrite_question(state: State):
-    """Rewrite the original user question."""
+    """Rewrite the original user question and store it in additional_kwargs of the original message."""
     writer = get_stream_writer()
     writer({"current_status": "Rewriting question..."})
 
-    question = state["messages"][-1].content
-    prompt = REWRITE_PROMPT.format(question=question)
+    # Find the original user message (first HumanMessage)
+    original_message = None
+    original_index = -1
+    for i, msg in enumerate(state["messages"]):
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            original_index = i
+            break
+
+    if not original_message:
+        # Fallback: use last message
+        original_message = state["messages"][-1]
+        original_index = len(state["messages"]) - 1
+
+    # Get the original question
+    original_question = original_message.content
+
+    # Rewrite the question
+    prompt = REWRITE_PROMPT.format(question=original_question)
     response = await model.ainvoke([{"role": "user", "content": prompt}])
-    return {"messages": [HumanMessage(content=response.content)]}
+    rewritten_question = response.content
+
+    # Update the original message's additional_kwargs with rewritten_question
+    updated_additional_kwargs = (
+        original_message.additional_kwargs.copy()
+        if original_message.additional_kwargs
+        else {}
+    )
+    updated_additional_kwargs["rewritten_question"] = rewritten_question
+
+    # Create updated HumanMessage with new additional_kwargs
+    # Preserve all other attributes from original message
+    updated_message = HumanMessage(
+        content=original_message.content,
+        additional_kwargs=updated_additional_kwargs,
+        response_metadata=(
+            original_message.response_metadata
+            if hasattr(original_message, "response_metadata")
+            else None
+        ),
+        id=original_message.id if hasattr(original_message, "id") else None,
+        name=original_message.name if hasattr(original_message, "name") else None,
+    )
+
+    # Create new messages list with updated message
+    updated_messages = list(state["messages"])
+    updated_messages[original_index] = updated_message
+
+    return {"messages": updated_messages}
 
 
 ANSWER_PROMPT = (

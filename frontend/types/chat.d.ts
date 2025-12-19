@@ -25,6 +25,8 @@ export interface BaseResponse {
 export interface HistoryResponse {
   status: 200 | 400 | 500;
   messages?: BaseMessage[];
+  has_more?: boolean;
+  total?: number;
 }
 
 export interface ChatRequest {

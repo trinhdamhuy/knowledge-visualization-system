@@ -29,12 +29,17 @@ interface DeleteDiagramStoreParams {
 export const useChat = () => {
   const queryClient = useQueryClient();
 
-  // Query: Get chat history
-  const useChatHistory = (diagramId: string, enabled: boolean = true) => {
+  // Query: Get chat history with pagination
+  const useChatHistory = (
+    diagramId: string,
+    enabled: boolean = true,
+    limit: number = 10,
+    offset: number = 0
+  ) => {
     return useQuery({
-      queryKey: chatKeys.history(diagramId),
+      queryKey: [...chatKeys.history(diagramId), limit, offset],
       queryFn: async () => {
-        const result = await getChatHistory(diagramId);
+        const result = await getChatHistory(diagramId, limit, offset);
         return result;
       },
       enabled: enabled && !!diagramId,

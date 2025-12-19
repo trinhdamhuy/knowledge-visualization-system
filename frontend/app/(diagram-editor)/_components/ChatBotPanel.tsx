@@ -62,6 +62,10 @@ export function ChatBotPanel() {
 
   const [value, setValue] = useState("");
   const [deleteChatDialogOpen, setDeleteChatDialogOpen] = useState(false);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [allMessages, setAllMessages] = useState<BaseMessage[]>([]);
 
   // Use stores for chat settings and UI state
   const { mode, needInitializeData, setMode, setNeedInitializeData } =
@@ -103,15 +107,37 @@ export function ChatBotPanel() {
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
 
-  // Use TanStack Query for chat history
+  // Use TanStack Query for chat history with pagination
   const { data: historyData, refetch: refetchHistory } = useChatHistory(
     diagramId || "",
-    !!diagramId
+    !!diagramId,
+    10, // limit
+    messagesOffset
   );
-  const messages = useMemo(
-    () => historyData?.messages || [],
-    [historyData?.messages]
-  );
+
+  // Update messages and hasMore when historyData changes
+  useEffect(() => {
+    if (historyData?.messages && Array.isArray(historyData.messages)) {
+      if (messagesOffset === 0) {
+        // First load or reset: replace all messages
+        setAllMessages(historyData.messages);
+      } else {
+        // Load more: prepend older messages to the beginning
+        setAllMessages((prev) => [...historyData.messages!, ...prev]);
+      }
+      setHasMoreMessages(historyData.has_more || false);
+      setIsLoadingMore(false);
+    }
+  }, [historyData, messagesOffset]);
+
+  // Reset pagination when diagramId changes
+  useEffect(() => {
+    setMessagesOffset(0);
+    setAllMessages([]);
+    setHasMoreMessages(false);
+  }, [diagramId]);
+
+  const messages = useMemo(() => allMessages, [allMessages]);
 
   // Load file from database using React Query
   const { data: latestFile } = useFilesByDiagram(diagramId || "", !!diagramId);
@@ -145,7 +171,8 @@ export function ChatBotPanel() {
     if (diagramId) {
       // Small delay to ensure backend has saved the message
       setTimeout(() => {
-        // Invalidate and refetch to get the latest AI response
+        // Reset pagination and refetch to get the latest messages
+        setMessagesOffset(0);
         queryClient.invalidateQueries({
           queryKey: chatKeys.history(diagramId),
         });
@@ -238,6 +265,51 @@ export function ChatBotPanel() {
       scrollToBottom(true);
     }
   }, [currentStatus, isOpen]);
+
+  // Handle scroll to detect when user is at top
+  const [isAtTop, setIsAtTop] = useState(false);
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const isScrolledToTop = container.scrollTop <= 10; // 10px threshold
+      setIsAtTop(isScrolledToTop);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    // Check initial state
+    handleScroll();
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [isOpen, messages]);
+
+  // Load more messages
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMoreMessages || !diagramId) return;
+
+    setIsLoadingMore(true);
+    const container = messagesContainerRef.current;
+    const previousScrollHeight = container?.scrollHeight || 0;
+    const previousScrollTop = container?.scrollTop || 0;
+
+    // Load next batch
+    const nextOffset = messagesOffset + 10;
+    setMessagesOffset(nextOffset);
+
+    // Wait for messages to load and then adjust scroll position to maintain view
+    setTimeout(() => {
+      if (container) {
+        const newScrollHeight = container.scrollHeight;
+        const scrollDifference = newScrollHeight - previousScrollHeight;
+        // Maintain scroll position relative to the new content
+        container.scrollTop = previousScrollTop + scrollDifference;
+      }
+      setIsLoadingMore(false);
+    }, 500);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -497,7 +569,7 @@ export function ChatBotPanel() {
               animateOnHover
               onClick={() => setIsOpen(true)}
             >
-              <Bot />
+              <Bot className="size-5" />
             </AnimateIcon>
           </motion.div>
         )}
@@ -530,7 +602,7 @@ export function ChatBotPanel() {
                       disabled={isBusy}
                       title="Delete chat history"
                     >
-                      <Trash2 className="size-4" />
+                      <Trash2 />
                     </Button>
                     <Button
                       variant="ghost"
@@ -601,8 +673,29 @@ export function ChatBotPanel() {
                 {/* Messages area */}
                 <div
                   ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto"
+                  className="flex-1 overflow-y-auto relative"
                 >
+                  {/* Load More Button - shown when at top and has more messages */}
+                  {isAtTop && hasMoreMessages && (
+                    <div className="flex justify-center pb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleLoadMore}
+                        disabled={isLoadingMore}
+                        className="text-xs"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <RefreshCw className="size-3 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <p className="text-xs">Load more messages</p>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                   {messages.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">
                       No messages yet. Start a conversation!
@@ -638,59 +731,47 @@ export function ChatBotPanel() {
 
                 {/* Input area */}
                 <div className="relative shrink-0">
-                  <div className="relative flex flex-col">
-                    <div className="overflow-y-auto">
-                      <Textarea
-                        value={value}
-                        placeholder="What can I do for you?"
-                        className={cn(
-                          "w-full rounded-xl rounded-b-none px-4 py-3 bg-black/5 dark:bg-white/5 border-none dark:text-white placeholder:text-black/70 dark:placeholder:text-white/70 resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                          "min-h-[72px]"
-                        )}
-                        ref={textareaRef}
-                        onKeyDown={handleKeyDown}
-                        onChange={(e) => {
-                          setValue(e.target.value);
-                          adjustHeight();
-                        }}
-                        disabled={isBusy}
-                      />
-                    </div>
+                  <div className="relative flex flex-col gap-px">
+                    <Textarea
+                      value={value}
+                      placeholder="What can I do for you?"
+                      className={cn(
+                        "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                        "min-h-[72px]"
+                      )}
+                      ref={textareaRef}
+                      onKeyDown={handleKeyDown}
+                      onChange={(e) => {
+                        setValue(e.target.value);
+                        adjustHeight();
+                      }}
+                      disabled={isBusy}
+                    />
 
-                    <div className="h-14 bg-black/5 dark:bg-white/5 rounded-b-xl flex items-center">
-                      <div className="absolute left-3 right-3 bottom-3 flex items-center justify-between w-[calc(100%-24px)]">
+                    <div className="flex items-center p-3 bg-secondary rounded-b-md">
+                      <div className="flex items-center justify-between w-full gap-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           {fileUrl && fileName ? (
                             <Badge
                               variant="secondary"
-                              className="flex items-center gap-1.5 max-w-full"
+                              className="flex items-center justify-items-center gap-1.5 max-w-full"
                             >
                               <span className="truncate max-w-[200px]">
                                 {fileName}
                               </span>
-                              <button
-                                type="button"
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-auto w-auto p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
                                 onClick={handleRemoveFile}
                                 disabled={deleteFileByUrlMutation.isPending}
-                                className="rounded-full hover:bg-black/10 dark:hover:bg-white/10 p-0.5 transition-colors disabled:opacity-50"
                                 aria-label="Remove file"
                               >
-                                <X className="w-3 h-3" />
-                              </button>
+                                <X className="size-3 h-3" />
+                              </Button>
                             </Badge>
                           ) : (
-                            <label
-                              className={cn(
-                                "rounded-lg p-2 bg-black/5 dark:bg-white/5 cursor-pointer",
-                                "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500",
-                                "text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white",
-                                (deleteFileByUrlMutation.isPending ||
-                                  !!fileUrl ||
-                                  isBusy) &&
-                                  "opacity-50 cursor-not-allowed pointer-events-none"
-                              )}
-                              aria-label="Attach file"
-                            >
+                            <>
                               <input
                                 ref={fileInputRef}
                                 type="file"
@@ -703,30 +784,33 @@ export function ChatBotPanel() {
                                   isBusy
                                 }
                               />
-                              <Paperclip className="w-4 h-4 transition-colors" />
-                            </label>
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="hover:bg-black/5 dark:hover:bg-white/10"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={
+                                  deleteFileByUrlMutation.isPending ||
+                                  !!fileUrl ||
+                                  isBusy
+                                }
+                                aria-label="Attach file"
+                              >
+                                <Paperclip />
+                              </Button>
+                            </>
                           )}
                         </div>
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="hover:bg-black/5 dark:hover:bg-white/10"
                           onClick={handleSend}
-                          className={cn(
-                            "rounded-lg p-2 bg-black/5 dark:bg-white/5",
-                            "hover:bg-black/10 dark:hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-blue-500",
-                            "disabled:opacity-50 disabled:cursor-not-allowed"
-                          )}
-                          aria-label="Send message"
                           disabled={!value.trim() || isBusy}
+                          aria-label="Send message"
                         >
-                          <ArrowRight
-                            className={cn(
-                              "w-4 h-4 dark:text-white transition-opacity duration-200",
-                              value.trim() && !isBusy
-                                ? "opacity-100"
-                                : "opacity-30"
-                            )}
-                          />
-                        </button>
+                          <ArrowRight />
+                        </Button>
                       </div>
                     </div>
                   </div>

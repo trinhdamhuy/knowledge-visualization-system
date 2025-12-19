@@ -16,3 +16,5 @@ class HistoryResponse(BaseModel):
 
     status: Literal[200, 400, 500]
     messages: Annotated[Sequence[BaseMessage], add_messages] = None
+    has_more: bool = False
+    total: int = 0
