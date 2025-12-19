@@ -8,9 +8,9 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
 
-from app.schemas.states import State
-from app.models.chat_model import model
-from app.models.vector_store import get_vector_store
+from schemas.states import State
+from models.chat_model import model
+from models.vector_store import get_vector_store
 
 
 async def load_file(state: State):

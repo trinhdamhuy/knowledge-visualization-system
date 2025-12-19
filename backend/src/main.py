@@ -17,14 +17,14 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.store.postgres.aio import AsyncPostgresStore
 
 
-from app.schemas import (
+from src.schemas import (
     State,
     ChatRequest,
     DeleteRequest,
     BaseResponse,
     HistoryResponse,
 )
-from app.edges import (
+from src.edges import (
     add_documents,
     grade_documents,
     load_file,
@@ -35,7 +35,7 @@ from app.edges import (
     summarize_documents,
     route_mode,
 )
-from app.models.vector_store import (
+from src.models.vector_store import (
     init_vector_store,
     initialize_table,
     delete_by_filter,

@@ -1,6 +1,6 @@
 FROM python:3.13
 
-WORKDIR /app
+WORKDIR /src
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -21,5 +21,5 @@ COPY . .
 EXPOSE 8000
 
 # Run the application
-CMD ["fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["fastapi", "run", "src/main.py", "--host", "0.0.0.0", "--port", "8000"]
 
