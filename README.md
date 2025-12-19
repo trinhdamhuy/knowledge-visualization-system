@@ -82,16 +82,19 @@ The system follows a **microservices architecture** with clear separation of con
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **FastAPI** | Latest | High-performance async Python web framework |
+| **FastAPI** | 0.115+ | High-performance async Python web framework |
 | **Python** | 3.13 | Programming language |
-| **LangChain** | Latest | LLM application framework |
-| **LangGraph** | Latest | Stateful workflow orchestration for LLMs |
-| **Google Gemini** | Latest | AI model for text generation and analysis |
+| **LangChain** | 0.3+ | LLM application framework |
+| **LangGraph** | 0.2+ | Stateful workflow orchestration for LLMs |
+| **Google Gemini** | API | AI model for text generation and analysis |
 | **pgvector** | pg16 | Vector similarity search in PostgreSQL |
-| **SQLAlchemy** | Latest | SQL toolkit and ORM |
-| **Psycopg** | Latest | PostgreSQL adapter |
-| **PyPDF** | Latest | PDF processing |
+| **SQLAlchemy** | 2.0+ | SQL toolkit and ORM |
+| **Psycopg** | 3.0+ | PostgreSQL adapter with binary and pool support |
+| **PyPDF** | Latest | PDF processing library |
 | **Boto3** | Latest | AWS SDK for Python |
+| **httpx** | Latest | Async HTTP client |
+| **python-dotenv** | Latest | Environment variable management |
+| **unstructured** | Latest | Text extraction from various formats |
 
 ### Database & Infrastructure
 
