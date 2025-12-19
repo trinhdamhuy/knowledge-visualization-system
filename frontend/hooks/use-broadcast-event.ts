@@ -15,7 +15,7 @@ export interface BroadcastEventPayload {
  */
 export function useBroadcastEventListener(
   eventType: string,
-  callback: (payload: any) => void
+  callback: (payload: BroadcastEventPayload["payload"]) => void
 ) {
   useEventListener(({ event }) => {
     if (
@@ -24,7 +24,7 @@ export function useBroadcastEventListener(
       "type" in event &&
       event.type === eventType
     ) {
-      callback(event.payload);
+      callback(event.payload as BroadcastEventPayload["payload"]);
     }
   });
 }

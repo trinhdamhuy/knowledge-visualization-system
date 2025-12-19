@@ -27,7 +27,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Shimmer } from "@/components/ui/shimmer";
 import {
   Select,
   SelectContent,
@@ -35,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUploadFile } from "@/hooks/use-upload-file";
 import { toast } from "sonner";
 import { useFile } from "@/hooks/use-file";
 import { useChat } from "@/hooks/use-chat";
@@ -110,7 +108,10 @@ export function ChatBotPanel() {
     diagramId || "",
     !!diagramId
   );
-  const messages = historyData?.messages || [];
+  const messages = useMemo(
+    () => historyData?.messages || [],
+    [historyData?.messages]
+  );
 
   // Load file from database using React Query
   const { data: latestFile } = useFilesByDiagram(diagramId || "", !!diagramId);
@@ -124,8 +125,13 @@ export function ChatBotPanel() {
 
   // Listen to broadcast events for stream chunks
   useBroadcastEventListener("stream_chunk", (payload) => {
-    if (payload?.current_status) {
-      setCurrentStatus(payload.current_status);
+    if (payload && typeof payload === "object" && "current_status" in payload) {
+      setCurrentStatus(payload.current_status as "busy" | "idle");
+    } else {
+      setCurrentStatus(null);
+    }
+    if (payload && typeof payload === "object" && "current_status" in payload) {
+      setCurrentStatus(payload.current_status as "busy" | "idle");
     }
   });
 
@@ -154,7 +160,7 @@ export function ChatBotPanel() {
     const ids = new Set<string>();
     messages.forEach((msg: BaseMessage) => {
       if (msg.type === "human" && msg.additional_kwargs?.user_id) {
-        ids.add(msg.additional_kwargs.user_id);
+        ids.add(msg.additional_kwargs.user_id as string);
       }
     });
     return Array.from(ids);
@@ -383,13 +389,13 @@ export function ChatBotPanel() {
     const isAI = message.type === "ai";
     const userInfo =
       message.additional_kwargs?.user_id &&
-      userCache[message.additional_kwargs.user_id]
-        ? userCache[message.additional_kwargs.user_id]
+      userCache[message.additional_kwargs.user_id as string]
+        ? userCache[message.additional_kwargs.user_id as string]
         : null;
 
     const mindmapData =
       message.name === "mindmap" && message.additional_kwargs?.mindmap_data
-        ? (message.additional_kwargs.mindmap_data as MindmapData)
+        ? (message.additional_kwargs.mindmap_data as unknown as MindmapData)
         : null;
 
     const content =
@@ -622,21 +628,7 @@ export function ChatBotPanel() {
                           <Bot className="size-5 text-primary-foreground" />
                         </div>
                         <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
-                          <AnimatePresence>
-                            <motion.span
-                              key={currentStatus}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={{
-                                duration: 0.25,
-                                ease: [0.16, 1, 0.3, 1],
-                              }}
-                              className="inline-block"
-                            >
-                              <Shimmer>{currentStatus}</Shimmer>
-                            </motion.span>
-                          </AnimatePresence>
+                          <span className="animate-pulse">{currentStatus}</span>
                         </div>
                       </motion.div>
                     )}

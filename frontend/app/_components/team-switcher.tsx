@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
-import { useTeamContext } from "@/contexts/team-context";
+import { useActiveTeam } from "@/hooks/use-active-team";
 import { useTeam } from "@/hooks/use-team";
 import { CreateTeamDialog } from "./dialogs/create-team-dialog";
 
@@ -42,7 +42,7 @@ const defaultLogos = [
 export function TeamSwitcher() {
   const { isMobile } = useSidebar();
   const { teams } = useTeam();
-  const { activeTeam, setActiveTeam, isLoading } = useTeamContext();
+  const { activeTeam, setActiveTeam, isLoading } = useActiveTeam();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
   // Show skeleton when loading initially (no teams yet)

@@ -1,5 +1,6 @@
 // Types for chat API based on backend schemas
 
+import { Json } from "@liveblocks/client";
 import { Edge, Node } from "@xyflow/react";
 
 export interface MindmapData {
@@ -9,8 +10,8 @@ export interface MindmapData {
 
 export interface BaseMessage {
   content: string | Array<string | object>; // content of the message, written in markdown format
-  additional_kwargs?: Record<string, any>; // additional kwargs for the message, known contained fields are: user_id, mindmap_data
-  response_metadata?: Record<string, any>;
+  additional_kwargs?: Record<string, Json>; // additional kwargs for the message, known contained fields are: user_id, mindmap_data
+  response_metadata?: Record<string, Json>;
   type: string; // ai, human
   name?: string | null; // if name = mindmap, then it contains a mindmap data
   id?: string | null;

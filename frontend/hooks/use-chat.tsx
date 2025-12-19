@@ -16,7 +16,7 @@ export const chatKeys = {
   history: (diagramId: string) => [...chatKeys.histories(), diagramId] as const,
 };
 
-interface SendChatRequestParams extends ChatRequest {}
+type SendChatRequestParams = ChatRequest;
 
 interface DeleteChatHistoryParams {
   diagramId: string;

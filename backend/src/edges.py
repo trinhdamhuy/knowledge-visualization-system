@@ -8,9 +8,9 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
 
-from schemas.states import State
-from models.chat_model import model
-from models.vector_store import get_vector_store
+from src.schemas.states import State
+from src.models.chat_model import model
+from src.models.vector_store import get_vector_store
 
 
 async def load_file(state: State):
@@ -71,7 +71,8 @@ async def retrieve_documents(state: State):
     retrieved_docs = await vector_store.asimilarity_search(
         question, k=5, filter={"diagram_id": diagram_id}
     )
-    writer({"current_status": "Found relevant documents"})
+    if len(retrieved_docs) == 0:
+        return "no_relevant_data"
     return {"context": retrieved_docs}
 
 
@@ -102,6 +103,7 @@ async def grade_documents(
 
     # Check if no documents were retrieved
     if not context_docs or len(context_docs) == 0:
+        # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
         return "no_relevant_data"
 
     # Prevent infinite loop: limit to 3 rewrite attempts (4 total HumanMessages including original)
@@ -110,6 +112,7 @@ async def grade_documents(
         1 for msg in state["messages"] if msg.__class__.__name__ == "HumanMessage"
     )
     if human_message_count >= 4:
+        # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
         return "no_relevant_data"
 
     context = "\n".join([doc.page_content for doc in context_docs])
@@ -122,6 +125,9 @@ async def grade_documents(
 
     if score == "yes":
         return "generate_answer"
+
+    writer = get_stream_writer()
+    writer({"current_status": "Cannot find relevant documents"})
     return "rewrite_question"
 
 
@@ -134,6 +140,9 @@ REWRITE_PROMPT = (
 
 async def rewrite_question(state: State):
     """Rewrite the original user question."""
+    writer = get_stream_writer()
+    writer({"current_status": "Rewriting question..."})
+
     question = state["messages"][-1].content
     prompt = REWRITE_PROMPT.format(question=question)
     response = await model.ainvoke([{"role": "user", "content": prompt}])
@@ -165,8 +174,11 @@ ANSWER_PROMPT = (
 
 NO_RELEVANT_DATA_PROMPT = (
     "The user's question is not related to the available documents, or no relevant documents were found.\n"
-    "Simply tell the user that you don't know or cannot answer based on the available documents.\n"
-    "Keep your response brief and simple. Use the user's language.\n"
+    "You MUST respond that you don't know the answer or cannot answer based on the available documents.\n"
+    "CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question. If the user asked in Vietnamese, respond in Vietnamese. If the user asked in English, respond in English. Match the user's language exactly.\n"
+    "Keep your response brief and simple. Examples:\n"
+    "- If user asked in Vietnamese: 'Tôi không biết câu trả lời dựa trên các tài liệu hiện có.' or 'Tôi không thể trả lời câu hỏi này dựa trên các tài liệu có sẵn.'\n"
+    "- If user asked in English: 'I don't know the answer based on the available documents.' or 'I cannot answer this question based on the available documents.'\n"
     "\n"
     "User question:\n"
     "{request}\n"
@@ -244,7 +256,13 @@ async def generate_answer(state: State):
     writer({"current_status": "Generating answer..."})
 
     # Check if context is empty or no relevant documents
-    if not context_docs or len(context_docs) == 0:
+    # Also check if we've exceeded rewrite attempts (indicates no_relevant_data)
+    human_message_count = sum(
+        1 for msg in state["messages"] if msg.__class__.__name__ == "HumanMessage"
+    )
+
+    if not context_docs or len(context_docs) == 0 or human_message_count >= 4:
+        # Use NO_RELEVANT_DATA_PROMPT when no context or too many rewrite attempts
         prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
     else:
         context = "\n".join([doc.page_content for doc in context_docs])
