@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
-import { DiagramNodeToolBar } from "./DiagramNodeToolBar";
+import { PropertiesPanel } from "./PropertiesPanel";
 import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
   Background,
   MiniMap,
   Node,
+  Edge,
   ReactFlowInstance,
   BackgroundVariant,
 } from "@xyflow/react";
@@ -32,7 +33,7 @@ export function DiagramCanvas() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const { activeMode, setActiveMode, setSelectedNodeIds } = useDiagramStore();
+  const { activeMode, setActiveMode, setSelection } = useDiagramStore();
 
   // Use Liveblocks as single source of truth
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
@@ -57,21 +58,27 @@ export function DiagramCanvas() {
     });
   };
 
-  const { selectedNodeIds } = useDiagramStore();
+  const { selectedObjectIds } = useDiagramStore();
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       if (event.ctrlKey || event.metaKey) {
         // Multi-select logic: toggle node in array
-        if (selectedNodeIds.includes(node.id)) {
-          setSelectedNodeIds(selectedNodeIds.filter((id) => id !== node.id));
+        if (selectedObjectIds.nodeIds.includes(node.id)) {
+          setSelection(
+            selectedObjectIds.nodeIds.filter((id) => id !== node.id),
+            [] // Clear edge selection when selecting nodes
+          );
         } else {
-          setSelectedNodeIds([...selectedNodeIds, node.id]);
+          setSelection(
+            [...selectedObjectIds.nodeIds, node.id],
+            [] // Clear edge selection when selecting nodes
+          );
         }
       } else {
-        setSelectedNodeIds([node.id]);
+        setSelection([node.id], []); // Clear edge selection when selecting nodes
       }
     },
-    [selectedNodeIds, setSelectedNodeIds]
+    [selectedObjectIds.nodeIds, setSelection]
   );
 
   const onPointerMove = useCallback(
@@ -103,8 +110,8 @@ export function DiagramCanvas() {
   // Handle click on pane to create node or deselect node
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
-      // Deselect node when clicking on pane
-      setSelectedNodeIds([]);
+      // Deselect both nodes and edges when clicking on pane
+      setSelection([], []);
 
       if (activeMode !== DiagramMode.CreateNode || !reactFlowInstance.current)
         return;
@@ -128,14 +135,42 @@ export function DiagramCanvas() {
 
       addNode(newNode);
     },
-    [activeMode, addNode, setSelectedNodeIds]
+    [activeMode, addNode, setSelection]
   );
 
   const onSelectionChange = useCallback(
-    (params: { nodes: Node[] }) => {
-      setSelectedNodeIds(params.nodes.map((n) => n.id));
+    (params: { nodes: Node[]; edges: Edge[] }) => {
+      // Use setSelection to set both nodes and edges without clearing each other
+      setSelection(
+        params.nodes.map((n) => n.id),
+        params.edges.map((e) => e.id)
+      );
     },
-    [setSelectedNodeIds]
+    [setSelection]
+  );
+
+  const onEdgeClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      if (event.ctrlKey || event.metaKey) {
+        // Multi-select logic: toggle edge in array
+        const currentSelected =
+          useDiagramStore.getState().selectedObjectIds.edgeIds;
+        if (currentSelected.includes(edge.id)) {
+          setSelection(
+            [], // Clear node selection when selecting edges
+            currentSelected.filter((id) => id !== edge.id)
+          );
+        } else {
+          setSelection(
+            [], // Clear node selection when selecting edges
+            [...currentSelected, edge.id]
+          );
+        }
+      } else {
+        setSelection([], [edge.id]); // Clear node selection when selecting edges
+      }
+    },
+    [setSelection]
   );
 
   return (
@@ -147,6 +182,7 @@ export function DiagramCanvas() {
           ? "light"
           : "system"
       }
+      proOptions={{ hideAttribution: true }}
       nodes={nodes}
       edges={edges}
       onNodesChange={updateNodes}
@@ -156,6 +192,7 @@ export function DiagramCanvas() {
       onConnect={addNewEdge}
       onPaneClick={onPaneClick}
       onNodeClick={onNodeClick}
+      onEdgeClick={onEdgeClick}
       onSelectionChange={onSelectionChange}
       panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
       selectionOnDrag={activeMode === DiagramMode.Select}
@@ -165,11 +202,11 @@ export function DiagramCanvas() {
       nodesDraggable={true}
       nodesConnectable={true}
       elementsSelectable={true}
-      selectNodesOnDrag={false}
+      selectNodesOnDrag={activeMode === DiagramMode.Select}
     >
       <DiagramHeader />
       <DiagramToolBar />
-      <DiagramNodeToolBar />
+      <PropertiesPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <MiniMap

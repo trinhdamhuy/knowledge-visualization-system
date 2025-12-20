@@ -4,8 +4,8 @@ import { Json } from "@liveblocks/client";
 import { Edge, Node } from "@xyflow/react";
 
 export interface MindmapData {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node[] | Record<string, Node>;
+  edges: Edge[] | Record<string, Edge>;
 }
 
 export interface BaseMessage {

@@ -6,6 +6,7 @@ import {
   deleteChatHistory,
   deleteDiagramStore,
   sendChatRequest,
+  cancelChatRequest,
 } from "@/app/_actions/chat";
 import type { ChatRequest } from "@/types/chat";
 
@@ -23,6 +24,10 @@ interface DeleteChatHistoryParams {
 }
 
 interface DeleteDiagramStoreParams {
+  diagramId: string;
+}
+
+interface CancelChatRequestParams {
   diagramId: string;
 }
 
@@ -94,6 +99,13 @@ export const useChat = () => {
     },
   });
 
+  // Mutation: Cancel chat request
+  const cancelChatRequestMutation = useMutation({
+    mutationFn: async (params: CancelChatRequestParams) => {
+      return await cancelChatRequest(params.diagramId);
+    },
+  });
+
   return {
     // Query hooks
     useChatHistory,
@@ -105,5 +117,7 @@ export const useChat = () => {
     deleteChatHistoryMutation,
     deleteDiagramStore: deleteDiagramStoreMutation.mutateAsync,
     deleteDiagramStoreMutation,
+    cancelChatRequest: cancelChatRequestMutation.mutateAsync,
+    cancelChatRequestMutation,
   };
 };

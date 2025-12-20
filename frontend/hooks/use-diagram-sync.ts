@@ -196,11 +196,51 @@ export function useDiagramSync() {
     []
   );
 
+  // Mutation to update edge data (type, style, animated, etc.)
+  const updateEdgeData = useMutation(
+    ({ storage }, edgeId: string, edgeData: Partial<Edge>) => {
+      const storageEdges = storage.get("edges");
+      if (!storageEdges) return;
+
+      const edgeObj = storageEdges.get(edgeId);
+      if (!edgeObj) return;
+
+      // Get current edge data
+      const currentEdge =
+        edgeObj && typeof edgeObj === "object" && "toObject" in edgeObj
+          ? (edgeObj as unknown as { toObject: () => Edge }).toObject()
+          : (edgeObj as unknown as Edge);
+
+      // Merge new data with existing data
+      const updatedEdge: Edge = {
+        ...currentEdge,
+        ...edgeData,
+        // If style is being updated, merge it with existing style
+        style: edgeData.style
+          ? {
+              ...(currentEdge.style as Record<string, string>),
+              ...(edgeData.style as Record<string, string>),
+            }
+          : currentEdge.style,
+      };
+
+      // Update in storage
+      storageEdges.set(
+        edgeId,
+        new LiveObject(updatedEdge as unknown as LsonObject)
+      );
+    },
+    []
+  );
+
   // Mutation to import mindmap data (replace or merge)
   const importMindmapData = useMutation(
     (
       { storage },
-      mindmapData: { nodes: Node[]; edges: Edge[] },
+      mindmapData: {
+        nodes: Node[] | Record<string, Node>;
+        edges: Edge[] | Record<string, Edge>;
+      },
       replaceExisting: boolean
     ) => {
       const storageNodes = storage.get("nodes");
@@ -213,8 +253,18 @@ export function useDiagramSync() {
         storageEdges.forEach((_, id) => storageEdges.delete(id));
       }
 
+      // Convert nodes to array if it's a dictionary
+      const nodesArray = Array.isArray(mindmapData.nodes)
+        ? mindmapData.nodes
+        : Object.values(mindmapData.nodes);
+
+      // Convert edges to array if it's a dictionary
+      const edgesArray = Array.isArray(mindmapData.edges)
+        ? mindmapData.edges
+        : Object.values(mindmapData.edges);
+
       // Add new nodes
-      mindmapData.nodes.forEach((node) => {
+      nodesArray.forEach((node) => {
         storageNodes.set(
           node.id,
           new LiveObject(node as unknown as LsonObject)
@@ -222,7 +272,7 @@ export function useDiagramSync() {
       });
 
       // Add new edges
-      mindmapData.edges.forEach((edge) => {
+      edgesArray.forEach((edge) => {
         storageEdges.set(
           edge.id,
           new LiveObject(edge as unknown as LsonObject)
@@ -241,6 +291,7 @@ export function useDiagramSync() {
     addNode,
     addNodeWithEdge,
     updateNodeData,
+    updateEdgeData,
     importMindmapData,
   };
 }

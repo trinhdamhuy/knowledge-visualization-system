@@ -1,19 +1,31 @@
 import { create } from "zustand";
 import { DiagramMode } from "@/enums/modes";
 
+type SelectedObjectIds = {
+  nodeIds: string[];
+  edgeIds: string[];
+};
+
 type DiagramState = {
   activeMode: DiagramMode;
-  selectedNodeIds: string[];
+  selectedObjectIds: SelectedObjectIds;
 };
 
 type DiagramActions = {
   setActiveMode: (mode: DiagramMode) => void;
-  setSelectedNodeIds: (nodeIds: string[]) => void;
+  setSelection: (nodeIds: string[], edgeIds: string[]) => void;
 };
 
 export const useDiagramStore = create<DiagramState & DiagramActions>((set) => ({
   activeMode: DiagramMode.Select,
-  selectedNodeIds: [],
+  selectedObjectIds: {
+    nodeIds: [],
+    edgeIds: [],
+  },
   setActiveMode: (mode: DiagramMode) => set({ activeMode: mode }),
-  setSelectedNodeIds: (nodeIds: string[]) => set({ selectedNodeIds: nodeIds }),
+  setSelection: (nodeIds: string[], edgeIds: string[]) => {
+    set({
+      selectedObjectIds: { nodeIds, edgeIds },
+    });
+  },
 }));

@@ -84,6 +84,8 @@ async def lifespan(fastapi_app: FastAPI):
         await initialize_table()
         await init_vector_store()
         fastapi_app.state.store = store
+        # Dictionary to store cancel flags for each diagram_id
+        fastapi_app.state.cancel_flags = {}
 
         workflow = StateGraph(state_schema=State)
         # Declare nodes
@@ -225,9 +227,14 @@ async def process_chat(
     Process chat request and send broadcast events to Liveblocks.
     Frontend only receives data via broadcast events, not SSE.
     """
+    diagram_id = request.diagram_id
+
+    # Reset cancel flag for this diagram_id
+    app_state.cancel_flags[diagram_id] = False
+
     config: RunnableConfig = {
         "configurable": {
-            "thread_id": request.diagram_id,
+            "thread_id": diagram_id,
         }
     }
     graph_state = await app_state.graph.aget_state(config)
@@ -247,14 +254,14 @@ async def process_chat(
                 },
             ),
         ],
-        diagram_id=request.diagram_id,
+        diagram_id=diagram_id,
         file_url=request.file_url,
         context=context,
         mode=request.mode,
         need_initialize_data=request.need_initialize_data,
     )
 
-    room_id = request.diagram_id
+    room_id = diagram_id
     broadcast_url = f"{LIVEBLOCKS_API_URL}/rooms/{room_id}/broadcast_event"
 
     async with httpx.AsyncClient() as client:
@@ -264,6 +271,11 @@ async def process_chat(
                 config=config,
                 stream_mode="custom",
             ):
+                # Check if chat was cancelled
+                if app_state.cancel_flags.get(diagram_id, False):
+                    print(f"Chat cancelled for diagram_id: {diagram_id}")
+                    break
+
                 # Send broadcast event to Liveblocks for each chunk
                 if isinstance(chunk, dict):
                     try:
@@ -307,6 +319,9 @@ async def process_chat(
                     except httpx.HTTPError as e:
                         print(f"Failed to send broadcast event to Liveblocks: {e}")
         finally:
+            # Clear cancel flag
+            app_state.cancel_flags[diagram_id] = False
+
             # Send stream_complete event to set chatbot status to idle
             try:
                 complete_event = {
@@ -336,3 +351,13 @@ async def chat(
     """
     asyncio.create_task(process_chat(request, app.state))
     return BaseResponse(status=200, message="Chat request accepted")
+
+
+@app.post("/api/chat/cancel", response_model=BaseResponse)
+async def cancel_chat(request: DeleteRequest):
+    """
+    Cancel an ongoing chat request for a given diagram_id.
+    """
+    diagram_id = request.diagram_id
+    app.state.cancel_flags[diagram_id] = True
+    return BaseResponse(status=200, message="Chat cancellation requested")

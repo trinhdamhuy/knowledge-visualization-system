@@ -38,4 +38,37 @@ async function sendChatRequest(request: ChatRequest): Promise<boolean> {
   }
 }
 
-export { sendChatRequest };
+/**
+ * Cancel an ongoing chat request
+ * @param diagramId - Diagram ID to cancel chat for
+ * @returns true if cancellation was successful, false otherwise
+ */
+async function cancelChatRequest(diagramId: string): Promise<boolean> {
+  const user = await getCurrentUser();
+
+  if (!user || !user.id) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/chat/cancel`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ diagram_id: diagramId }),
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to cancel chat: ${response.statusText}`);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Failed to cancel chat request:", error);
+    return false;
+  }
+}
+
+export { sendChatRequest, cancelChatRequest };

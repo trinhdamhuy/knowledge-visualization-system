@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { X, FileText, Upload, Download, GripVertical } from "lucide-react";
+import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -144,24 +144,24 @@ export function FilePanel() {
     }
   };
 
-  const handleDownload = () => {
-    if (!currentFileUrl) return;
-    const link = document.createElement("a");
-    link.href = currentFileUrl;
-    link.download = fileName || "document";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Handle resize for sidebar mode
+  // Handle resize for sidebar and docked mode
   useEffect(() => {
-    if (!isResizing || displayMode !== "sidebar") return;
+    if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = e.clientX;
-      if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
-        setWidth(newWidth);
+      if (displayMode === "sidebar") {
+        // Sidebar mode: resize from right edge
+        const newWidth = e.clientX;
+        if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
+          setWidth(newWidth);
+        }
+      } else if (displayMode === "docked") {
+        // Docked mode: resize from right edge (resize to right)
+        // Panel starts at left-20 (80px), so width = mouseX - 80
+        const newWidth = e.clientX - 80; // 80px for left-20 (5rem)
+        if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
+          setWidth(newWidth);
+        }
       }
     };
 
@@ -180,7 +180,7 @@ export function FilePanel() {
 
   const fileContentJSX = (
     <>
-      <CardHeader className="flex flex-row items-center justify-between shrink-0 pb-3">
+      <CardHeader className="flex flex-row items-center justify-between shrink-0 p-0">
         <div className="flex items-center gap-2">
           <FileText className="size-5" />
           <CardTitle className="text-sm">File Viewer</CardTitle>
@@ -191,41 +191,29 @@ export function FilePanel() {
           </Button>
         )}
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
+      <CardContent className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden p-0">
         {currentFileUrl && fileName ? (
           <>
             <div className="shrink-0 flex items-center gap-2">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Badge
-                  variant="secondary"
-                  className="flex items-center gap-1.5 max-w-full text-xs"
-                >
-                  <span className="truncate max-w-[150px]">{fileName}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-auto w-auto p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                    onClick={handleRemoveFile}
-                    disabled={deleteFileByUrlMutation.isPending}
-                    aria-label="Remove file"
-                  >
-                    <X className="size-3 h-3" />
-                  </Button>
-                </Badge>
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1.5 max-w-full text-xs"
+              >
+                <span className="truncate max-w-[150px]">{fileName}</span>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={handleDownload}
-                  disabled={!currentFileUrl}
+                  variant="ghost"
+                  size="icon"
+                  className="h-auto w-auto p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
+                  onClick={handleRemoveFile}
+                  disabled={deleteFileByUrlMutation.isPending}
+                  aria-label="Remove file"
                 >
-                  <Download className="size-3 mr-1" />
-                  Download
+                  <X className="size-3 h-3" />
                 </Button>
-              </div>
+              </Badge>
             </div>
 
-            <div className="flex-1 min-h-0 border rounded-md overflow-hidden bg-muted/50">
+            <div className="flex-1 min-h-0 border overflow-hidden bg-muted/50">
               {fileError ? (
                 <div className="h-full flex items-center justify-center p-4 text-center text-muted-foreground">
                   <div>
@@ -247,7 +235,7 @@ export function FilePanel() {
               ) : currentFileUrl && currentFileType === "pdf" ? (
                 <iframe
                   src={currentFileUrl}
-                  className="w-full h-full border-0"
+                  className="w-full h-full border-0 p-0"
                   onError={handleFileError}
                   title="File Viewer"
                 />
@@ -320,9 +308,20 @@ export function FilePanel() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.3 }}
-            className="fixed left-20 bottom-3 z-100 h-[90vh]"
+            className="fixed left-20 bottom-3 z-100 h-[90vh] flex"
+            style={{ width: `${width}px` }}
           >
-            <Card className="flex flex-col w-96 h-full">{fileContentJSX}</Card>
+            <Card className="flex-1 flex flex-col gap-3 max-w-3xl min-w-sm h-full p-3">
+              {fileContentJSX}
+            </Card>
+            {/* Resize handle - invisible in docked mode */}
+            <div
+              className="w-2 cursor-ew-resize shrink-0"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -341,13 +340,13 @@ export function FilePanel() {
           className="h-full flex shrink-0 border-none shadow-none"
           style={{ width: `${width}px` }}
         >
-          <Card className="flex-1 h-full flex flex-col overflow-hidden rounded-none border-none shadow-none">
+          <Card className="flex-1 h-full flex flex-col gap-3 overflow-hidden rounded-none border-none shadow-none p-3">
             {fileContentJSX}
           </Card>
           {/* Resize handle */}
           <div
             className={cn(
-              "w-1 bg-border cursor-col-resize hover:bg-primary/50 transition-colors shrink-0",
+              "w-1 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
               isResizing && "bg-primary"
             )}
             onMouseDown={(e) => {

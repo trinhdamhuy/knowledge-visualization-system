@@ -1,6 +1,6 @@
 """Edges for the chatbot workflow."""
 
-from typing import Literal, List, Dict
+from typing import Literal, Dict
 from pydantic import BaseModel, Field
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -272,6 +272,25 @@ class NodeData(BaseModel):
         ...,
         description="The label text displayed in the node. Use concise keywords (1-3 words) following mindmap principles.",
     )
+    color: str = Field(
+        default="",
+        description="Background color of the node (hex color code, e.g., '#E3F2FD'). Leave empty for default card color.",
+    )
+    textColor: str = Field(
+        default="",
+        description="Text color of the node (hex color code, e.g., '#000000'). Leave empty for default text color.",
+    )
+
+
+class Measured(BaseModel):
+    """Measured dimensions of the node."""
+
+    width: float = Field(
+        default=150, description="Measured width of the node in pixels"
+    )
+    height: float = Field(
+        default=50, description="Measured height of the node in pixels"
+    )
 
 
 class Node(BaseModel):
@@ -282,30 +301,33 @@ class Node(BaseModel):
         ...,
         description="Node position with x and y coordinates. Center node should be at (0, 0) or near center. Branch nodes should radiate outward.",
     )
-    data: NodeData = Field(..., description="Node data containing the label")
-    type: str = Field(
-        default="default",
-        description="Node type for React Flow. Use 'default' for standard nodes, 'input' for root/central node, 'output' for leaf nodes.",
+    width: float = Field(default=150, description="Width of the node in pixels")
+    height: float = Field(default=50, description="Height of the node in pixels")
+    data: NodeData = Field(
+        ..., description="Node data containing the label, color, and textColor"
     )
-    style: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Optional CSS styles for the node (e.g., backgroundColor, color, fontSize, border). Use colors to differentiate branches.",
+    type: str = Field(
+        default="custom",
+        description="Node type for React Flow. Always use 'custom' for all nodes.",
+    )
+    measured: Measured = Field(
+        default_factory=lambda: Measured(width=150, height=50),
+        description="Measured dimensions of the node",
     )
 
 
 class Edge(BaseModel):
     """React Flow edge structure."""
 
-    id: str = Field(..., description="Unique identifier for the edge")
+    id: str = Field(
+        ...,
+        description="Unique identifier for the edge (format: 'xy-edge__SOURCE-TARGET' where SOURCE and TARGET are node IDs, or custom)",
+    )
     source: str = Field(..., description="ID of the source node (parent)")
     target: str = Field(..., description="ID of the target node (child)")
     type: str = Field(
         default="smoothstep",
-        description="Edge type for React Flow. Use 'smoothstep' for curved hierarchical connections, 'straight' for direct connections, 'step' for right-angle connections.",
-    )
-    animated: bool = Field(
-        default=False,
-        description="Whether the edge should be animated. Use true for important connections.",
+        description="Edge type for React Flow. Available types: 'default' (straight line), 'straight' (direct line), 'step' (right-angle), 'smoothstep' (curved hierarchical), 'simplebezier' (bezier curve). Use different types to create visual variety and hierarchy.",
     )
     style: Dict[str, str] = Field(
         default_factory=dict,
@@ -316,8 +338,12 @@ class Edge(BaseModel):
 class MindmapData(BaseModel):
     """React Flow mindmap data structure."""
 
-    nodes: List[Node] = Field(..., description="List of nodes in the mindmap")
-    edges: List[Edge] = Field(..., description="List of edges connecting the nodes")
+    nodes: Dict[str, Node] = Field(
+        ..., description="Dictionary of nodes keyed by node ID"
+    )
+    edges: Dict[str, Edge] = Field(
+        ..., description="Dictionary of edges keyed by edge ID"
+    )
 
 
 async def generate_answer(state: State):
@@ -356,7 +382,7 @@ MINDMAP_PROMPT = (
     "\n"
     "1. CENTRAL TOPIC:\n"
     "   - Place the main/central topic at position (0, 0) or near the center\n"
-    "   - Use node type 'input' for the central node\n"
+    "   - Use node type 'custom' for ALL nodes including the central node\n"
     "   - This should be the overarching theme or main subject of the documents\n"
     "\n"
     "2. HIERARCHICAL STRUCTURE (STRICT LIMITS):\n"
@@ -399,9 +425,17 @@ MINDMAP_PROMPT = (
     "   - Use edge style.stroke to match parent node colors\n"
     "   - Central node can have a distinct, prominent color\n"
     "\n"
-    "6. EDGE STYLING:\n"
-    "   - Use edge type 'smoothstep' for curved, organic-looking connections\n"
-    "   - Use 'straight' only for direct, non-hierarchical relationships\n"
+    "6. EDGE STYLING & TYPES (USE VARIETY FOR VISUAL INTEREST):\n"
+    "   - Available edge types: 'default', 'straight', 'step', 'smoothstep', 'simplebezier'\n"
+    "   - Use 'smoothstep' for main hierarchical connections (curved, organic-looking) - MOST COMMON\n"
+    "   - Use 'simplebezier' for secondary connections or cross-branch relationships (smooth curves)\n"
+    "   - Use 'step' for right-angle connections when you want a structured, organized look\n"
+    "   - Use 'straight' for direct, non-hierarchical relationships or when emphasizing direct connections\n"
+    "   - Use 'default' sparingly, mainly for simple direct connections\n"
+    "   - MIX different edge types throughout the mindmap to create visual variety and hierarchy\n"
+    "   - Main branches from center: prefer 'smoothstep' or 'simplebezier'\n"
+    "   - Sub-branches: mix 'smoothstep', 'step', or 'simplebezier' based on relationship type\n"
+    "   - Cross-connections between branches: use 'simplebezier' or 'straight'\n"
     "   - Match edge colors to their parent branch colors\n"
     "   - Use edge style.strokeWidth of 2-3 for main branches, 1-2 for sub-branches\n"
     "\n"
@@ -418,14 +452,50 @@ MINDMAP_PROMPT = (
     "   - Think BIG PICTURE: What are the main ideas someone needs to understand?\n"
     "   - Maintain logical flow and coherence at high level only\n"
     "\n"
-    "8. REACT FLOW FEATURES:\n"
-    "   - Use node.type='input' for central node, 'default' for others\n"
-    "   - Use edge.type='smoothstep' for hierarchical connections\n"
-    "   - Apply node.style.backgroundColor for color coding\n"
-    "   - Use edge.style.stroke and edge.style.strokeWidth for visual hierarchy\n"
-    "   - Set edge.animated=true for important or key relationships\n"
+    "8. JSON FORMAT REQUIREMENTS (CRITICAL):\n"
+    "   - nodes MUST be a dictionary/object where keys are node IDs (e.g., 'node-1766205361492')\n"
+    "   - edges MUST be a dictionary/object where keys are edge IDs (e.g., 'edge-123')\n"
+    "   - Each node MUST have:\n"
+    "     * id: string (same as the dictionary key)\n"
+    "     * type: 'custom' (ALWAYS use 'custom' for all nodes)\n"
+    "     * position: object with 'x' and 'y' as numbers\n"
+    "     * width: number (e.g., 150)\n"
+    "     * height: number (e.g., 50)\n"
+    "     * data: object with 'label' (string), 'color' (string, hex color or empty), 'textColor' (string, hex color or empty)\n"
+    "     * measured: object with 'width' (number, e.g., 150) and 'height' (number, e.g., 50)\n"
+    "   - Each edge MUST have:\n"
+    "     * id: string (format: 'xy-edge__{{source}}-{{target}}' or custom, same as the dictionary key)\n"
+    "     * source: string (source node ID)\n"
+    "     * target: string (target node ID)\n"
+    "     * type: string (one of: 'default', 'straight', 'step', 'smoothstep', 'simplebezier')\n"
+    "     * style: object (e.g., {{'stroke': '#FFB74D', 'strokeWidth': '1'}})\n"
+    "   - Example edge format:\n"
+    "     'xy-edge__node-1766209382911-node-1766209382477': {{\n"
+    "       'source': 'node-1766209382911',\n"
+    "       'target': 'node-1766209382477',\n"
+    "       'id': 'xy-edge__node-1766209382911-node-1766209382477',\n"
+    "       'type': 'smoothstep',\n"
+    "     }}\n"
+    "   - Example node format:\n"
+    "     'node-1766205361492': {{\n"
+    "       'id': 'node-1766205361492',\n"
+    "       'type': 'custom',\n"
+    "       'position': {{'x': 0, 'y': 0}},\n"
+    "       'width': 150,\n"
+    "       'height': 50,\n"
+    "       'data': {{'label': 'New Node', 'color': '#E3F2FD', 'textColor': '#000000'}},\n"
+    "       'measured': {{'width': 150, 'height': 50}}\n"
+    "     }}\n"
     "\n"
-    "9. LAYOUT CALCULATION (SPACIOUS POSITIONING):\n"
+    "9. REACT FLOW FEATURES:\n"
+    "   - Use node.type='custom' for ALL nodes (never use 'input', 'default', or 'output')\n"
+    "   - Use VARIETY of edge types: 'smoothstep' (most common for hierarchy), 'simplebezier' (smooth curves), 'step' (structured), 'straight' (direct), 'default' (simple)\n"
+    "   - Mix edge types throughout the mindmap to create visual interest and hierarchy\n"
+    "   - Use node.data.color for background color (hex format, e.g., '#E3F2FD')\n"
+    "   - Use node.data.textColor for text color (hex format, e.g., '#000000')\n"
+    "   - Use edge.style.stroke and edge.style.strokeWidth for visual hierarchy\n"
+    "\n"
+    "10. LAYOUT CALCULATION (SPACIOUS POSITIONING):\n"
     "   - Center node: position (0, 0) or near center\n"
     "   - Layout style: You can use radial, free-form, or hybrid - choose what creates the most spacious layout\n"
     "   - For radial layout with N main branches:\n"
@@ -444,13 +514,13 @@ MINDMAP_PROMPT = (
     "   - Use the full canvas space - spread nodes from -1000 to +1000 on both axes if needed\n"
     "   - Better to have nodes too far apart than too close together\n"
     "\n"
-    "10. EXISTING DATA HANDLING:\n"
+    "11. EXISTING DATA HANDLING:\n"
     "    - If user provided existing mindmap data, analyze and extend it logically\n"
     "    - Preserve existing structure when appropriate\n"
     "    - Add new branches or nodes based on new content\n"
     "    - Maintain consistency in styling and layout\n"
     "\n"
-    "11. SIZE OPTIMIZATION (MANDATORY):\n"
+    "12. SIZE OPTIMIZATION (MANDATORY):\n"
     "    - ABSOLUTE MAXIMUM: 40 nodes, 45 edges\n"
     "    - TARGET: 20-30 nodes for optimal readability\n"
     "    - If document is very large (200+ pages), use only 2 hierarchy levels (center + main branches)\n"
@@ -458,7 +528,7 @@ MINDMAP_PROMPT = (
     "    - Quality over quantity: Better to have fewer, well-chosen nodes than many confusing ones\n"
     "    - When in doubt, choose the most important concepts and skip the rest\n"
     "\n"
-    "12. CONTENT SELECTION STRATEGY:\n"
+    "13. CONTENT SELECTION STRATEGY:\n"
     "    - For large documents, create mindmap based on TABLE OF CONTENTS or SECTION STRUCTURE\n"
     "    - Focus on organizational structure rather than detailed content\n"
     "    - Group related concepts together rather than listing everything\n"
@@ -505,7 +575,7 @@ async def generate_mindmap_data(state: State):
 
     request = state["messages"][-1].content
     context_docs = state["context"]
-    data = state["messages"][-1].additional_kwargs["mindmap_data"] or {}
+    data = state["messages"][-1].additional_kwargs["mindmap_data"]
 
     # Check if context contains a summary document (from summarize_documents)
     # If summary exists, use it; otherwise use original documents
@@ -561,14 +631,18 @@ async def generate_mindmap_data(state: State):
     # Generate a natural response about the mindmap generation
     writer({"current_status": "Generating response..."})
 
+    # Count nodes and edges (they are now dictionaries)
+    nodes_count = len(mindmap_dict.get("nodes", {}))
+    edges_count = len(mindmap_dict.get("edges", {}))
+
     response_prompt = (
         "You are an AI assistant that has just generated a mindmap from documents.\n"
         "User request:\n"
         f"{request}\n"
         "\n"
         "The mindmap has been successfully created with:\n"
-        f"- {len(mindmap_dict.get('nodes', []))} nodes\n"
-        f"- {len(mindmap_dict.get('edges', []))} edges\n"
+        f"- {nodes_count} nodes\n"
+        f"- {edges_count} edges\n"
         "\n"
         "Provide a natural, conversational response to the user about the mindmap that was generated.\n"
         "User language can be different from the document's language, so you MUST ALWAYS use the user's language to answer.\n"

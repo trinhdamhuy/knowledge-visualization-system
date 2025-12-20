@@ -68,6 +68,14 @@ export function ChatPanel() {
   const [allMessages, setAllMessages] = useState<BaseMessage[]>([]);
   const [width, setWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
+  const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
+
+  // Default prompt suggestions (detailed prompts)
+  const defaultPrompts = [
+    "Summarize the main points and key concepts from the document",
+    "Explain the important details and provide examples",
+    "Create a comprehensive mindmap showing relationships between concepts",
+  ];
 
   // Use stores for chat settings and UI state
   const { mode, needInitializeData, setMode, setNeedInitializeData } =
@@ -91,8 +99,19 @@ export function ChatPanel() {
     maxHeight: 300,
   });
   const { fileName, fileUrl, useFilesByDiagram } = useFile();
-  const { useChatHistory, sendChatRequestMutation, deleteChatHistory } =
-    useChat();
+
+  // Load file data to get content for prompts
+  const { data: latestFile } = useFilesByDiagram(
+    diagramId || "",
+    !!diagramId && !!fileUrl
+  );
+
+  const {
+    useChatHistory,
+    sendChatRequestMutation,
+    deleteChatHistory,
+    cancelChatRequest,
+  } = useChat();
   const { isBusy, setChatbotBusy, setChatbotIdle } = useChatbotStatus();
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
@@ -129,6 +148,90 @@ export function ChatPanel() {
 
   const messages = useMemo(() => allMessages, [allMessages]);
 
+  // Load and parse prompts from file when "reload from file" is checked
+  useEffect(() => {
+    const loadPromptsFromFile = async () => {
+      if (!needInitializeData || !latestFile || !fileUrl) {
+        // Use default prompts when not loading from file
+        setPromptSuggestions(defaultPrompts);
+        return;
+      }
+
+      // Only load from text files (txt, md)
+      if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
+        try {
+          const response = await fetch(fileUrl);
+          const text = await response.text();
+
+          // Try to parse as JSON first (array of prompts)
+          try {
+            const jsonData = JSON.parse(text);
+            if (
+              Array.isArray(jsonData) &&
+              jsonData.every((item) => typeof item === "string")
+            ) {
+              // Filter to only detailed prompts (>= 20 chars) and limit to 3
+              const detailedPrompts = jsonData
+                .filter((p: string) => p.length >= 20 && p.length < 300)
+                .slice(0, 3);
+              setPromptSuggestions(
+                detailedPrompts.length > 0 ? detailedPrompts : defaultPrompts
+              );
+              return;
+            }
+          } catch {
+            // Not JSON, continue to parse as text
+          }
+
+          // Parse as text: each line is a prompt, or look for markdown list
+          const lines = text.split("\n").filter((line) => line.trim());
+          const prompts: string[] = [];
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            // Skip empty lines and markdown headers
+            if (!trimmed || trimmed.startsWith("#")) continue;
+
+            // Extract from markdown list items (-, *, 1.)
+            const listMatch = trimmed.match(/^[-*]\s+(.+)$|^\d+\.\s+(.+)$/);
+            if (listMatch) {
+              const promptText = (listMatch[1] || listMatch[2]).trim();
+              // Only include prompts that are detailed enough (at least 20 characters)
+              if (promptText.length >= 20) {
+                prompts.push(promptText);
+              }
+            } else if (trimmed.length >= 20 && trimmed.length < 300) {
+              // Use line as prompt if it's detailed enough (20-300 chars)
+              prompts.push(trimmed);
+            }
+          }
+
+          // Use parsed prompts (limit to 3) or fallback to default
+          setPromptSuggestions(
+            prompts.length > 0 ? prompts.slice(0, 3) : defaultPrompts
+          );
+        } catch (error) {
+          console.error("Failed to load prompts from file:", error);
+          setPromptSuggestions(defaultPrompts);
+        }
+      } else {
+        // For PDF files, use default prompts
+        setPromptSuggestions(defaultPrompts);
+      }
+    };
+
+    loadPromptsFromFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needInitializeData, latestFile, fileUrl]);
+
+  // Initialize with default prompts on mount
+  useEffect(() => {
+    if (promptSuggestions.length === 0) {
+      setPromptSuggestions(defaultPrompts);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Load file from database using React Query (read-only for chat)
   // File is managed in FilePanel, we just read it here for chat context
   useFilesByDiagram(diagramId || "", !!diagramId);
@@ -149,8 +252,6 @@ export function ChatPanel() {
   useBroadcastEventListener("stream_complete", () => {
     setChatbotIdle();
     setCurrentStatus(null);
-    // Reset need_initialize_data after stream completes
-    setNeedInitializeData(false);
     // Refetch chat history to get updated messages from AI
     if (diagramId) {
       // Small delay to ensure backend has saved the message
@@ -165,6 +266,39 @@ export function ChatPanel() {
       }, 500);
     }
   });
+
+  // Handle resize for sidebar and docked mode
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (displayMode === "sidebar") {
+        // Sidebar mode: resize from left edge
+        const newWidth = e.clientX;
+        if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
+          setWidth(newWidth);
+        }
+      } else if (displayMode === "docked") {
+        // Docked mode: resize from right edge (resize to left)
+        const newWidth = window.innerWidth - e.clientX - 12; // 12px for right-3 (0.75rem)
+        if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
+          setWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, displayMode]);
 
   // Get unique user IDs from messages
   const userIds = useMemo(() => {
@@ -368,6 +502,23 @@ export function ChatPanel() {
     }
   };
 
+  const handleCancelChat = async () => {
+    if (!diagramId) return;
+
+    try {
+      const result = await cancelChatRequest({ diagramId });
+      if (result) {
+        toast.success("Chat request cancelled");
+        setChatbotIdle();
+      } else {
+        toast.error("Failed to cancel chat request");
+      }
+    } catch (error) {
+      console.error("Failed to cancel chat request:", error);
+      toast.error("Failed to cancel chat request");
+    }
+  };
+
   const handleImportMindmap = (replaceExisting: boolean) => {
     if (!pendingMindmapData) return;
 
@@ -493,8 +644,15 @@ export function ChatPanel() {
               }}
             >
               <Sparkles className="w-3 h-3" />
-              Import Mindmap ({mindmapData.nodes?.length || 0} nodes,{" "}
-              {mindmapData.edges?.length || 0} edges)
+              Import Mindmap (
+              {Array.isArray(mindmapData.nodes)
+                ? mindmapData.nodes.length
+                : Object.keys(mindmapData.nodes || {}).length}{" "}
+              nodes,{" "}
+              {Array.isArray(mindmapData.edges)
+                ? mindmapData.edges.length
+                : Object.keys(mindmapData.edges || {}).length}{" "}
+              edges)
             </Badge>
           )}
         </div>
@@ -503,8 +661,8 @@ export function ChatPanel() {
   };
 
   const chatContent = (
-    <div className="flex flex-col h-full">
-      <CardHeader className="flex flex-col gap-3 shrink-0">
+    <div className="flex flex-col h-full gap-3">
+      <CardHeader className="flex flex-col gap-3 shrink-0 p-0">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <Bot animate="blink" loop loopDelay={5000} animateOnHover />
@@ -578,7 +736,7 @@ export function ChatPanel() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col flex-1 min-h-0 gap-2">
+      <CardContent className="flex flex-col flex-1 min-h-0 gap-2 p-0">
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
@@ -606,8 +764,39 @@ export function ChatPanel() {
             </div>
           )}
           {messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No messages yet. Start a conversation!
+            <div className="flex flex-col items-center justify-center py-8 px-4">
+              <p className="text-center text-muted-foreground mb-4">
+                No messages yet. Start a conversation!
+              </p>
+              {promptSuggestions.length > 0 && (
+                <div className="w-full max-w-2xl space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground text-center">
+                    Suggested prompts:
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {promptSuggestions.map((prompt, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setValue(prompt);
+                          adjustHeight();
+                          textareaRef.current?.focus();
+                        }}
+                        disabled={isBusy}
+                        className={cn(
+                          "px-3 py-1.5 text-sm rounded-md border transition-all",
+                          "bg-background hover:bg-accent hover:text-accent-foreground",
+                          "border-border hover:border-primary/50 hover:shadow-sm",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                          "text-left max-w-xs"
+                        )}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             messages.map((msg: BaseMessage, index: number) =>
@@ -641,21 +830,28 @@ export function ChatPanel() {
         {/* Input area */}
         <div className="relative shrink-0">
           <div className="relative flex flex-col gap-px">
-            <Textarea
-              value={value}
-              placeholder="What can I do for you?"
-              className={cn(
-                "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                "min-h-[72px]"
+            <div className="relative">
+              <Textarea
+                value={value}
+                placeholder="What can I do for you?"
+                className={cn(
+                  "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                  "min-h-[72px]"
+                )}
+                ref={textareaRef}
+                onKeyDown={handleKeyDown}
+                onChange={(e) => {
+                  setValue(e.target.value);
+                  adjustHeight();
+                }}
+                disabled={isBusy}
+              />
+              {isBusy && (
+                <div className="absolute bottom-3 right-3 pointer-events-none">
+                  <RefreshCw className="size-4 text-muted-foreground animate-spin" />
+                </div>
               )}
-              ref={textareaRef}
-              onKeyDown={handleKeyDown}
-              onChange={(e) => {
-                setValue(e.target.value);
-                adjustHeight();
-              }}
-              disabled={isBusy}
-            />
+            </div>
 
             <div className="flex items-center p-3 bg-secondary rounded-b-md">
               <div className="flex items-center justify-between w-full gap-2">
@@ -667,16 +863,28 @@ export function ChatPanel() {
                     <span className="truncate max-w-[200px]">{fileName}</span>
                   </Badge>
                 )}
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="hover:bg-black/5 dark:hover:bg-white/10 ml-auto"
-                  onClick={handleSend}
-                  disabled={!value.trim() || isBusy}
-                  aria-label="Send message"
-                >
-                  <ArrowRight />
-                </Button>
+                {isBusy ? (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="hover:bg-black/5 dark:hover:bg-white/10 ml-auto"
+                    onClick={handleCancelChat}
+                    aria-label="Cancel chat"
+                  >
+                    <X />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="hover:bg-black/5 dark:hover:bg-white/10 ml-auto"
+                    onClick={handleSend}
+                    disabled={!value.trim()}
+                    aria-label="Send message"
+                  >
+                    <ArrowRight />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -701,9 +909,20 @@ export function ChatPanel() {
                 duration: 0.3,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="fixed bottom-3 right-3 w-3xl z-100"
+              className="fixed bottom-3 right-3 max-w-3xl min-w-sm z-100 flex"
+              style={{ width: `${width}px` }}
             >
-              <Card className="flex flex-col h-[90vh]">{chatContent}</Card>
+              {/* Resize handle - invisible in docked mode */}
+              <div
+                className="w-2 cursor-ew-resize shrink-0"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setIsResizing(true);
+                }}
+              />
+              <Card className="flex-1 flex flex-col h-[90vh] p-3">
+                {chatContent}
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>
@@ -742,7 +961,7 @@ export function ChatPanel() {
             {/* Resize handle */}
             <div
               className={cn(
-                "w-1 bg-border cursor-col-resize hover:bg-primary/50 transition-colors shrink-0",
+                "w-1 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
                 isResizing && "bg-primary"
               )}
               onMouseDown={(e) => {
@@ -754,7 +973,7 @@ export function ChatPanel() {
                 <GripVertical className="size-4 text-muted-foreground" />
               </div>
             </div>
-            <Card className="flex-1 h-full flex flex-col overflow-hidden rounded-none border-none shadow-none">
+            <Card className="flex-1 h-full flex flex-col overflow-hidden rounded-none border-none shadow-none p-3">
               {chatContent}
             </Card>
           </motion.div>

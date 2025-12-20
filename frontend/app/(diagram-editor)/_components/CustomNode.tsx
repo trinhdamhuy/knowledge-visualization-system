@@ -44,18 +44,22 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
     setTimeout(() => {
       try {
         // If a toolbar interaction flag is set, keep editing
-        if ((window as any).__isInteractingWithTextToolbar) {
+        if (
+          (window as unknown as { __isInteractingWithTextToolbar: boolean })
+            .__isInteractingWithTextToolbar
+        ) {
           textareaRef.current?.focus();
           return;
         }
 
-        const toolbar = document.querySelector('[data-text-toolbar]');
+        const toolbar = document.querySelector("[data-text-toolbar]");
         const active = document.activeElement as HTMLElement | null;
         if (toolbar && active && toolbar.contains(active)) {
           textareaRef.current?.focus();
           return;
         }
       } catch (e) {
+        console.error(e);
         // ignore DOM errors in SSR or restricted environments
       }
 
@@ -92,10 +96,13 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const textStyles: React.CSSProperties = {
     fontFamily: nodeData.fontFamily || "Inter",
     fontSize: `${nodeData.fontSize || 14}px`,
-    fontWeight: (nodeData.fontWeight as React.CSSProperties["fontWeight"]) || "normal",
-    fontStyle: (nodeData.fontStyle as React.CSSProperties["fontStyle"]) || "normal",
+    fontWeight:
+      (nodeData.fontWeight as React.CSSProperties["fontWeight"]) || "normal",
+    fontStyle:
+      (nodeData.fontStyle as React.CSSProperties["fontStyle"]) || "normal",
     textDecoration: nodeData.textDecoration || "none",
-    textAlign: (nodeData.textAlign as React.CSSProperties["textAlign"]) || "center",
+    textAlign:
+      (nodeData.textAlign as React.CSSProperties["textAlign"]) || "center",
     color: nodeData.textColor || "inherit",
   };
 
@@ -116,11 +123,19 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
     color: "var(--card-foreground)",
-    border: shape === "diamond" ? "none" : (selected ? "2px solid var(--ring)" : "1px solid var(--border)"),
+    border:
+      shape === "diamond"
+        ? "none"
+        : selected
+        ? "2px solid var(--ring)"
+        : "1px solid var(--border)",
     padding: "10px 15px",
-    boxShadow: shape === "diamond" ? "none" : (selected
-      ? "0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0, 0, 0, 0.1)"
-      : "0 1px 2px 0 rgba(0, 0, 0, 0.05)"),
+    boxShadow:
+      shape === "diamond"
+        ? "none"
+        : selected
+        ? "0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0, 0, 0, 0.1)"
+        : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     position: "relative",
     display: "flex",
     alignItems: "center",
@@ -180,11 +195,7 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   };
 
   return (
-    <div
-      data-node-id={id}
-      data-node-label={label}
-      style={shapeStyle}
-    >
+    <div data-node-id={id} data-node-label={label} style={shapeStyle}>
       {renderDiamondBackground()}
       {selected && (
         <NodeResizer
