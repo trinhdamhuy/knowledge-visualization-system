@@ -1,7 +1,7 @@
 "use client";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
-import { MousePointer2, Box, Undo2, Redo2 } from "lucide-react";
+import { MousePointer2, Box, Undo2, Redo2, FileText, Bot } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Panel } from "@xyflow/react";
 import {
@@ -15,9 +15,13 @@ import {
   useCanUndo,
 } from "@liveblocks/react/suspense";
 import { Button } from "@/components/ui/button";
+import { useFileCardStore } from "../_stores/use-file-card-store";
+import { useChatUIStore } from "@/stores/chat-ui-store";
 
 export function DiagramToolBar() {
   const { setActiveMode, activeMode } = useDiagramStore();
+  const { isOpen: isFileOpen, setIsOpen: setFileOpen } = useFileCardStore();
+  const { isOpen: isChatOpen, setIsOpen: setChatOpen } = useChatUIStore();
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
@@ -63,6 +67,27 @@ export function DiagramToolBar() {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+      </Card>
+
+      <Card className="p-2 flex flex-col gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setFileOpen(!isFileOpen)}
+          className={isFileOpen ? "bg-accent" : ""}
+          title="File Viewer"
+        >
+          <FileText />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setChatOpen(!isChatOpen)}
+          className={isChatOpen ? "bg-accent" : ""}
+          title="Chat Bot"
+        >
+          <Bot />
+        </Button>
       </Card>
 
       <Card className="p-2 flex flex-col gap-0.5">

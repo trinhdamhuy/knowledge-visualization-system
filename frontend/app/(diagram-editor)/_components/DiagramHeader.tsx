@@ -21,6 +21,13 @@ import ZoomSelect from "@/components/zoom-select";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { Layout, LayoutGrid } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const MAX_SHOWN_USERS = 3;
 
@@ -32,6 +39,7 @@ export function DiagramHeader() {
   const { updateDiagram, isUpdatingDiagram } = useDiagram();
   const { data: canEdit = false, isLoading: isLoadingPermission } =
     useCanEditDiagram(diagramId);
+  const { displayMode, setDisplayMode } = useChatPanelStore();
 
   const users = useOthers();
   const currentUser = useSelf();
@@ -127,6 +135,32 @@ export function DiagramHeader() {
           <CardDescription className="font-medium flex items-center gap-2">
             <ButtonGroup>
               <ZoomSelect />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      setDisplayMode(
+                        displayMode === "docked" ? "sidebar" : "docked"
+                      )
+                    }
+                  >
+                    {displayMode === "docked" ? (
+                      <LayoutGrid className="size-4" />
+                    ) : (
+                      <Layout className="size-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {displayMode === "docked"
+                      ? "Switch to Sidebar mode"
+                      : "Switch to Docked mode"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
               <ThemeToggle variant="outline" size="icon" />
             </ButtonGroup>
           </CardDescription>

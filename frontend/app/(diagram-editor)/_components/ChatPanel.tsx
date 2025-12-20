@@ -2,11 +2,11 @@
 
 import {
   ArrowRight,
-  Paperclip,
   X,
   Sparkles,
   RefreshCw,
   Trash2,
+  GripVertical,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
@@ -16,7 +16,6 @@ import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
 import { Bot } from "@/components/animate-ui/icons/bot";
-import { AnimateIcon } from "@/components/animate-ui/icons/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -53,8 +52,9 @@ import { useChatSettingsStore } from "@/stores/chat-settings-store";
 import { useChatUIStore } from "@/stores/chat-ui-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatKeys } from "@/hooks/use-chat";
+import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 
-export function ChatBotPanel() {
+export function ChatPanel() {
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
   const { data: session } = useSession();
@@ -66,6 +66,8 @@ export function ChatBotPanel() {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [allMessages, setAllMessages] = useState<BaseMessage[]>([]);
+  const [width, setWidth] = useState(400);
+  const [isResizing, setIsResizing] = useState(false);
 
   // Use stores for chat settings and UI state
   const { mode, needInitializeData, setMode, setNeedInitializeData } =
@@ -80,29 +82,17 @@ export function ChatBotPanel() {
     setImportDialogOpen,
     setPendingMindmapData,
   } = useChatUIStore();
+  const { displayMode } = useChatPanelStore();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 72,
     maxHeight: 300,
   });
-  const {
-    fileName,
-    fileUrl,
-    setFile,
-    useFilesByDiagram,
-    uploadAndCreateFile,
-    deleteFile,
-    deleteFileByUrlMutation,
-  } = useFile();
-  const {
-    useChatHistory,
-    sendChatRequestMutation,
-    deleteDiagramStore,
-    deleteChatHistory,
-  } = useChat();
+  const { fileName, fileUrl, useFilesByDiagram } = useFile();
+  const { useChatHistory, sendChatRequestMutation, deleteChatHistory } =
+    useChat();
   const { isBusy, setChatbotBusy, setChatbotIdle } = useChatbotStatus();
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
@@ -139,15 +129,9 @@ export function ChatBotPanel() {
 
   const messages = useMemo(() => allMessages, [allMessages]);
 
-  // Load file from database using React Query
-  const { data: latestFile } = useFilesByDiagram(diagramId || "", !!diagramId);
-
-  // Sync file from query to store
-  useEffect(() => {
-    if (latestFile) {
-      setFile(latestFile.fileName, latestFile.fileUrl);
-    }
-  }, [latestFile, setFile]);
+  // Load file from database using React Query (read-only for chat)
+  // File is managed in FilePanel, we just read it here for chat context
+  useFilesByDiagram(diagramId || "", !!diagramId);
 
   // Listen to broadcast events for stream chunks
   useBroadcastEventListener("stream_chunk", (payload) => {
@@ -368,38 +352,6 @@ export function ChatBotPanel() {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !diagramId) return;
-
-    const fileExtension = file.name.split(".").pop()?.toLowerCase();
-    const allowedExtensions = ["pdf", "txt"];
-
-    if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
-      toast.error("Only PDF and TXT files are allowed");
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      return;
-    }
-
-    try {
-      const savedFile = await uploadAndCreateFile(file, diagramId, diagramId);
-      if (savedFile) {
-        toast.success("File uploaded successfully");
-      } else {
-        toast.error("Failed to upload file");
-      }
-    } catch (error) {
-      console.error("Failed to upload file:", error);
-      toast.error("Failed to upload file");
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
   const handleDeleteChat = async () => {
     if (!diagramId) return;
 
@@ -416,34 +368,6 @@ export function ChatBotPanel() {
     }
   };
 
-  const handleRemoveFile = async () => {
-    if (!fileUrl || !diagramId) return;
-
-    try {
-      const deleted = await deleteFile(fileUrl, diagramId);
-
-      // Also delete diagram store (vector store) when file is removed
-      if (deleted) {
-        try {
-          await deleteDiagramStore({ diagramId });
-        } catch (error) {
-          console.error("Failed to delete diagram store:", error);
-          // Continue even if store deletion fails
-        }
-        toast.success("File removed successfully");
-      } else {
-        toast.error("Failed to remove file");
-      }
-    } catch (error) {
-      console.error("Failed to remove file:", error);
-      toast.error("Failed to remove file");
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
   const handleImportMindmap = (replaceExisting: boolean) => {
     if (!pendingMindmapData) return;
 
@@ -455,6 +379,30 @@ export function ChatBotPanel() {
     );
     setPendingMindmapData(null);
   };
+
+  // Handle resize for sidebar mode
+  useEffect(() => {
+    if (!isResizing || displayMode !== "sidebar") return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
+        setWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing, displayMode]);
 
   const renderMessage = (message: BaseMessage, index: number) => {
     const isHuman = message.type === "human";
@@ -554,268 +502,260 @@ export function ChatBotPanel() {
     );
   };
 
+  const chatContent = (
+    <div className="flex flex-col h-full">
+      <CardHeader className="flex flex-col gap-3 shrink-0">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <Bot animate="blink" loop loopDelay={5000} animateOnHover />
+            <CardTitle>Chat Bot</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteChatDialogOpen(true)}
+              disabled={isBusy}
+              title="Delete chat history"
+            >
+              <Trash2 />
+            </Button>
+            {displayMode === "docked" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(false)}
+              >
+                <X />
+              </Button>
+            )}
+          </div>
+        </div>
+        {/* Options */}
+        <div className="flex items-center gap-4 flex-wrap text-sm">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="mode-select" className="text-sm font-medium">
+              Mode:
+            </Label>
+            <Select
+              value={mode}
+              onValueChange={(value: "chat" | "generate") => setMode(value)}
+              disabled={isBusy}
+            >
+              <SelectTrigger id="mode-select" size="sm" className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="chat">Chat</SelectItem>
+                <SelectItem value="generate">Generate</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {fileUrl && fileName && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="reload-data"
+                checked={needInitializeData}
+                onCheckedChange={(checked) =>
+                  setNeedInitializeData(checked === true)
+                }
+                disabled={isBusy}
+              />
+              <Label
+                htmlFor="reload-data"
+                className="text-sm cursor-pointer flex items-center gap-1.5"
+                title="Reload data from uploaded PDF file"
+              >
+                <RefreshCw className="size-3.5" />
+                Reload from file
+              </Label>
+            </div>
+          )}
+          {mode === "generate" && (
+            <Badge variant="secondary">
+              {nodes.length} nodes, {edges.length} edges
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col flex-1 min-h-0 gap-2">
+        {/* Messages area */}
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto relative"
+        >
+          {/* Load More Button - shown when at top and has more messages */}
+          {isAtTop && hasMoreMessages && (
+            <div className="flex justify-center pb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="text-xs"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <RefreshCw className="size-3 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <p className="text-xs">Load more messages</p>
+                )}
+              </Button>
+            </div>
+          )}
+          {messages.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8">
+              No messages yet. Start a conversation!
+            </div>
+          ) : (
+            messages.map((msg: BaseMessage, index: number) =>
+              renderMessage(msg, index)
+            )
+          )}
+          <AnimatePresence>
+            {currentStatus && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{
+                  duration: 0.4,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="flex gap-3 mb-4"
+              >
+                <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <Bot className="size-5 text-primary-foreground" />
+                </div>
+                <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
+                  <span className="animate-pulse">{currentStatus}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input area */}
+        <div className="relative shrink-0">
+          <div className="relative flex flex-col gap-px">
+            <Textarea
+              value={value}
+              placeholder="What can I do for you?"
+              className={cn(
+                "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                "min-h-[72px]"
+              )}
+              ref={textareaRef}
+              onKeyDown={handleKeyDown}
+              onChange={(e) => {
+                setValue(e.target.value);
+                adjustHeight();
+              }}
+              disabled={isBusy}
+            />
+
+            <div className="flex items-center p-3 bg-secondary rounded-b-md">
+              <div className="flex items-center justify-between w-full gap-2">
+                {fileUrl && fileName && (
+                  <Badge
+                    variant="secondary"
+                    className="flex items-center justify-items-center gap-1.5 max-w-full"
+                  >
+                    <span className="truncate max-w-[200px]">{fileName}</span>
+                  </Badge>
+                )}
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="hover:bg-black/5 dark:hover:bg-white/10 ml-auto"
+                  onClick={handleSend}
+                  disabled={!value.trim() || isBusy}
+                  aria-label="Send message"
+                >
+                  <ArrowRight />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </div>
+  );
+
+  // Docked mode: floating card
+  if (displayMode === "docked") {
+    if (!isOpen) return null;
+
+    return (
+      <>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              transition={{
+                duration: 0.3,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="fixed bottom-3 right-3 w-3xl z-100"
+            >
+              <Card className="flex flex-col h-[90vh]">{chatContent}</Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <ImportMindmapDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          mindmapData={pendingMindmapData}
+          onConfirm={handleImportMindmap}
+        />
+
+        <DeleteChatDialog
+          open={deleteChatDialogOpen}
+          onOpenChange={setDeleteChatDialogOpen}
+          onConfirm={handleDeleteChat}
+        />
+      </>
+    );
+  }
+
+  // Sidebar mode: resizable panel
+  if (!isOpen) return null;
+
   return (
     <>
       <AnimatePresence>
-        {!isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            <AnimateIcon
-              className="size-12 fixed bottom-3 right-3 rounded-full z-50 bg-secondary hover:bg-secondary/80 flex items-center justify-center"
-              animateOnHover
-              onClick={() => setIsOpen(true)}
-            >
-              <Bot className="size-5" />
-            </AnimateIcon>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="fixed bottom-3 right-3 w-3xl z-50"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="h-full flex shrink-0 border-none shadow-none"
+            style={{ width: `${width}px` }}
           >
-            <Card className="flex flex-col h-[90vh]">
-              <CardHeader className="flex flex-col gap-3 shrink-0">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <Bot animate="blink" loop loopDelay={5000} animateOnHover />
-                    <CardTitle>Chat Bot</CardTitle>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteChatDialogOpen(true)}
-                      disabled={isBusy}
-                      title="Delete chat history"
-                    >
-                      <Trash2 />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <X />
-                    </Button>
-                  </div>
-                </div>
-                {/* Options */}
-                <div className="flex items-center gap-4 flex-wrap text-sm">
-                  <div className="flex items-center gap-2">
-                    <Label
-                      htmlFor="mode-select"
-                      className="text-sm font-medium"
-                    >
-                      Mode:
-                    </Label>
-                    <Select
-                      value={mode}
-                      onValueChange={(value: "chat" | "generate") =>
-                        setMode(value)
-                      }
-                      disabled={isBusy}
-                    >
-                      <SelectTrigger
-                        id="mode-select"
-                        size="sm"
-                        className="w-[130px]"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="chat">Chat</SelectItem>
-                        <SelectItem value="generate">Generate</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {fileUrl && fileName && (
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="reload-data"
-                        checked={needInitializeData}
-                        onCheckedChange={(checked) =>
-                          setNeedInitializeData(checked === true)
-                        }
-                        disabled={isBusy}
-                      />
-                      <Label
-                        htmlFor="reload-data"
-                        className="text-sm cursor-pointer flex items-center gap-1.5"
-                        title="Reload data from uploaded PDF file"
-                      >
-                        <RefreshCw className="size-3.5" />
-                        Reload from file
-                      </Label>
-                    </div>
-                  )}
-                  {mode === "generate" && (
-                    <Badge variant="secondary">
-                      {nodes.length} nodes, {edges.length} edges
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col flex-1 min-h-0 gap-2">
-                {/* Messages area */}
-                <div
-                  ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto relative"
-                >
-                  {/* Load More Button - shown when at top and has more messages */}
-                  {isAtTop && hasMoreMessages && (
-                    <div className="flex justify-center pb-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleLoadMore}
-                        disabled={isLoadingMore}
-                        className="text-xs"
-                      >
-                        {isLoadingMore ? (
-                          <>
-                            <RefreshCw className="size-3 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <p className="text-xs">Load more messages</p>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                  {messages.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      No messages yet. Start a conversation!
-                    </div>
-                  ) : (
-                    messages.map((msg: BaseMessage, index: number) =>
-                      renderMessage(msg, index)
-                    )
-                  )}
-                  <AnimatePresence>
-                    {currentStatus && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{
-                          duration: 0.4,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                        className="flex gap-3 mb-4"
-                      >
-                        <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                          <Bot className="size-5 text-primary-foreground" />
-                        </div>
-                        <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
-                          <span className="animate-pulse">{currentStatus}</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input area */}
-                <div className="relative shrink-0">
-                  <div className="relative flex flex-col gap-px">
-                    <Textarea
-                      value={value}
-                      placeholder="What can I do for you?"
-                      className={cn(
-                        "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
-                        "min-h-[72px]"
-                      )}
-                      ref={textareaRef}
-                      onKeyDown={handleKeyDown}
-                      onChange={(e) => {
-                        setValue(e.target.value);
-                        adjustHeight();
-                      }}
-                      disabled={isBusy}
-                    />
-
-                    <div className="flex items-center p-3 bg-secondary rounded-b-md">
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {fileUrl && fileName ? (
-                            <Badge
-                              variant="secondary"
-                              className="flex items-center justify-items-center gap-1.5 max-w-full"
-                            >
-                              <span className="truncate max-w-[200px]">
-                                {fileName}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-auto w-auto p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
-                                onClick={handleRemoveFile}
-                                disabled={deleteFileByUrlMutation.isPending}
-                                aria-label="Remove file"
-                              >
-                                <X className="size-3 h-3" />
-                              </Button>
-                            </Badge>
-                          ) : (
-                            <>
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                className="hidden"
-                                accept=".pdf,.txt"
-                                onChange={handleFileChange}
-                                disabled={
-                                  deleteFileByUrlMutation.isPending ||
-                                  !!fileUrl ||
-                                  isBusy
-                                }
-                              />
-                              <Button
-                                variant="secondary"
-                                size="icon"
-                                className="hover:bg-black/5 dark:hover:bg-white/10"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={
-                                  deleteFileByUrlMutation.isPending ||
-                                  !!fileUrl ||
-                                  isBusy
-                                }
-                                aria-label="Attach file"
-                              >
-                                <Paperclip />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          className="hover:bg-black/5 dark:hover:bg-white/10"
-                          onClick={handleSend}
-                          disabled={!value.trim() || isBusy}
-                          aria-label="Send message"
-                        >
-                          <ArrowRight />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+            {/* Resize handle */}
+            <div
+              className={cn(
+                "w-1 bg-border cursor-col-resize hover:bg-primary/50 transition-colors shrink-0",
+                isResizing && "bg-primary"
+              )}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+            >
+              <div className="h-full flex items-center justify-center">
+                <GripVertical className="size-4 text-muted-foreground" />
+              </div>
+            </div>
+            <Card className="flex-1 h-full flex flex-col overflow-hidden rounded-none border-none shadow-none">
+              {chatContent}
             </Card>
           </motion.div>
         )}

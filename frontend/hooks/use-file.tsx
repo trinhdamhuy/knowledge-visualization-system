@@ -108,7 +108,14 @@ export const useFile = () => {
 
     // Get file extension
     const fileExtension = file.name.split(".").pop()?.toLowerCase() || "";
-    const fileType = fileExtension === "pdf" ? "pdf" : "txt";
+    let fileType = "txt";
+    if (fileExtension === "pdf") {
+      fileType = "pdf";
+    } else if (fileExtension === "md" || fileExtension === "markdown") {
+      fileType = "md";
+    } else if (fileExtension === "txt") {
+      fileType = "txt";
+    }
 
     // Create file record in database
     const result = await createFileMutation.mutateAsync({

@@ -17,7 +17,6 @@ import "../style.css";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
 import { CollaboratorCursors } from "./CollaboratorCursors";
-import { ChatBotPanel } from "./ChatBotPanel";
 import { useUpdateMyPresence } from "@liveblocks/react";
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
@@ -64,7 +63,7 @@ export function DiagramCanvas() {
       if (event.ctrlKey || event.metaKey) {
         // Multi-select logic: toggle node in array
         if (selectedNodeIds.includes(node.id)) {
-          setSelectedNodeIds(selectedNodeIds.filter(id => id !== node.id));
+          setSelectedNodeIds(selectedNodeIds.filter((id) => id !== node.id));
         } else {
           setSelectedNodeIds([...selectedNodeIds, node.id]);
         }
@@ -132,9 +131,12 @@ export function DiagramCanvas() {
     [activeMode, addNode, setSelectedNodeIds]
   );
 
-  const onSelectionChange = useCallback((params: { nodes: Node[] }) => {
-    setSelectedNodeIds(params.nodes.map((n) => n.id));
-  }, [setSelectedNodeIds]);
+  const onSelectionChange = useCallback(
+    (params: { nodes: Node[] }) => {
+      setSelectedNodeIds(params.nodes.map((n) => n.id));
+    },
+    [setSelectedNodeIds]
+  );
 
   return (
     <ReactFlow
@@ -168,7 +170,6 @@ export function DiagramCanvas() {
       <DiagramHeader />
       <DiagramToolBar />
       <DiagramNodeToolBar />
-      <ChatBotPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <MiniMap
