@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { useDiagramStore } from "../_stores/use-diagram-store";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useTheme } from "next-themes";
 import type { Edge } from "@xyflow/react";
@@ -101,8 +100,13 @@ function getCardColorHex(theme: string | undefined): string {
 }
 
 export function PropertiesPanel() {
-  const { nodes, edges, updateNodeData, updateEdgeData } = useDiagramSync();
-  const { selectedObjectIds } = useDiagramStore();
+  const { nodes, edges, batchUpdateNodeData, batchUpdateEdgeData } =
+    useDiagramSync();
+  const currentUser = useSelf();
+  const selectedObjectIds = currentUser?.presence?.selectedObjectIds ?? {
+    nodeIds: [],
+    edgeIds: [],
+  };
   const { resolvedTheme } = useTheme();
   const { displayMode, setDisplayMode } = useChatPanelStore();
 
@@ -123,7 +127,6 @@ export function PropertiesPanel() {
   });
 
   const users = useOthers();
-  const currentUser = useSelf();
   const allUsers = [...users, currentUser];
   const hasMoreUsers = allUsers.length > MAX_SHOWN_USERS;
 
@@ -317,20 +320,28 @@ export function PropertiesPanel() {
     };
   }, [selectedNodes]);
 
-  // Update style for all selected nodes
+  // Update style for all selected nodes using batch operation
   const updateSelectedNodesStyle = useCallback(
     (styleUpdate: Record<string, unknown>) => {
-      selectedObjectIds.nodeIds.forEach((nodeId) => {
-        updateNodeData(nodeId, styleUpdate, undefined);
-      });
+      if (selectedObjectIds.nodeIds.length > 0) {
+        batchUpdateNodeData(selectedObjectIds.nodeIds, styleUpdate, undefined);
+      }
     },
-    [selectedObjectIds.nodeIds, updateNodeData]
+    [selectedObjectIds.nodeIds, batchUpdateNodeData]
   );
 
-  // Update shape for all selected nodes
+  // Update shape for all selected nodes using batch operation
   const setNodesShape = useCallback(
     (newShape: string) => {
+      if (selectedObjectIds.nodeIds.length === 0) return;
+
       const squareShapes = ["square", "circle", "diamond"];
+      const updates: Array<{
+        nodeId: string;
+        data: Record<string, unknown>;
+        nodeProps?: { width?: number; height?: number };
+      }> = [];
+
       selectedObjectIds.nodeIds.forEach((nodeId) => {
         const node = nodes.find((n) => n.id === nodeId);
         if (!node) return;
@@ -339,27 +350,33 @@ export function PropertiesPanel() {
         const currentHeight = (node.height as number) || 50;
         const currentIsSquare = squareShapes.includes(currentShape);
         const newIsSquare = squareShapes.includes(newShape);
+
         if (newIsSquare) {
           const size = currentIsSquare
             ? Math.min(currentWidth, currentHeight)
             : Math.min(Math.max(currentWidth, currentHeight), 100);
-          updateNodeData(
+          updates.push({
             nodeId,
-            { shape: newShape },
-            { width: size, height: size }
-          );
+            data: { shape: newShape },
+            nodeProps: { width: size, height: size },
+          });
         } else {
           const newWidth = currentIsSquare ? 150 : currentWidth;
           const newHeight = currentIsSquare ? 50 : currentHeight;
-          updateNodeData(
+          updates.push({
             nodeId,
-            { shape: newShape },
-            { width: newWidth, height: newHeight }
-          );
+            data: { shape: newShape },
+            nodeProps: { width: newWidth, height: newHeight },
+          });
         }
       });
+
+      // Apply all updates in a single batch
+      updates.forEach((update) => {
+        batchUpdateNodeData([update.nodeId], update.data, update.nodeProps);
+      });
     },
-    [selectedObjectIds.nodeIds, nodes, updateNodeData]
+    [selectedObjectIds.nodeIds, nodes, batchUpdateNodeData]
   );
 
   // Unified style for selected edges
@@ -407,44 +424,15 @@ export function PropertiesPanel() {
     };
   }, [selectedEdges]);
 
-  // Update edge style for all selected edges
+  // Update edge style for all selected edges using batch operation
   const updateSelectedEdgesStyle = useCallback(
     (styleUpdate: Partial<Edge>) => {
-      selectedObjectIds.edgeIds.forEach((edgeId) => {
-        const edge = edges.find((e) => e.id === edgeId);
-        if (!edge) return;
-
-        // Prepare the update object
-        const updatedEdge: Partial<Edge> = {};
-
-        // Update type if provided
-        if (styleUpdate.type !== undefined) {
-          updatedEdge.type = styleUpdate.type;
-        }
-
-        // Update animated if provided
-        if (styleUpdate.animated !== undefined) {
-          updatedEdge.animated = styleUpdate.animated;
-        }
-
-        // Merge style updates
-        if (styleUpdate.style) {
-          updatedEdge.style = {
-            ...(edge.style as Record<string, string>),
-            ...(styleUpdate.style as Record<string, string>),
-          };
-        }
-
-        updateEdgeData(edgeId, updatedEdge);
-      });
+      if (selectedObjectIds.edgeIds.length > 0) {
+        batchUpdateEdgeData(selectedObjectIds.edgeIds, styleUpdate);
+      }
     },
-    [selectedObjectIds.edgeIds, edges, updateEdgeData]
+    [selectedObjectIds.edgeIds, batchUpdateEdgeData]
   );
-
-  // Prevent blur when interacting with toolbar
-  const preventBlur = (e: React.MouseEvent | React.PointerEvent) => {
-    e.stopPropagation();
-  };
 
   const isMixed = (value: StyleValue<number | string | boolean>) =>
     value === "mixed";
@@ -455,9 +443,7 @@ export function PropertiesPanel() {
   return (
     <Panel position="top-right">
       <Card
-        onMouseDown={preventBlur}
-        onPointerDown={preventBlur}
-        className={`min-w-72 ${
+        className={`min-w-80 ${
           hasSelectedNodesOrEdges ? "h-[97vh]" : "h-fit"
         } overflow-hidden py-3 gap-2`}
       >
@@ -548,14 +534,14 @@ export function PropertiesPanel() {
         </div>
 
         {hasSelectedNodesOrEdges && (
-          <ScrollArea className="h-[90vh]" data-text-toolbar>
-            <CardHeader className="px-2 pb-2">
+          <ScrollArea className="h-[90vh] px-3" data-text-toolbar>
+            <CardHeader className="p-0 pb-4">
               <CardTitle>Properties</CardTitle>
               <CardDescription>
-                Edit the properties of the selected node or edge.
+                Edit the properties of the selected components.
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-3 space-y-4">
+            <CardContent className="space-y-4 p-0">
               {/* Node Section - Only show when nodes are selected */}
               {selectedNodes.length > 0 && (
                 <>
@@ -667,8 +653,8 @@ export function PropertiesPanel() {
                                               ),
                                               100
                                             );
-                                        updateNodeData(
-                                          nodeId,
+                                        batchUpdateNodeData(
+                                          [nodeId],
                                           { shape: newShape },
                                           { width: size, height: size }
                                         );
@@ -679,8 +665,8 @@ export function PropertiesPanel() {
                                         const newHeight = currentIsSquare
                                           ? 50
                                           : currentHeight;
-                                        updateNodeData(
-                                          nodeId,
+                                        batchUpdateNodeData(
+                                          [nodeId],
                                           { shape: newShape },
                                           { width: newWidth, height: newHeight }
                                         );
@@ -788,13 +774,13 @@ export function PropertiesPanel() {
                                     }-${group.ids.join("-")}`}
                                     defaultValue={displayColor}
                                     onValueChange={(newColor) => {
-                                      group.ids.forEach((nodeId) => {
-                                        updateNodeData(
-                                          nodeId,
+                                      if (group.ids.length > 0) {
+                                        batchUpdateNodeData(
+                                          group.ids,
                                           { color: newColor },
                                           undefined
                                         );
-                                      });
+                                      }
                                     }}
                                     displayValue={
                                       group.color === "var(--card)"
@@ -889,13 +875,13 @@ export function PropertiesPanel() {
                                   key={`font-family-group-${group.fontFamily}`}
                                   value={group.fontFamily}
                                   onValueChange={(newFontFamily) => {
-                                    group.ids.forEach((nodeId) => {
-                                      updateNodeData(
-                                        nodeId,
+                                    if (group.ids.length > 0) {
+                                      batchUpdateNodeData(
+                                        group.ids,
                                         { fontFamily: newFontFamily },
                                         undefined
                                       );
-                                    });
+                                    }
                                   }}
                                 >
                                   <SelectTrigger
@@ -994,13 +980,13 @@ export function PropertiesPanel() {
                                   key={`font-size-group-${group.fontSize}`}
                                   value={group.fontSize}
                                   onValueChange={(newFontSize) => {
-                                    group.ids.forEach((nodeId) => {
-                                      updateNodeData(
-                                        nodeId,
+                                    if (group.ids.length > 0) {
+                                      batchUpdateNodeData(
+                                        group.ids,
                                         { fontSize: Number(newFontSize) },
                                         undefined
                                       );
-                                    });
+                                    }
                                   }}
                                 >
                                   <SelectTrigger
@@ -1198,13 +1184,13 @@ export function PropertiesPanel() {
                                     }-${group.ids.join("-")}`}
                                     defaultValue={group.color}
                                     onValueChange={(newColor) => {
-                                      group.ids.forEach((nodeId) => {
-                                        updateNodeData(
-                                          nodeId,
+                                      if (group.ids.length > 0) {
+                                        batchUpdateNodeData(
+                                          group.ids,
                                           { textColor: newColor },
                                           undefined
                                         );
-                                      });
+                                      }
                                     }}
                                     displayValue={group.color}
                                     format="hex"
@@ -1303,9 +1289,11 @@ export function PropertiesPanel() {
                                   key={`edge-type-group-${group.type}`}
                                   value={group.type}
                                   onValueChange={(newType) => {
-                                    group.ids.forEach((edgeId) => {
-                                      updateEdgeData(edgeId, { type: newType });
-                                    });
+                                    if (group.ids.length > 0) {
+                                      batchUpdateEdgeData(group.ids, {
+                                        type: newType,
+                                      });
+                                    }
                                   }}
                                 >
                                   <SelectTrigger
@@ -1409,22 +1397,11 @@ export function PropertiesPanel() {
                                     }-${group.ids.join("-")}`}
                                     defaultValue={group.color}
                                     onValueChange={(newColor) => {
-                                      group.ids.forEach((edgeId) => {
-                                        const edge = edges.find(
-                                          (e) => e.id === edgeId
-                                        );
-                                        if (!edge) return;
-                                        const updatedEdge: Partial<Edge> = {
-                                          style: {
-                                            ...(edge.style as Record<
-                                              string,
-                                              string
-                                            >),
-                                            stroke: newColor,
-                                          },
-                                        };
-                                        updateEdgeData(edgeId, updatedEdge);
-                                      });
+                                      if (group.ids.length > 0) {
+                                        batchUpdateEdgeData(group.ids, {
+                                          style: { stroke: newColor },
+                                        });
+                                      }
                                     }}
                                     displayValue={group.color}
                                     format="hex"
@@ -1498,22 +1475,13 @@ export function PropertiesPanel() {
                                   value={group.width}
                                   onChange={(e) => {
                                     const newWidth = Number(e.target.value);
-                                    group.ids.forEach((edgeId) => {
-                                      const edge = edges.find(
-                                        (e) => e.id === edgeId
-                                      );
-                                      if (!edge) return;
-                                      const updatedEdge: Partial<Edge> = {
+                                    if (group.ids.length > 0) {
+                                      batchUpdateEdgeData(group.ids, {
                                         style: {
-                                          ...(edge.style as Record<
-                                            string,
-                                            string
-                                          >),
                                           strokeWidth: String(newWidth),
                                         },
-                                      };
-                                      updateEdgeData(edgeId, updatedEdge);
-                                    });
+                                      });
+                                    }
                                   }}
                                   className="w-full h-fit text-xs py-1 px-2 rounded-sm"
                                 />

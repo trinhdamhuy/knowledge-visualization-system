@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef, useMemo } from "react";
 import {
   NodeProps,
   useReactFlow,
@@ -8,8 +8,9 @@ import {
 } from "@xyflow/react";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
+import { useSelf, useOthers } from "@liveblocks/react";
 
-const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
+const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
   const nodeData = data as {
     label: string;
     color?: string;
@@ -27,6 +28,38 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   const { updateNodeData } = useReactFlow();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { setActiveMode } = useDiagramStore();
+
+  // Get selection from Presence
+  const currentUser = useSelf();
+  const others = useOthers();
+
+  // Determine if node is selected by current user or others
+  const isSelectedByCurrentUser = useMemo(() => {
+    return (
+      currentUser?.presence?.selectedObjectIds?.nodeIds?.includes(id) ?? false
+    );
+  }, [currentUser, id]);
+
+  // Get users who have selected this node
+  const selectingUsers = useMemo(() => {
+    return others.filter((other) =>
+      other.presence?.selectedObjectIds?.nodeIds?.includes(id)
+    );
+  }, [others, id]);
+
+  const isSelected = isSelectedByCurrentUser || selectingUsers.length > 0;
+
+  // Get color for current user's selection (for border)
+  const getUserColor = (connectionId: number): string => {
+    const colors = [
+      "rgb(59, 130, 246)", // blue
+      "rgb(236, 72, 153)", // pink
+      "rgb(34, 197, 94)", // green
+      "rgb(251, 146, 60)", // orange
+      "rgb(168, 85, 247)", // purple
+    ];
+    return colors[connectionId % colors.length];
+  };
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -120,21 +153,32 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
     }
   };
 
+  // Determine border color based on selection
+  const borderColor = useMemo(() => {
+    if (!isSelected) return "var(--border)";
+    if (isSelectedByCurrentUser) return "var(--ring)";
+    // Use first other user's color
+    if (selectingUsers.length > 0) {
+      return getUserColor(selectingUsers[0].connectionId);
+    }
+    return "var(--ring)";
+  }, [isSelected, isSelectedByCurrentUser, selectingUsers]);
+
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
     color: "var(--card-foreground)",
     border:
       shape === "diamond"
         ? "none"
-        : selected
-        ? "2px solid var(--ring)"
+        : isSelected
+        ? `2px solid ${borderColor}`
         : "1px solid var(--border)",
     padding: "10px 15px",
     boxShadow:
       shape === "diamond"
         ? "none"
-        : selected
-        ? "0 0 0 1px var(--ring), 0 1px 2px 0 rgba(0, 0, 0, 0.1)"
+        : isSelected
+        ? `0 0 0 1px ${borderColor}, 0 1px 2px 0 rgba(0, 0, 0, 0.1)`
         : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     position: "relative",
     display: "flex",
@@ -187,8 +231,8 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
         <polygon
           points="50,2 98,50 50,98 2,50"
           fill={nodeColor}
-          stroke={selected ? "var(--ring)" : "var(--border)"}
-          strokeWidth={selected ? "3" : "1.5"}
+          stroke={isSelected ? borderColor : "var(--border)"}
+          strokeWidth={isSelected ? "3" : "1.5"}
         />
       </svg>
     );
@@ -197,11 +241,11 @@ const CustomNode = memo(({ data, id, selected, width, height }: NodeProps) => {
   return (
     <div data-node-id={id} data-node-label={label} style={shapeStyle}>
       {renderDiamondBackground()}
-      {selected && (
+      {isSelectedByCurrentUser && (
         <NodeResizer
           minWidth={isSquareShape ? 60 : 100}
           minHeight={isSquareShape ? 60 : 40}
-          isVisible={selected}
+          isVisible={isSelectedByCurrentUser}
           keepAspectRatio={isSquareShape}
         />
       )}

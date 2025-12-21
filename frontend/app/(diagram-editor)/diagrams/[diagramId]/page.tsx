@@ -8,6 +8,7 @@ import { ChatPanel } from "../../_components/ChatPanel";
 import { Room } from "@/app/_components/room";
 import { Spinner } from "@/components/ui/spinner";
 import { useChatPanelStore } from "../../_stores/use-chat-panel-store";
+import { DiagramProvider } from "../../_components/DiagramProvider";
 
 type EditorPageProps = {
   params: Promise<{ diagramId: string }>;
@@ -39,7 +40,9 @@ export default function EditorPage({ params }: EditorPageProps) {
             <>
               <FilePanel />
               <div className="flex-1 h-full relative">
-                <DiagramCanvas />
+                <DiagramProvider>
+                  <DiagramCanvas />
+                </DiagramProvider>
               </div>
               <ChatPanel />
             </>
@@ -48,7 +51,9 @@ export default function EditorPage({ params }: EditorPageProps) {
           {displayMode === "docked" && (
             <>
               <div className="flex-1 h-full relative">
-                <DiagramCanvas />
+                <DiagramProvider>
+                  <DiagramCanvas />
+                </DiagramProvider>
               </div>
               <FilePanel />
               <ChatPanel />

@@ -703,9 +703,13 @@ export function ChatPanel() {
               <SelectTrigger id="mode-select" size="sm" className="w-[130px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="chat">Chat</SelectItem>
-                <SelectItem value="generate">Generate</SelectItem>
+              <SelectContent className="z-100">
+                <SelectItem value="chat" className="text-xs">
+                  Chat
+                </SelectItem>
+                <SelectItem value="generate" className="text-xs">
+                  Generate
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

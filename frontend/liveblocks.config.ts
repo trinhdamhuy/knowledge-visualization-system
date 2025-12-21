@@ -4,7 +4,10 @@ declare global {
   interface Liveblocks {
     Presence: {
       cursor: { x: number; y: number } | null;
-      selection: string[];
+      selectedObjectIds: {
+        nodeIds: string[];
+        edgeIds: string[];
+      };
     };
 
     Storage: {

@@ -1,31 +1,39 @@
 import { create } from "zustand";
 import { DiagramMode } from "@/enums/modes";
-
-type SelectedObjectIds = {
-  nodeIds: string[];
-  edgeIds: string[];
-};
+import type { Node, Edge } from "@xyflow/react";
 
 type DiagramState = {
   activeMode: DiagramMode;
-  selectedObjectIds: SelectedObjectIds;
+  // Clipboard
+  clipboard: { nodes: Node[]; edges: Edge[] } | null;
 };
 
 type DiagramActions = {
   setActiveMode: (mode: DiagramMode) => void;
-  setSelection: (nodeIds: string[], edgeIds: string[]) => void;
+  // Clipboard actions
+  copyToClipboard: (nodes: Node[], edges: Edge[]) => void;
+  getClipboard: () => { nodes: Node[]; edges: Edge[] } | null;
+  clearClipboard: () => void;
 };
 
-export const useDiagramStore = create<DiagramState & DiagramActions>((set) => ({
-  activeMode: DiagramMode.Select,
-  selectedObjectIds: {
-    nodeIds: [],
-    edgeIds: [],
-  },
-  setActiveMode: (mode: DiagramMode) => set({ activeMode: mode }),
-  setSelection: (nodeIds: string[], edgeIds: string[]) => {
-    set({
-      selectedObjectIds: { nodeIds, edgeIds },
-    });
-  },
-}));
+export const useDiagramStore = create<DiagramState & DiagramActions>(
+  (set, get) => ({
+    activeMode: DiagramMode.Select,
+    // Clipboard
+    clipboard: null,
+
+    setActiveMode: (mode: DiagramMode) => set({ activeMode: mode }),
+
+    copyToClipboard: (nodes: Node[], edges: Edge[]) =>
+      set({
+        clipboard: {
+          nodes: JSON.parse(JSON.stringify(nodes)),
+          edges: JSON.parse(JSON.stringify(edges)),
+        },
+      }),
+
+    getClipboard: () => get().clipboard,
+
+    clearClipboard: () => set({ clipboard: null }),
+  })
+);

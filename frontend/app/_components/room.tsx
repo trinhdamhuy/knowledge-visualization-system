@@ -47,7 +47,10 @@ export const Room = ({ children, diagramId, fallback }: RoomProps) => {
         id={diagramId}
         initialPresence={{
           cursor: null,
-          selection: [],
+          selectedObjectIds: {
+            nodeIds: [],
+            edgeIds: [],
+          },
         }}
         initialStorage={{
           nodes: new LiveMap<string, LiveObject<LsonObject>>(),

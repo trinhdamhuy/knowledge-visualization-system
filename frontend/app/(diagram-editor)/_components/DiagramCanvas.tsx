@@ -18,7 +18,7 @@ import "../style.css";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
 import { CollaboratorCursors } from "./CollaboratorCursors";
-import { useUpdateMyPresence } from "@liveblocks/react";
+import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
@@ -33,7 +33,12 @@ export function DiagramCanvas() {
     position: { x: number; y: number };
   } | null>(null);
 
-  const { activeMode, setActiveMode, setSelection } = useDiagramStore();
+  const { activeMode, setActiveMode } = useDiagramStore();
+  const currentUser = useSelf();
+  const currentSelection = currentUser?.presence?.selectedObjectIds ?? {
+    nodeIds: [],
+    edgeIds: [],
+  };
 
   // Use Liveblocks as single source of truth
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
@@ -58,27 +63,35 @@ export function DiagramCanvas() {
     });
   };
 
-  const { selectedObjectIds } = useDiagramStore();
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       if (event.ctrlKey || event.metaKey) {
         // Multi-select logic: toggle node in array
-        if (selectedObjectIds.nodeIds.includes(node.id)) {
-          setSelection(
-            selectedObjectIds.nodeIds.filter((id) => id !== node.id),
-            [] // Clear edge selection when selecting nodes
-          );
+        if (currentSelection.nodeIds.includes(node.id)) {
+          updateMyPresence({
+            selectedObjectIds: {
+              nodeIds: currentSelection.nodeIds.filter((id) => id !== node.id),
+              edgeIds: [], // Clear edge selection when selecting nodes
+            },
+          });
         } else {
-          setSelection(
-            [...selectedObjectIds.nodeIds, node.id],
-            [] // Clear edge selection when selecting nodes
-          );
+          updateMyPresence({
+            selectedObjectIds: {
+              nodeIds: [...currentSelection.nodeIds, node.id],
+              edgeIds: [], // Clear edge selection when selecting nodes
+            },
+          });
         }
       } else {
-        setSelection([node.id], []); // Clear edge selection when selecting nodes
+        updateMyPresence({
+          selectedObjectIds: {
+            nodeIds: [node.id],
+            edgeIds: [], // Clear edge selection when selecting nodes
+          },
+        });
       }
     },
-    [selectedObjectIds.nodeIds, setSelection]
+    [currentSelection.nodeIds, updateMyPresence]
   );
 
   const onPointerMove = useCallback(
@@ -111,7 +124,12 @@ export function DiagramCanvas() {
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
       // Deselect both nodes and edges when clicking on pane
-      setSelection([], []);
+      updateMyPresence({
+        selectedObjectIds: {
+          nodeIds: [],
+          edgeIds: [],
+        },
+      });
 
       if (activeMode !== DiagramMode.CreateNode || !reactFlowInstance.current)
         return;
@@ -135,42 +153,51 @@ export function DiagramCanvas() {
 
       addNode(newNode);
     },
-    [activeMode, addNode, setSelection]
+    [activeMode, addNode, updateMyPresence]
   );
 
   const onSelectionChange = useCallback(
     (params: { nodes: Node[]; edges: Edge[] }) => {
-      // Use setSelection to set both nodes and edges without clearing each other
-      setSelection(
-        params.nodes.map((n) => n.id),
-        params.edges.map((e) => e.id)
-      );
+      // Update Presence with selected nodes and edges
+      updateMyPresence({
+        selectedObjectIds: {
+          nodeIds: params.nodes.map((n) => n.id),
+          edgeIds: params.edges.map((e) => e.id),
+        },
+      });
     },
-    [setSelection]
+    [updateMyPresence]
   );
 
   const onEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
       if (event.ctrlKey || event.metaKey) {
         // Multi-select logic: toggle edge in array
-        const currentSelected =
-          useDiagramStore.getState().selectedObjectIds.edgeIds;
-        if (currentSelected.includes(edge.id)) {
-          setSelection(
-            [], // Clear node selection when selecting edges
-            currentSelected.filter((id) => id !== edge.id)
-          );
+        if (currentSelection.edgeIds.includes(edge.id)) {
+          updateMyPresence({
+            selectedObjectIds: {
+              nodeIds: [], // Clear node selection when selecting edges
+              edgeIds: currentSelection.edgeIds.filter((id) => id !== edge.id),
+            },
+          });
         } else {
-          setSelection(
-            [], // Clear node selection when selecting edges
-            [...currentSelected, edge.id]
-          );
+          updateMyPresence({
+            selectedObjectIds: {
+              nodeIds: [], // Clear node selection when selecting edges
+              edgeIds: [...currentSelection.edgeIds, edge.id],
+            },
+          });
         }
       } else {
-        setSelection([], [edge.id]); // Clear node selection when selecting edges
+        updateMyPresence({
+          selectedObjectIds: {
+            nodeIds: [], // Clear node selection when selecting edges
+            edgeIds: [edge.id],
+          },
+        });
       }
     },
-    [setSelection]
+    [currentSelection.edgeIds, updateMyPresence]
   );
 
   return (
