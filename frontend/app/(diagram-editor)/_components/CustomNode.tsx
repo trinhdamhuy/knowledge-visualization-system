@@ -9,6 +9,7 @@ import {
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
 import { useSelf, useOthers } from "@liveblocks/react";
+import { getUserColor } from "./utils/user-colors";
 
 const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
   const nodeData = data as {
@@ -40,14 +41,17 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     );
   }, [currentUser, id]);
 
-  // Get users who have selected this node
+  // Get users who have selected this node with their colors
   const selectingUsers = useMemo(() => {
-    return others.filter((other) =>
-      other.presence?.selectedObjectIds?.nodeIds?.includes(id)
-    );
+    return others
+      .filter((other) =>
+        other.presence?.selectedObjectIds?.nodeIds?.includes(id)
+      )
+      .map((other) => ({
+        connectionId: other.connectionId,
+        color: getUserColor(other.connectionId),
+      }));
   }, [others, id]);
-
-  const isSelected = isSelectedByCurrentUser || selectingUsers.length > 0;
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -141,8 +145,8 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     }
   };
 
-  // Get ring color (same as edge)
-  const ringColor = "#3b82f6"; // blue color for ring
+  // Get ring color for current user selection
+  const currentUserRingColor = "#3b82f6"; // blue color for current user
 
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
@@ -200,23 +204,35 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
-          {/* Ring for diamond when selected */}
-          {isSelected && (
-            <polygon
-              points="50,2 98,50 50,98 2,50"
-              fill="none"
-              stroke={ringColor}
-              strokeWidth="6"
-              opacity="0.5"
-            />
-          )}
-          {/* Main diamond */}
+          {/* Main diamond - render first (bottom layer) */}
           <polygon
             points="50,2 98,50 50,98 2,50"
             fill={nodeColor}
             stroke="var(--border)"
             strokeWidth="1.5"
           />
+          {/* Ring for current user selection - middle ring */}
+          {isSelectedByCurrentUser && (
+            <polygon
+              points="50,2 98,50 50,98 2,50"
+              fill="none"
+              stroke={currentUserRingColor}
+              strokeWidth="4"
+              opacity="0.5"
+            />
+          )}
+          {/* Rings for other users' selections - outside rings */}
+          {selectingUsers.map((user, index) => (
+            <polygon
+              key={user.connectionId}
+              points="50,2 98,50 50,98 2,50"
+              fill="none"
+              stroke={user.color}
+              strokeWidth="6"
+              opacity="0.5"
+              transform={`translate(${index * 2}, ${index * 2})`}
+            />
+          ))}
         </svg>
       </>
     );
@@ -226,6 +242,36 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     <div data-node-id={id} data-node-label={label} style={shapeStyle}>
       {/* Ring for selection - similar to edge */}
       {renderDiamondBackground()}
+      {/* Ring for current user selection (for non-diamond shapes) - middle ring */}
+      {shape !== "diamond" && isSelectedByCurrentUser && (
+        <div
+          style={{
+            position: "absolute",
+            inset: "-2px",
+            border: `2px solid ${currentUserRingColor}`,
+            borderRadius: shapeStyle.borderRadius,
+            opacity: 0.5,
+            pointerEvents: "none",
+            zIndex: -1,
+          }}
+        />
+      )}
+      {/* Rings for other users' selections (for non-diamond shapes) - outside rings */}
+      {shape !== "diamond" &&
+        selectingUsers.map((user, index) => (
+          <div
+            key={user.connectionId}
+            style={{
+              position: "absolute",
+              inset: `${-4 - index * 2}px`,
+              border: `3px solid ${user.color}`,
+              borderRadius: shapeStyle.borderRadius,
+              opacity: 0.5,
+              pointerEvents: "none",
+              zIndex: -2,
+            }}
+          />
+        ))}
       {isSelectedByCurrentUser && (
         <NodeResizer
           minWidth={isSquareShape ? 60 : 100}

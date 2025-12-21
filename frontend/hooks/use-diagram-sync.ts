@@ -332,7 +332,11 @@ export function useDiagramSync() {
 
   // Batch update edge data - for PropertiesPanel
   const batchUpdateEdgeData = useMutation(
-    ({ storage }, edgeIds: string[], edgeData: Partial<Edge>) => {
+    (
+      { storage },
+      edgeIds: string[],
+      edgeData: Partial<Edge> & { data?: Record<string, unknown> }
+    ) => {
       const storageEdges = storage.get("edges");
       if (!storageEdges) return;
 
@@ -354,6 +358,12 @@ export function useDiagramSync() {
                 ...(edgeData.style as Record<string, string>),
               }
             : currentEdge.style,
+          data: edgeData.data
+            ? {
+                ...(currentEdge.data as Record<string, unknown>),
+                ...edgeData.data,
+              }
+            : currentEdge.data,
         };
 
         // Remove selected prop - we use Presence for selection

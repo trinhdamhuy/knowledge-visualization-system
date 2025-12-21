@@ -280,6 +280,34 @@ export function DiagramCanvas() {
     }
   }, [isDragging, updateNodes]);
 
+  // Canvas boundaries configuration
+  // translateExtent: Limits the area that can be panned (viewport movement)
+  // Format: [[minX, minY], [maxX, maxY]] in flow coordinates
+  // nodeExtent: Limits where nodes can be placed
+  // Format: [[minX, minY], [maxX, maxY]] in flow coordinates
+  const CANVAS_BOUNDARIES = {
+    // Example: Limit canvas to 5000x5000 area
+    // You can adjust these values based on your needs
+    minX: -2000,
+    minY: -2000,
+    maxX: 5000,
+    maxY: 5000,
+  };
+
+  const translateExtent: [[number, number], [number, number]] = [
+    [CANVAS_BOUNDARIES.minX, CANVAS_BOUNDARIES.minY],
+    [CANVAS_BOUNDARIES.maxX, CANVAS_BOUNDARIES.maxY],
+  ];
+
+  const nodeExtent: [[number, number], [number, number]] = [
+    [CANVAS_BOUNDARIES.minX, CANVAS_BOUNDARIES.minY],
+    [CANVAS_BOUNDARIES.maxX, CANVAS_BOUNDARIES.maxY],
+  ];
+
+  // Zoom limits (optional)
+  const minZoom = 0.1; // Minimum zoom level (10%)
+  const maxZoom = 2; // Maximum zoom level (200%)
+
   return (
     <ReactFlow
       colorMode={
@@ -323,6 +351,10 @@ export function DiagramCanvas() {
       nodesConnectable={true}
       elementsSelectable={false}
       selectNodesOnDrag={false}
+      translateExtent={translateExtent}
+      nodeExtent={nodeExtent}
+      minZoom={minZoom}
+      maxZoom={maxZoom}
     >
       <DiagramHeader />
       <DiagramToolBar />

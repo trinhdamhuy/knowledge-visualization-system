@@ -31,6 +31,7 @@ export function NodeContextMenu({
     deleteNodesAndEdges,
     copySelected,
     paste,
+    batchUpdateEdgeData,
   } = useDiagramSync();
   const updateMyPresence = useUpdateMyPresence();
   const currentUser = useSelf();
@@ -236,11 +237,60 @@ export function NodeContextMenu({
 
   // Only show copy/paste for nodes, not edges
   const hasNodeSelection = currentSelection.nodeIds.length > 0;
+  const hasEdgeSelection = currentSelection.edgeIds.length > 0;
+
+  // Check if any selected edge has a label
+  const hasEdgeWithLabel = useMemo(() => {
+    if (!hasEdgeSelection) return false;
+    return currentSelection.edgeIds.some((edgeId) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      const edgeData = edge?.data as { label?: string } | undefined;
+      return edgeData?.label && edgeData.label !== "";
+    });
+  }, [hasEdgeSelection, currentSelection.edgeIds, edges]);
 
   const handlePaste = useCallback(async () => {
     await paste();
     onClose();
   }, [paste, onClose]);
+
+  const handleAddLabel = useCallback(() => {
+    if (currentSelection.edgeIds.length === 0) return;
+
+    // Add default label "newlabel" to all selected edges
+    currentSelection.edgeIds.forEach((edgeId) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      batchUpdateEdgeData([edgeId], {
+        data: {
+          ...(edge.data || {}),
+          label: "newlabel",
+        },
+      });
+    });
+
+    onClose();
+  }, [currentSelection.edgeIds, edges, batchUpdateEdgeData, onClose]);
+
+  const handleDeleteLabel = useCallback(() => {
+    if (currentSelection.edgeIds.length === 0) return;
+
+    // Delete label by setting it to empty string
+    currentSelection.edgeIds.forEach((edgeId) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+
+      batchUpdateEdgeData([edgeId], {
+        data: {
+          ...(edge.data || {}),
+          label: "",
+        },
+      });
+    });
+
+    onClose();
+  }, [currentSelection.edgeIds, edges, batchUpdateEdgeData, onClose]);
 
   const options: Array<{
     label: string;
@@ -248,6 +298,27 @@ export function NodeContextMenu({
     onClick: () => void;
     variant?: "destructive";
   }> = [
+    // Add label - only shown when there are edges selected
+    ...(hasEdgeSelection
+      ? [
+          {
+            label: "Add label",
+            kbd: null,
+            onClick: handleAddLabel,
+          },
+        ]
+      : []),
+    // Delete label - only shown when there are edges selected with labels
+    ...(hasEdgeWithLabel
+      ? [
+          {
+            label: "Delete label",
+            kbd: null,
+            onClick: handleDeleteLabel,
+            variant: "destructive" as const,
+          },
+        ]
+      : []),
     // Paste - only shown when there are nodes (not only edges)
     ...(hasNodeSelection
       ? [

@@ -58,7 +58,7 @@ export function SelectedNodesBox({
 
   return (
     <div
-      className="absolute inset-0 pointer-events-none z-10"
+      className="absolute inset-0 pointer-events-none z-5"
       style={{
         left: 0,
         top: 0,

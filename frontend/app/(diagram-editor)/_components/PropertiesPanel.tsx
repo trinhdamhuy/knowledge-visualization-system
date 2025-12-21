@@ -87,6 +87,9 @@ interface EdgeStyle {
   stroke: StyleValue<string>;
   strokeWidth: StyleValue<string>;
   animated: StyleValue<boolean>;
+  labelFontFamily: StyleValue<string>;
+  labelFontSize: StyleValue<number>;
+  labelColor: StyleValue<string | undefined>;
 }
 
 // Get card background color hex based on theme
@@ -401,7 +404,10 @@ export function PropertiesPanel() {
         type: "smoothstep",
         stroke: "#b1b1b7",
         strokeWidth: "1",
-        animated: false,
+        animated: true,
+        labelFontFamily: "Inter",
+        labelFontSize: 12,
+        labelColor: undefined, // undefined means default (theme-based)
       };
     }
 
@@ -421,6 +427,21 @@ export function PropertiesPanel() {
           value = (edge.type as T) ?? defaultValue;
         } else if (key === "animated") {
           value = (edge.animated as T) ?? defaultValue;
+        } else if (key === "labelFontFamily") {
+          value =
+            ((edge.data as Record<string, unknown>)?.labelFontFamily as T) ??
+            defaultValue;
+        } else if (key === "labelFontSize") {
+          value =
+            ((edge.data as Record<string, unknown>)?.labelFontSize as T) ??
+            defaultValue;
+        } else if (key === "labelColor") {
+          // labelColor can be undefined (default/theme-based) or a custom color
+          const edgeLabelColor = (edge.data as Record<string, unknown>)
+            ?.labelColor;
+          value = (
+            edgeLabelColor !== undefined ? edgeLabelColor : defaultValue
+          ) as T;
         } else {
           value = defaultValue;
         }
@@ -436,12 +457,15 @@ export function PropertiesPanel() {
       stroke: getValue("stroke", "#b1b1b7"),
       strokeWidth: getValue("strokeWidth", "1"),
       animated: getValue("animated", false),
+      labelFontFamily: getValue("labelFontFamily", "Inter"),
+      labelFontSize: getValue("labelFontSize", 12),
+      labelColor: getValue("labelColor", undefined),
     };
   }, [selectedEdges]);
 
   // Update edge style for all selected edges using batch operation (debounced)
   const updateSelectedEdgesStyleImmediate = useCallback(
-    (styleUpdate: Partial<Edge>) => {
+    (styleUpdate: Partial<Edge> & { data?: Record<string, unknown> }) => {
       if (selectedObjectIds.edgeIds.length > 0) {
         batchUpdateEdgeData(selectedObjectIds.edgeIds, styleUpdate);
       }
@@ -455,12 +479,15 @@ export function PropertiesPanel() {
 
   // Debounced version for individual edge updates (used in expanded sections)
   const debouncedBatchUpdateEdgeData = useDebouncedCallback(
-    (edgeIds: string[], styleUpdate: Partial<Edge>) => {
+    (
+      edgeIds: string[],
+      styleUpdate: Partial<Edge> & { data?: Record<string, unknown> }
+    ) => {
       batchUpdateEdgeData(edgeIds, styleUpdate);
     }
   );
 
-  const isMixed = (value: StyleValue<number | string | boolean>) =>
+  const isMixed = (value: StyleValue<number | string | boolean | undefined>) =>
     value === "mixed";
 
   const hasSelectedNodesOrEdges =
@@ -564,7 +591,7 @@ export function PropertiesPanel() {
         </div>
 
         {hasSelectedNodesOrEdges && (
-          <ScrollArea className="h-[90vh] px-3" data-text-toolbar>
+          <ScrollArea className="h-[90vh] px-3 pb-2" data-text-toolbar>
             <CardHeader className="p-0 pb-4">
               <CardTitle>Properties</CardTitle>
               <CardDescription>
@@ -576,7 +603,7 @@ export function PropertiesPanel() {
               {selectedNodes.length > 0 && (
                 <>
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold">Node</h3>
+                    <h2 className="text-md font-semibold">Node</h2>
 
                     {/* Shape */}
                     <div className="px-2 space-y-2">
@@ -829,8 +856,6 @@ export function PropertiesPanel() {
                       )}
                     </div>
                   </div>
-
-                  <Separator />
 
                   {/* Text Section */}
                   <div className="space-y-3">
@@ -1152,10 +1177,10 @@ export function PropertiesPanel() {
                       </div>
                     </div>
 
-                    {/* Font Color */}
+                    {/* Color */}
                     <div className="px-2 space-y-2">
                       <label className="block text-xs text-muted-foreground mb-1.5">
-                        Font Color
+                        Color
                       </label>
                       <CustomColorPicker
                         pickerKey={`text-color-picker-${selectedObjectIds.nodeIds.join(
@@ -1243,7 +1268,7 @@ export function PropertiesPanel() {
                 <>
                   {selectedNodes.length > 0 && <Separator />}
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold">Edge</h3>
+                    <h2 className="text-md font-semibold">Edge</h2>
 
                     {/* Edge Type */}
                     <div className="px-2 space-y-2">
@@ -1549,6 +1574,130 @@ export function PropertiesPanel() {
                           {unifiedEdgeStyle.animated === true ? "On" : "Off"}
                         </span>
                       </Toggle>
+                    </div>
+
+                    {/* Label Section */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold">Label</h3>
+
+                      {/* Label Font Family */}
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          Font
+                        </label>
+                        <Select
+                          value={
+                            isMixed(unifiedEdgeStyle.labelFontFamily)
+                              ? ""
+                              : (unifiedEdgeStyle.labelFontFamily as string)
+                          }
+                          onValueChange={(value) =>
+                            updateSelectedEdgesStyle({
+                              data: { labelFontFamily: value },
+                            })
+                          }
+                        >
+                          <SelectTrigger size="sm" className="w-full text-xs">
+                            <SelectValue
+                              placeholder={
+                                isMixed(unifiedEdgeStyle.labelFontFamily)
+                                  ? "Mixed fonts"
+                                  : "Select font"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FONT_FAMILIES.map((font) => (
+                              <SelectItem
+                                key={font.value}
+                                value={font.value}
+                                style={{ fontFamily: font.value }}
+                                className="text-xs"
+                              >
+                                {font.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Label Font Size */}
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          Size
+                        </label>
+                        <Select
+                          value={
+                            isMixed(unifiedEdgeStyle.labelFontSize)
+                              ? ""
+                              : String(unifiedEdgeStyle.labelFontSize)
+                          }
+                          onValueChange={(value) =>
+                            updateSelectedEdgesStyle({
+                              data: { labelFontSize: Number(value) },
+                            })
+                          }
+                        >
+                          <SelectTrigger size="sm" className="w-full text-xs">
+                            <SelectValue
+                              placeholder={
+                                isMixed(unifiedEdgeStyle.labelFontSize)
+                                  ? "Mixed sizes"
+                                  : "Size"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FONT_SIZES.map((size) => (
+                              <SelectItem
+                                key={size}
+                                value={String(size)}
+                                className="text-xs"
+                              >
+                                {size}px
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Label Color */}
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          Color
+                        </label>
+                        <CustomColorPicker
+                          pickerKey={`label-color-picker-${selectedObjectIds.edgeIds.join(
+                            ","
+                          )}`}
+                          defaultValue={
+                            isMixed(unifiedEdgeStyle.labelColor)
+                              ? "#000000"
+                              : !unifiedEdgeStyle.labelColor ||
+                                unifiedEdgeStyle.labelColor === undefined
+                              ? resolvedTheme === "dark"
+                                ? "#ffffff"
+                                : "#000000"
+                              : (unifiedEdgeStyle.labelColor as string)
+                          }
+                          onValueChange={(newColor) =>
+                            updateSelectedEdgesStyle({
+                              data: { labelColor: newColor },
+                            })
+                          }
+                          displayValue={
+                            isMixed(unifiedEdgeStyle.labelColor)
+                              ? "Mixed"
+                              : !unifiedEdgeStyle.labelColor ||
+                                unifiedEdgeStyle.labelColor === undefined
+                              ? "Default"
+                              : (unifiedEdgeStyle.labelColor as string)
+                          }
+                          format="hex"
+                          size="sm"
+                          className="max-w-70"
+                        />
+                      </div>
                     </div>
                   </div>
                 </>
