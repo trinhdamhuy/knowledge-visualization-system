@@ -6,7 +6,7 @@ import { useSelf } from "@liveblocks/react";
 import { DiagramMode } from "@/enums/modes";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { NodeContextMenu } from "./NodeContextMenu";
-import { SelectionBoxVisual } from "./SelectionBoxVisual";
+import { SelectionBox } from "./SelectionBox";
 import { usePanHandler } from "./hooks/use-pan-handler";
 import { useSelectionBox } from "./hooks/use-selection-box";
 import { useWheelZoom } from "./hooks/use-wheel-zoom";
@@ -186,9 +186,7 @@ export function CombinedInteractionHandler({
         }}
       />
       {/* Selection box overlay (for selecting) */}
-      {selectionBox.selectionBox && (
-        <SelectionBoxVisual selectionBox={selectionBox.selectionBox} />
-      )}
+      <SelectionBox selectionBox={selectionBox.selectionBox} />
       {/* Context menu */}
       {contextMenu.contextMenu && (
         <NodeContextMenu

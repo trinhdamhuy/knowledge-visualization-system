@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, ReactNode } from "react";
+import { useEffect, useCallback, ReactNode } from "react";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import {
@@ -10,7 +10,7 @@ import {
   useCanUndo,
 } from "@liveblocks/react/suspense";
 import { DiagramMode } from "@/enums/modes";
-import { PasteErrorDialog } from "./PasteErrorDialog";
+import { toast } from "sonner";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 
 interface DiagramProviderProps {
@@ -31,7 +31,6 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
   const canRedo = useCanRedo();
   const updateMyPresence = useUpdateMyPresence();
   const currentUser = useSelf();
-  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // Handle copy
   const handleCopy = useCallback(() => {
@@ -90,7 +89,7 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
   const handlePaste = useCallback(async () => {
     const result = await paste();
     if (!result.success) {
-      setPasteError(result.error || "Failed to paste");
+      toast.error(result.error || "Failed to paste");
     } else if (result.success && "nodeIds" in result && "edgeIds" in result) {
       // Select newly pasted items
       updateMyPresence({
@@ -203,18 +202,5 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
     handlePaste,
   ]);
 
-  return (
-    <>
-      {children}
-      <PasteErrorDialog
-        open={pasteError !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPasteError(null);
-          }
-        }}
-        error={pasteError}
-      />
-    </>
-  );
+  return <>{children}</>;
 }

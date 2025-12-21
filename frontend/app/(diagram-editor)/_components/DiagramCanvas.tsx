@@ -21,8 +21,40 @@ import CustomNode from "./CustomNode";
 import CustomEdge from "./CustomEdge";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
-import { SelectedNodesBox } from "./SelectedNodesBox";
+import { SelectionBox } from "./SelectionBox";
+import { useSelectedNodesBox } from "./hooks/use-selected-nodes-box";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
+
+// Component wrapper to use hook inside ReactFlow context
+function SelectedNodesBoxWrapper({
+  onDragStart,
+  onDragStop,
+  onContextMenu,
+}: {
+  onDragStart?: () => void;
+  onDragStop?: () => void;
+  onContextMenu?: (event: React.MouseEvent) => void;
+}) {
+  const { box, isDragging, handleMouseDown } = useSelectedNodesBox();
+
+  // Notify parent when drag starts/stops
+  useEffect(() => {
+    if (isDragging) {
+      onDragStart?.();
+    } else {
+      onDragStop?.();
+    }
+  }, [isDragging, onDragStart, onDragStop]);
+
+  return (
+    <SelectionBox
+      selectedNodesBox={box}
+      isDragging={isDragging}
+      onMouseDown={handleMouseDown}
+      onContextMenu={onContextMenu}
+    />
+  );
+}
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
@@ -362,7 +394,7 @@ export function DiagramCanvas() {
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <CombinedInteractionHandler onHandlersReady={(h) => setHandlers(h)} />
-      <SelectedNodesBox
+      <SelectedNodesBoxWrapper
         onDragStart={() => setIsDraggingSelectionBox(true)}
         onDragStop={() => setIsDraggingSelectionBox(false)}
         onContextMenu={(event) => {

@@ -45,8 +45,8 @@ export function ImportMindmapDialog({
         <DialogHeader>
           <DialogTitle>Import Mindmap Data</DialogTitle>
           <DialogDescription>
-            This mindmap contains {nodeCount} nodes and {edgeCount} edges. How
-            would you like to import it?
+            This mindmap contains {nodeCount.toString()} nodes and{" "}
+            {edgeCount.toString()} edges. How would you like to import it?
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-2">
