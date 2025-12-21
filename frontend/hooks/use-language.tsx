@@ -1,17 +1,14 @@
 "use client";
 
+import { useCallback } from "react";
 import Cookies from "js-cookie";
 import { Language } from "@/generated/prisma/client";
 
 export const useLanguage = () => {
-  const setCookieLocale = (locale: Language) => {
+  const changeLanguage = useCallback((locale: Language) => {
     Cookies.set("locale", locale);
-  };
-
-  const changeLanguage = (locale: Language) => {
-    setCookieLocale(locale);
     window.location.reload();
-  };
+  }, []);
 
   return changeLanguage;
 };

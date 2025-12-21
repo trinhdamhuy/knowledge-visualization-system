@@ -5,9 +5,22 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from "@/components/ui/context-menu";
-import { Copy, Trash2, ClipboardPaste, RotateCcw, Plus } from "lucide-react";
+import {
+  Copy,
+  Trash2,
+  ClipboardPaste,
+  RotateCcw,
+  Plus,
+  Pencil,
+  Share2,
+  Link,
+} from "lucide-react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDiagramClipboardStore } from "@/stores/diagram-clipboard-store";
 import { useActionHistoryStore } from "@/stores/action-history-store";
 import { useDiagram } from "@/hooks/use-diagram";
@@ -19,10 +32,13 @@ import { itemsKeys } from "@/hooks/use-items";
 import { diagramKeys } from "@/hooks/use-diagram";
 import { trashKeys } from "@/hooks/use-trash";
 import type { TrashItem } from "@/types/trash";
+import type { Item } from "@/types";
+import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
 
-interface UnifiedBackgroundContextMenuProps {
+interface UnifiedContextMenuProps {
   // Normal mode props
   selectedDiagramIds?: string[];
+  selectedItems?: Item[]; // Array of selected items (for single item menu)
   // Trash mode props
   selectedTrashItems?: TrashItem[];
   isTrashMode?: boolean;
@@ -31,10 +47,15 @@ interface UnifiedBackgroundContextMenuProps {
   onCopy?: () => void;
   onDelete?: () => void;
   onRestore?: () => void;
+  // Single item menu props
+  onRename?: (item: Item) => void; // Callback when Rename is clicked
+  onDeleteItem?: (item: Item) => void; // Callback when Delete single item is clicked
+  onShare?: (item: Item) => void; // Callback when Share is clicked
 }
 
-export function UnifiedBackgroundContextMenu({
+export function UnifiedContextMenu({
   selectedDiagramIds = [],
+  selectedItems = [],
   selectedTrashItems = [],
   isTrashMode = false,
   showCreate = false,
@@ -42,7 +63,10 @@ export function UnifiedBackgroundContextMenu({
   onCopy,
   onDelete,
   onRestore,
-}: UnifiedBackgroundContextMenuProps) {
+  onRename,
+  onDeleteItem,
+  onShare,
+}: UnifiedContextMenuProps) {
   const { copyDiagrams, getClipboard, hasClipboard } =
     useDiagramClipboardStore();
   const { pasteDiagrams: pasteDiagramsFn, isPastingDiagrams } = useDiagram();
@@ -57,6 +81,19 @@ export function UnifiedBackgroundContextMenu({
   const hasSelection = selectedDiagramIds.length > 0;
   const clipboard = getClipboard();
   const canPaste = hasClipboard() && clipboard.length > 0;
+
+  // Single item selection state
+  const isSingleSelection = selectedDiagramIds.length === 1 && !isTrashMode;
+  const selectedItem = isSingleSelection
+    ? selectedItems?.find(
+        (item) => item.id === selectedDiagramIds[0] && item.type === "diagram"
+      )
+    : null;
+
+  // Permission check for single item (only when needed)
+  const { data: canEdit, isLoading: isLoadingPermission } = useCanEditDiagram(
+    isSingleSelection && selectedItem ? selectedItem.id : ""
+  );
 
   // Trash mode state
   const hasTrashSelection = selectedTrashItems.length > 0;
@@ -127,6 +164,47 @@ export function UnifiedBackgroundContextMenu({
       toast.error("An error occurred while deleting diagrams");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Single item handlers
+  const handleRename = () => {
+    if (selectedItem) {
+      onRename?.(selectedItem);
+    }
+  };
+
+  const handleSingleItemDelete = () => {
+    if (selectedItem) {
+      // Use onDeleteItem if provided, otherwise use onDelete
+      if (onDeleteItem) {
+        onDeleteItem(selectedItem);
+      } else {
+        // Fallback to regular delete handler
+        handleDelete();
+      }
+    }
+  };
+
+  const handleSingleItemCopy = () => {
+    if (selectedItem && selectedItem.type === "diagram") {
+      copyDiagrams([selectedItem.id]);
+      toast.success("Diagram copied to clipboard");
+      onCopy?.();
+    }
+  };
+
+  const handleShare = () => {
+    if (selectedItem) {
+      onShare?.(selectedItem);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (selectedItem && selectedItem.type === "diagram") {
+      const link = `${window.location.origin}/diagrams/${selectedItem.id}`;
+      navigator.clipboard.writeText(link);
+      toast.success("Link copied to clipboard");
     }
   };
 
@@ -231,7 +309,99 @@ export function UnifiedBackgroundContextMenu({
     );
   }
 
-  // Normal mode UI
+  // Single item menu UI (when only 1 diagram is selected)
+  if (isSingleSelection && selectedItem && selectedItem.type === "diagram") {
+    // Show loading state while checking permission
+    if (isLoadingPermission) {
+      return (
+        <>
+          {/* Rename skeleton */}
+          <ContextMenuItem disabled className="pointer-events-none">
+            <Skeleton className="h-4 w-4 shrink-0" />
+            <Skeleton className="h-4 w-16" />
+          </ContextMenuItem>
+          {/* Delete skeleton */}
+          <ContextMenuItem disabled className="pointer-events-none">
+            <Skeleton className="h-4 w-4 shrink-0" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-12 ml-auto" />
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          {/* Copy skeleton */}
+          <ContextMenuItem disabled className="pointer-events-none">
+            <Skeleton className="h-4 w-4 shrink-0" />
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-20 ml-auto" />
+          </ContextMenuItem>
+        </>
+      );
+    }
+
+    return (
+      <>
+        {/* Rename - only for users with edit/owner permission */}
+        {canEdit && (
+          <ContextMenuItem onSelect={handleRename}>
+            <Pencil />
+            Rename
+          </ContextMenuItem>
+        )}
+
+        {/* Delete - only for users with edit/owner permission */}
+        {canEdit && (
+          <ContextMenuItem
+            onSelect={handleSingleItemDelete}
+            variant="destructive"
+            disabled={isDeleting}
+          >
+            <Trash2 />
+            Delete
+            <ContextMenuShortcut>
+              <Kbd>Del</Kbd>
+            </ContextMenuShortcut>
+          </ContextMenuItem>
+        )}
+
+        {/* Separator if there are edit options */}
+        {canEdit && <ContextMenuSeparator />}
+
+        {/* Share submenu */}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="gap-2">
+            <Share2 />
+            Share
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            <ContextMenuItem onSelect={handleShare}>
+              <Share2 />
+              Share
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={handleCopyLink}>
+              <Link />
+              Copy Link
+            </ContextMenuItem>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+
+        {/* Separator */}
+        <ContextMenuSeparator />
+
+        {/* Copy - available for all users */}
+        <ContextMenuItem onSelect={handleSingleItemCopy}>
+          <Copy />
+          Copy
+          <ContextMenuShortcut>
+            <KbdGroup>
+              <Kbd>Ctrl</Kbd>
+              <Kbd>C</Kbd>
+            </KbdGroup>
+          </ContextMenuShortcut>
+        </ContextMenuItem>
+      </>
+    );
+  }
+
+  // Multi-item or background menu UI
   return (
     <>
       {/* Create - only if showCreate is true */}

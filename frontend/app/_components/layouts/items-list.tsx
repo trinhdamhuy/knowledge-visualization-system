@@ -19,7 +19,7 @@ import { CreateDiagramDialog } from "../dialogs/create-diagram-dialog";
 import { useItems } from "@/hooks/use-items";
 import type { DiagramSortBy, SortDirection, Item } from "@/types";
 import { ReactNode, useMemo } from "react";
-import { UnifiedBackgroundContextMenu } from "../context-menus/unified-background-context-menu";
+import { UnifiedContextMenu } from "../context-menus/unified-context-menu";
 import { useUnifiedKeyboardShortcuts } from "@/app/(main)/_hooks/use-unified-keyboard-shortcuts";
 import type { TrashItem } from "@/types/trash";
 
@@ -35,11 +35,14 @@ interface ItemsListProps {
   onSortByChange?: (sortBy: DiagramSortBy | string) => void;
   onSortDirectionChange?: (sortDirection: SortDirection) => void;
   sortByOptions?: Array<{ label: string; value: DiagramSortBy | string }>;
-  renderContextMenu?: (item: Item) => ReactNode;
+  renderContextMenu?: (item: Item) => ReactNode; // Deprecated: kept for backward compatibility
   showCreateButtons?: boolean; // Show create buttons (default: true)
   isTrashMode?: boolean; // If true, use trash-specific context menu and disable normal shortcuts
   renderTrashContextMenu?: (selectedItems: Item[]) => ReactNode; // Custom trash background context menu
   trashItemsMap?: Map<string, TrashItem>; // Map of trash items for keyboard shortcuts (only in trash mode)
+  onRename?: (item: Item) => void; // Callback for rename action
+  onDeleteItem?: (item: Item) => void; // Callback for delete single item action
+  onShare?: (item: Item) => void; // Callback for share action
 }
 
 export function ItemsList({
@@ -59,6 +62,9 @@ export function ItemsList({
   isTrashMode = false,
   renderTrashContextMenu,
   trashItemsMap,
+  onRename,
+  onDeleteItem,
+  onShare,
 }: ItemsListProps = {}) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -268,7 +274,7 @@ export function ItemsList({
                             <ContextMenuTrigger asChild>
                               {card}
                             </ContextMenuTrigger>
-                            <ContextMenuContent>
+                            <ContextMenuContent className="w-52">
                               {renderContextMenu(item)}
                             </ContextMenuContent>
                           </ContextMenu>
@@ -309,7 +315,7 @@ export function ItemsList({
                             <ContextMenuTrigger asChild>
                               {card}
                             </ContextMenuTrigger>
-                            <ContextMenuContent>
+                            <ContextMenuContent className="w-52">
                               {renderContextMenu(item)}
                             </ContextMenuContent>
                           </ContextMenu>
@@ -350,12 +356,13 @@ export function ItemsList({
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent className="w-52">
           {isTrashMode && renderTrashContextMenu ? (
             renderTrashContextMenu(selectedItemsArray)
           ) : (
-            <UnifiedBackgroundContextMenu
+            <UnifiedContextMenu
               selectedDiagramIds={selectedDiagramIds}
+              selectedItems={selectedItemsArray}
               selectedTrashItems={selectedTrashItems}
               isTrashMode={isTrashMode}
               showCreate={showCreateButtons && !isTrashMode}
@@ -370,6 +377,9 @@ export function ItemsList({
               onRestore={() => {
                 // Selection will be cleared when items are removed
               }}
+              onRename={onRename}
+              onDeleteItem={onDeleteItem}
+              onShare={onShare}
             />
           )}
         </ContextMenuContent>

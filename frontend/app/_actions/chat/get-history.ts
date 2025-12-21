@@ -1,12 +1,13 @@
 "use server";
 
-import { getCurrentUser } from "../user";
+import { canViewDiagram } from "../diagram/permission";
 import type { HistoryResponse } from "@/types/chat";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 /**
  * Get chat history for a diagram with pagination
+ * Checks view permission for both authenticated and anonymous users
  * @param diagramId - Diagram ID
  * @param limit - Number of messages to fetch (default: 10)
  * @param offset - Offset for pagination (default: 0)
@@ -17,9 +18,9 @@ async function getChatHistory(
   limit: number = 10,
   offset: number = 0
 ): Promise<HistoryResponse | null> {
-  const user = await getCurrentUser();
-
-  if (!user || !user.id) {
+  // Check view permission (works for both authenticated and anonymous users)
+  const canView = await canViewDiagram(diagramId);
+  if (!canView) {
     return null;
   }
 

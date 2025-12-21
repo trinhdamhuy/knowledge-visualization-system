@@ -33,6 +33,7 @@ import { useChatbotStatus } from "@/hooks/use-chatbot-status";
 import { useBroadcastEventListener } from "@/hooks/use-broadcast-event";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useSession } from "next-auth/react";
+import { useSelf } from "@liveblocks/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -53,7 +54,10 @@ export function ChatPanel() {
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
   const { data: session } = useSession();
-  const userId = session?.user?.id;
+  const currentUser = useSelf();
+  // Use Liveblocks user ID (works for both authenticated and anonymous users)
+  // Fallback to session user ID for authenticated users
+  const userId = currentUser?.id || session?.user?.id;
 
   const [value, setValue] = useState("");
   const [deleteChatDialogOpen, setDeleteChatDialogOpen] = useState(false);
@@ -615,7 +619,7 @@ export function ChatPanel() {
             <TooltipTrigger asChild>
               <Avatar className="size-8">
                 <AvatarImage src={userInfo?.image || undefined} />
-                <AvatarFallback>
+                <AvatarFallback className="size-8">
                   {userInfo?.name?.[0]?.toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>

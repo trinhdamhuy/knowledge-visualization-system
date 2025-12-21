@@ -1,19 +1,25 @@
 "use server";
 
-import { getCurrentUser } from "../user";
+import { canViewDiagram } from "../diagram/permission";
 import type { ChatRequest } from "@/types/chat";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 /**
  * Send chat request to backend
- * @param request - Chat request parameters
+ * Checks view permission for both authenticated and anonymous users
+ * @param request - Chat request parameters (includes user_id from Liveblocks)
  * @returns true if request was accepted, false otherwise
  */
 async function sendChatRequest(request: ChatRequest): Promise<boolean> {
-  const user = await getCurrentUser();
+  // Check view permission (works for both authenticated and anonymous users)
+  const canView = await canViewDiagram(request.diagram_id);
+  if (!canView) {
+    return false;
+  }
 
-  if (!user || !user.id) {
+  // Validate that user_id is provided (from Liveblocks, can be anonymous ID)
+  if (!request.user_id) {
     return false;
   }
 
@@ -40,13 +46,14 @@ async function sendChatRequest(request: ChatRequest): Promise<boolean> {
 
 /**
  * Cancel an ongoing chat request
+ * Checks view permission for both authenticated and anonymous users
  * @param diagramId - Diagram ID to cancel chat for
  * @returns true if cancellation was successful, false otherwise
  */
 async function cancelChatRequest(diagramId: string): Promise<boolean> {
-  const user = await getCurrentUser();
-
-  if (!user || !user.id) {
+  // Check view permission (works for both authenticated and anonymous users)
+  const canView = await canViewDiagram(diagramId);
+  if (!canView) {
     return false;
   }
 

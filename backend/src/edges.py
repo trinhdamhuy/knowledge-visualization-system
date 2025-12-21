@@ -468,6 +468,7 @@ async def generate_answer(state: State):
     existing_mindmap_data = (
         state["messages"][-1].additional_kwargs.get("mindmap_data", {})
         if state["messages"]
+        and state["messages"][-1].additional_kwargs
         else {}
     )
 
@@ -669,7 +670,7 @@ async def generate_answer(state: State):
             "messages": [
                 AIMessage(
                     content=response.answer,
-                    additional_kwargs=additional_kwargs if additional_kwargs else None,
+                    additional_kwargs=additional_kwargs,  # Always pass dict, never None
                 )
             ]
         }

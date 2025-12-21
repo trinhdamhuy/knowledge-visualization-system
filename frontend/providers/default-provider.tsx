@@ -28,17 +28,20 @@ const queryClient = new QueryClient({
 const TeamAndLanguageSync = () => {
   const { data: session, status } = useSession();
   const locale = useLocale();
-  const { clearCurrentTeam } = useTeamStore();
+  const clearCurrentTeam = useTeamStore((state) => state.clearCurrentTeam);
   const changeLanguage = useLanguage();
 
   useEffect(() => {
     if (status === "unauthenticated") {
       clearCurrentTeam();
     }
+  }, [status, clearCurrentTeam]);
+
+  useEffect(() => {
     if (session && locale !== session.user.language) {
       changeLanguage(session.user.language);
     }
-  }, [session, status, locale, changeLanguage, clearCurrentTeam]);
+  }, [session, locale, changeLanguage]);
 
   return null;
 };
