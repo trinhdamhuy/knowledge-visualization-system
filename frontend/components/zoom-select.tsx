@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useReactFlow, useStore } from "@xyflow/react";
 
 import {
@@ -13,7 +13,18 @@ import {
 import { Separator } from "react-aria-components";
 
 export default function ZoomSelect() {
-  const { zoomTo, fitView } = useReactFlow();
+  const { zoomTo, fitView, getZoom } = useReactFlow();
+  const [currentZoom, setCurrentZoom] = useState<string>("");
+
+  // Subscribe to zoom changes
+  const zoom = useStore((state) => state.transform[2]);
+
+  // Update current zoom display when zoom changes
+  useEffect(() => {
+    // Use zoom directly from store instead of getZoom() to avoid dependency issues
+    const zoomPercent = Math.round(zoom * 100);
+    setCurrentZoom(zoomPercent.toString());
+  }, [zoom]);
 
   const handleZoomChange = useCallback(
     (value: string) => {
@@ -32,7 +43,7 @@ export default function ZoomSelect() {
   const zoomLevels = useStore((state) => {
     const { minZoom, maxZoom } = state;
     const levels = [];
-    const zoomIncrement = 50;
+    const zoomIncrement = 25; // Smaller increment for more options
 
     for (
       let i = Math.ceil(minZoom * 100);
@@ -45,10 +56,33 @@ export default function ZoomSelect() {
     return levels;
   });
 
+  // Find closest zoom level for display
+  const getDisplayValue = () => {
+    if (!currentZoom) return "Zoom";
+    const zoomFloat = parseFloat(currentZoom) / 100;
+
+    // Check if current zoom matches a level
+    const exactMatch = zoomLevels.find(
+      (level) => Math.abs(parseFloat(level) - zoomFloat) < 0.01
+    );
+
+    if (exactMatch) {
+      return `${(parseFloat(exactMatch) * 100).toFixed(0)}%`;
+    }
+
+    // Return current zoom percentage
+    return `${parseFloat(currentZoom)}%`;
+  };
+
   return (
-    <Select onValueChange={handleZoomChange}>
+    <Select
+      value={
+        currentZoom ? (parseFloat(currentZoom) / 100).toString() : undefined
+      }
+      onValueChange={handleZoomChange}
+    >
       <SelectTrigger className="w-24">
-        <SelectValue placeholder="Zoom" />
+        <SelectValue placeholder="Zoom">{getDisplayValue()}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="best-fit">Best Fit</SelectItem>

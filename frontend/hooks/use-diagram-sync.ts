@@ -14,6 +14,24 @@ import { applyNodeChanges, applyEdgeChanges, addEdge } from "@xyflow/react";
 import { useDiagramStore } from "@/app/(diagram-editor)/_stores/use-diagram-store";
 
 /**
+ * Helper function to remove selected prop from node (we use Presence for selection)
+ */
+function removeSelectedFromNode<T extends Node>(node: T): Omit<T, "selected"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { selected, ...nodeWithoutSelected } = node;
+  return nodeWithoutSelected as Omit<T, "selected">;
+}
+
+/**
+ * Helper function to remove selected prop from edge (we use Presence for selection)
+ */
+function removeSelectedFromEdge<T extends Edge>(edge: T): Omit<T, "selected"> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { selected, ...edgeWithoutSelected } = edge;
+  return edgeWithoutSelected as Omit<T, "selected">;
+}
+
+/**
  * Hook to sync React Flow with Liveblocks storage
  * Uses Liveblocks as single source of truth
  * Supports batch operations for better undo/redo
@@ -23,24 +41,32 @@ export function useDiagramSync() {
   const nodesMap = useStorage((root) => root.nodes);
   const edgesMap = useStorage((root) => root.edges);
 
-  // Convert LiveMap to arrays
+  // Convert LiveMap to arrays and remove selected prop (we use Presence for selection)
   const nodes = useMemo(() => {
     if (!nodesMap) return [];
     return Array.from(nodesMap.values()).map((node) => {
+      let nodeObj: Node;
       if (node && typeof node === "object" && "toObject" in node) {
-        return (node as unknown as { toObject: () => Node }).toObject();
+        nodeObj = (node as unknown as { toObject: () => Node }).toObject();
+      } else {
+        nodeObj = node as unknown as Node;
       }
-      return node as unknown as Node;
+      // Remove selected prop - we use Presence for selection
+      return removeSelectedFromNode(nodeObj);
     });
   }, [nodesMap]);
 
   const edges = useMemo(() => {
     if (!edgesMap) return [];
     return Array.from(edgesMap.values()).map((edge) => {
+      let edgeObj: Edge;
       if (edge && typeof edge === "object" && "toObject" in edge) {
-        return (edge as unknown as { toObject: () => Edge }).toObject();
+        edgeObj = (edge as unknown as { toObject: () => Edge }).toObject();
+      } else {
+        edgeObj = edge as unknown as Edge;
       }
-      return edge as unknown as Edge;
+      // Remove selected prop - we use Presence for selection
+      return removeSelectedFromEdge(edgeObj);
     });
   }, [edgesMap]);
 
@@ -59,9 +85,13 @@ export function useDiagramSync() {
 
     const updatedNodes = applyNodeChanges(changes, currentNodes);
 
-    // Update or add nodes
+    // Update or add nodes (remove selected prop - we use Presence for selection)
     updatedNodes.forEach((node) => {
-      storageNodes.set(node.id, new LiveObject(node as unknown as LsonObject));
+      const nodeWithoutSelected = removeSelectedFromNode(node);
+      storageNodes.set(
+        node.id,
+        new LiveObject(nodeWithoutSelected as unknown as LsonObject)
+      );
     });
 
     // Remove deleted nodes
@@ -88,9 +118,13 @@ export function useDiagramSync() {
 
     const updatedEdges = applyEdgeChanges(changes, currentEdges);
 
-    // Update or add edges
+    // Update or add edges (remove selected prop - we use Presence for selection)
     updatedEdges.forEach((edge) => {
-      storageEdges.set(edge.id, new LiveObject(edge as unknown as LsonObject));
+      const edgeWithoutSelected = removeSelectedFromEdge(edge);
+      storageEdges.set(
+        edge.id,
+        new LiveObject(edgeWithoutSelected as unknown as LsonObject)
+      );
     });
 
     // Remove deleted edges
@@ -117,7 +151,11 @@ export function useDiagramSync() {
     const updatedNodes = applyNodeChanges(changes, currentNodes);
 
     updatedNodes.forEach((node) => {
-      storageNodes.set(node.id, new LiveObject(node as unknown as LsonObject));
+      const nodeWithoutSelected = removeSelectedFromNode(node);
+      storageNodes.set(
+        node.id,
+        new LiveObject(nodeWithoutSelected as unknown as LsonObject)
+      );
     });
 
     const nodeIds = new Set(updatedNodes.map((n) => n.id));
@@ -143,7 +181,11 @@ export function useDiagramSync() {
     const updatedEdges = applyEdgeChanges(changes, currentEdges);
 
     updatedEdges.forEach((edge) => {
-      storageEdges.set(edge.id, new LiveObject(edge as unknown as LsonObject));
+      const edgeWithoutSelected = removeSelectedFromEdge(edge);
+      storageEdges.set(
+        edge.id,
+        new LiveObject(edgeWithoutSelected as unknown as LsonObject)
+      );
     });
 
     const edgeIds = new Set(updatedEdges.map((e) => e.id));
@@ -153,6 +195,36 @@ export function useDiagramSync() {
       }
     });
   }, []);
+
+  // Batch delete nodes and edges in a single operation (for undo/redo)
+  // This ensures that deleting nodes and their connected edges creates only one undo entry
+  const deleteNodesAndEdges = useMutation(
+    (
+      { storage },
+      {
+        nodeIds,
+        edgeIds,
+      }: {
+        nodeIds: string[];
+        edgeIds: string[];
+      }
+    ) => {
+      const storageNodes = storage.get("nodes");
+      const storageEdges = storage.get("edges");
+      if (!storageNodes || !storageEdges) return;
+
+      // Delete nodes
+      nodeIds.forEach((id) => {
+        storageNodes.delete(id);
+      });
+
+      // Delete edges
+      edgeIds.forEach((id) => {
+        storageEdges.delete(id);
+      });
+    },
+    []
+  );
 
   // Mutation to add new edge on connect
   const addNewEdge = useMutation(({ storage }, connection: Connection) => {
@@ -169,9 +241,13 @@ export function useDiagramSync() {
 
     const newEdges = addEdge(connection, currentEdges);
 
-    // Update all edges
+    // Update all edges (remove selected prop - we use Presence for selection)
     newEdges.forEach((edge) => {
-      storageEdges.set(edge.id, new LiveObject(edge as unknown as LsonObject));
+      const edgeWithoutSelected = removeSelectedFromEdge(edge);
+      storageEdges.set(
+        edge.id,
+        new LiveObject(edgeWithoutSelected as unknown as LsonObject)
+      );
     });
   }, []);
 
@@ -180,9 +256,11 @@ export function useDiagramSync() {
     const storageNodes = storage.get("nodes");
     if (!storageNodes) return;
 
+    // Remove selected prop - we use Presence for selection
+    const nodeWithoutSelected = removeSelectedFromNode(newNode);
     storageNodes.set(
       newNode.id,
-      new LiveObject(newNode as unknown as LsonObject)
+      new LiveObject(nodeWithoutSelected as unknown as LsonObject)
     );
   }, []);
 
@@ -192,13 +270,16 @@ export function useDiagramSync() {
       const storageEdges = storage.get("edges");
       if (!storageNodes || !storageEdges) return;
 
+      // Remove selected prop - we use Presence for selection
+      const nodeWithoutSelected = removeSelectedFromNode(newNode);
+      const edgeWithoutSelected = removeSelectedFromEdge(newEdge);
       storageNodes.set(
         newNode.id,
-        new LiveObject(newNode as unknown as LsonObject)
+        new LiveObject(nodeWithoutSelected as unknown as LsonObject)
       );
       storageEdges.set(
         newEdge.id,
-        new LiveObject(newEdge as unknown as LsonObject)
+        new LiveObject(edgeWithoutSelected as unknown as LsonObject)
       );
     },
     []
@@ -238,9 +319,11 @@ export function useDiagramSync() {
           },
         };
 
+        // Remove selected prop - we use Presence for selection
+        const nodeWithoutSelected = removeSelectedFromNode(updatedNode);
         storageNodes.set(
           nodeId,
-          new LiveObject(updatedNode as unknown as LsonObject)
+          new LiveObject(nodeWithoutSelected as unknown as LsonObject)
         );
       });
     },
@@ -273,9 +356,11 @@ export function useDiagramSync() {
             : currentEdge.style,
         };
 
+        // Remove selected prop - we use Presence for selection
+        const edgeWithoutSelected = removeSelectedFromEdge(updatedEdge);
         storageEdges.set(
           edgeId,
-          new LiveObject(updatedEdge as unknown as LsonObject)
+          new LiveObject(edgeWithoutSelected as unknown as LsonObject)
         );
       });
     },
@@ -312,19 +397,21 @@ export function useDiagramSync() {
         ? mindmapData.edges
         : Object.values(mindmapData.edges);
 
-      // Add new nodes
+      // Add new nodes (remove selected prop - we use Presence for selection)
       nodesArray.forEach((node) => {
+        const nodeWithoutSelected = removeSelectedFromNode(node);
         storageNodes.set(
           node.id,
-          new LiveObject(node as unknown as LsonObject)
+          new LiveObject(nodeWithoutSelected as unknown as LsonObject)
         );
       });
 
-      // Add new edges
+      // Add new edges (remove selected prop - we use Presence for selection)
       edgesArray.forEach((edge) => {
+        const edgeWithoutSelected = removeSelectedFromEdge(edge);
         storageEdges.set(
           edge.id,
-          new LiveObject(edge as unknown as LsonObject)
+          new LiveObject(edgeWithoutSelected as unknown as LsonObject)
         );
       });
     },
@@ -415,12 +502,22 @@ export function useDiagramSync() {
       throw new Error("Storage not available");
     }
 
+    // Add nodes (remove selected prop - we use Presence for selection)
     newNodes.forEach((node) => {
-      storageNodes.set(node.id, new LiveObject(node as unknown as LsonObject));
+      const nodeWithoutSelected = removeSelectedFromNode(node);
+      storageNodes.set(
+        node.id,
+        new LiveObject(nodeWithoutSelected as unknown as LsonObject)
+      );
     });
 
+    // Add edges (remove selected prop - we use Presence for selection)
     newEdges.forEach((edge) => {
-      storageEdges.set(edge.id, new LiveObject(edge as unknown as LsonObject));
+      const edgeWithoutSelected = removeSelectedFromEdge(edge);
+      storageEdges.set(
+        edge.id,
+        new LiveObject(edgeWithoutSelected as unknown as LsonObject)
+      );
     });
 
     return {
@@ -449,6 +546,7 @@ export function useDiagramSync() {
     updateEdges,
     batchUpdateNodes,
     batchUpdateEdges,
+    deleteNodesAndEdges,
     addNewEdge,
     addNode,
     addNodeWithEdge,

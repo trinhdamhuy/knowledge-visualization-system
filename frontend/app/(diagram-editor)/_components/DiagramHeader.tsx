@@ -9,7 +9,6 @@ import { useDiagramById, useDiagram } from "@/hooks/use-diagram";
 import { EditableTitle } from "@/app/_components/editable-title";
 import { toast } from "sonner";
 import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
-import { Panel } from "@xyflow/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -47,7 +46,7 @@ export function DiagramHeader() {
   };
 
   return (
-    <Panel position="top-left">
+    <div className="absolute left-3 top-3 z-10">
       {/* Back button and title */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
@@ -71,6 +70,6 @@ export function DiagramHeader() {
           )}
         </CardContent>
       </Card>
-    </Panel>
+    </div>
   );
 }

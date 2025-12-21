@@ -43,32 +43,37 @@ export function CustomColorPicker({
   );
 
   return (
-    <ColorPicker
-      key={pickerKey}
-      defaultValue={defaultValue}
-      onValueChange={onValueChange}
-      format={format}
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
-      <ColorPickerTrigger asChild>
-        <Button variant="outline" className={triggerClassName}>
-          <ColorPickerSwatch className={swatchClassName} />
-          <span className="text-xs">{displayValue}</span>
-        </Button>
-      </ColorPickerTrigger>
-      <ColorPickerContent className={className}>
-        <ColorPickerArea />
-        <div className="flex items-center gap-2">
-          <ColorPickerEyeDropper size="icon" />
-          <div className="flex flex-1 flex-col gap-1.5">
-            <ColorPickerHueSlider />
-            <ColorPickerAlphaSlider />
+      <ColorPicker
+        key={pickerKey}
+        defaultValue={defaultValue}
+        onValueChange={onValueChange}
+        format={format}
+      >
+        <ColorPickerTrigger asChild>
+          <Button variant="outline" className={triggerClassName}>
+            <ColorPickerSwatch className={swatchClassName} />
+            <span className="text-xs">{displayValue}</span>
+          </Button>
+        </ColorPickerTrigger>
+        <ColorPickerContent className={className}>
+          <ColorPickerArea />
+          <div className="flex items-center gap-2">
+            <ColorPickerEyeDropper size="icon" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <ColorPickerHueSlider />
+              <ColorPickerAlphaSlider />
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ColorPickerFormatSelect size={size} />
-          <ColorPickerInput className="text-xs" />
-        </div>
-      </ColorPickerContent>
-    </ColorPicker>
+          <div className="flex items-center gap-2">
+            <ColorPickerFormatSelect size={size} />
+            <ColorPickerInput className="text-xs" />
+          </div>
+        </ColorPickerContent>
+      </ColorPicker>
+    </div>
   );
 }

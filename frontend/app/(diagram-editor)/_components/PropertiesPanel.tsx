@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
+import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { useTheme } from "next-themes";
 import type { Edge } from "@xyflow/react";
 import {
@@ -16,7 +17,6 @@ import {
   CardHeader,
   CardDescription,
 } from "@/components/ui/card";
-import { Panel } from "@xyflow/react";
 import { CustomColorPicker } from "./CustomColorPicker";
 import { Button } from "@/components/ui/button";
 import {
@@ -320,14 +320,29 @@ export function PropertiesPanel() {
     };
   }, [selectedNodes]);
 
-  // Update style for all selected nodes using batch operation
-  const updateSelectedNodesStyle = useCallback(
+  // Update style for all selected nodes using batch operation (debounced)
+  const updateSelectedNodesStyleImmediate = useCallback(
     (styleUpdate: Record<string, unknown>) => {
       if (selectedObjectIds.nodeIds.length > 0) {
         batchUpdateNodeData(selectedObjectIds.nodeIds, styleUpdate, undefined);
       }
     },
     [selectedObjectIds.nodeIds, batchUpdateNodeData]
+  );
+
+  const updateSelectedNodesStyle = useDebouncedCallback(
+    updateSelectedNodesStyleImmediate
+  );
+
+  // Debounced version for individual node updates (used in expanded sections)
+  const debouncedBatchUpdateNodeData = useDebouncedCallback(
+    (
+      nodeIds: string[],
+      data: Record<string, unknown>,
+      nodeProps?: { width?: number; height?: number }
+    ) => {
+      batchUpdateNodeData(nodeIds, data, nodeProps);
+    }
   );
 
   // Update shape for all selected nodes using batch operation
@@ -424,14 +439,25 @@ export function PropertiesPanel() {
     };
   }, [selectedEdges]);
 
-  // Update edge style for all selected edges using batch operation
-  const updateSelectedEdgesStyle = useCallback(
+  // Update edge style for all selected edges using batch operation (debounced)
+  const updateSelectedEdgesStyleImmediate = useCallback(
     (styleUpdate: Partial<Edge>) => {
       if (selectedObjectIds.edgeIds.length > 0) {
         batchUpdateEdgeData(selectedObjectIds.edgeIds, styleUpdate);
       }
     },
     [selectedObjectIds.edgeIds, batchUpdateEdgeData]
+  );
+
+  const updateSelectedEdgesStyle = useDebouncedCallback(
+    updateSelectedEdgesStyleImmediate
+  );
+
+  // Debounced version for individual edge updates (used in expanded sections)
+  const debouncedBatchUpdateEdgeData = useDebouncedCallback(
+    (edgeIds: string[], styleUpdate: Partial<Edge>) => {
+      batchUpdateEdgeData(edgeIds, styleUpdate);
+    }
   );
 
   const isMixed = (value: StyleValue<number | string | boolean>) =>
@@ -441,11 +467,15 @@ export function PropertiesPanel() {
     selectedNodes.length > 0 || selectedEdges.length > 0;
 
   return (
-    <Panel position="top-right">
+    <div
+      className="absolute top-3 right-3 z-10"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <Card
-        className={`min-w-80 ${
+        className={`min-w-80 overflow-hidden py-3 gap-2 ${
           hasSelectedNodesOrEdges ? "h-[97vh]" : "h-fit"
-        } overflow-hidden py-3 gap-2`}
+        }`}
       >
         {/* Participants and settings */}
         <div className="flex items-center justify-between w-full gap-2 px-3">
@@ -653,7 +683,7 @@ export function PropertiesPanel() {
                                               ),
                                               100
                                             );
-                                        batchUpdateNodeData(
+                                        debouncedBatchUpdateNodeData(
                                           [nodeId],
                                           { shape: newShape },
                                           { width: size, height: size }
@@ -665,7 +695,7 @@ export function PropertiesPanel() {
                                         const newHeight = currentIsSquare
                                           ? 50
                                           : currentHeight;
-                                        batchUpdateNodeData(
+                                        debouncedBatchUpdateNodeData(
                                           [nodeId],
                                           { shape: newShape },
                                           { width: newWidth, height: newHeight }
@@ -775,7 +805,7 @@ export function PropertiesPanel() {
                                     defaultValue={displayColor}
                                     onValueChange={(newColor) => {
                                       if (group.ids.length > 0) {
-                                        batchUpdateNodeData(
+                                        debouncedBatchUpdateNodeData(
                                           group.ids,
                                           { color: newColor },
                                           undefined
@@ -876,7 +906,7 @@ export function PropertiesPanel() {
                                   value={group.fontFamily}
                                   onValueChange={(newFontFamily) => {
                                     if (group.ids.length > 0) {
-                                      batchUpdateNodeData(
+                                      debouncedBatchUpdateNodeData(
                                         group.ids,
                                         { fontFamily: newFontFamily },
                                         undefined
@@ -981,7 +1011,7 @@ export function PropertiesPanel() {
                                   value={group.fontSize}
                                   onValueChange={(newFontSize) => {
                                     if (group.ids.length > 0) {
-                                      batchUpdateNodeData(
+                                      debouncedBatchUpdateNodeData(
                                         group.ids,
                                         { fontSize: Number(newFontSize) },
                                         undefined
@@ -1185,7 +1215,7 @@ export function PropertiesPanel() {
                                     defaultValue={group.color}
                                     onValueChange={(newColor) => {
                                       if (group.ids.length > 0) {
-                                        batchUpdateNodeData(
+                                        debouncedBatchUpdateNodeData(
                                           group.ids,
                                           { textColor: newColor },
                                           undefined
@@ -1290,7 +1320,7 @@ export function PropertiesPanel() {
                                   value={group.type}
                                   onValueChange={(newType) => {
                                     if (group.ids.length > 0) {
-                                      batchUpdateEdgeData(group.ids, {
+                                      debouncedBatchUpdateEdgeData(group.ids, {
                                         type: newType,
                                       });
                                     }
@@ -1398,9 +1428,12 @@ export function PropertiesPanel() {
                                     defaultValue={group.color}
                                     onValueChange={(newColor) => {
                                       if (group.ids.length > 0) {
-                                        batchUpdateEdgeData(group.ids, {
-                                          style: { stroke: newColor },
-                                        });
+                                        debouncedBatchUpdateEdgeData(
+                                          group.ids,
+                                          {
+                                            style: { stroke: newColor },
+                                          }
+                                        );
                                       }
                                     }}
                                     displayValue={group.color}
@@ -1436,6 +1469,8 @@ export function PropertiesPanel() {
                             style: { strokeWidth: Number(e.target.value) },
                           })
                         }
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="w-full h-fit text-xs py-1 px-2 rounded-sm"
                       />
                       {isMixed(unifiedEdgeStyle.strokeWidth) && (
@@ -1476,13 +1511,15 @@ export function PropertiesPanel() {
                                   onChange={(e) => {
                                     const newWidth = Number(e.target.value);
                                     if (group.ids.length > 0) {
-                                      batchUpdateEdgeData(group.ids, {
+                                      debouncedBatchUpdateEdgeData(group.ids, {
                                         style: {
                                           strokeWidth: String(newWidth),
                                         },
                                       });
                                     }
                                   }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onMouseDown={(e) => e.stopPropagation()}
                                   className="w-full h-fit text-xs py-1 px-2 rounded-sm"
                                 />
                               ))}
@@ -1520,6 +1557,6 @@ export function PropertiesPanel() {
           </ScrollArea>
         )}
       </Card>
-    </Panel>
+    </div>
   );
 }

@@ -3,7 +3,6 @@ import { useDiagramStore } from "../_stores/use-diagram-store";
 import { DiagramMode } from "@/enums/modes";
 import { MousePointer2, Box, Undo2, Redo2, FileText, Bot } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Panel } from "@xyflow/react";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -52,7 +51,7 @@ export function DiagramToolBar() {
   ];
 
   return (
-    <Panel position="center-left" className="flex flex-col gap-2">
+    <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-2">
       <Card className="p-2">
         <ToggleGroup
           type="single"
@@ -104,6 +103,6 @@ export function DiagramToolBar() {
           </Button>
         ))}
       </Card>
-    </Panel>
+    </div>
   );
 }

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { PropertiesPanel } from "./PropertiesPanel";
-import { NodeContextMenu } from "./NodeContextMenu";
 import {
   ReactFlow,
   Background,
@@ -13,11 +12,16 @@ import {
   Edge,
   ReactFlowInstance,
   BackgroundVariant,
+  NodeChange,
+  applyNodeChanges,
 } from "@xyflow/react";
 import "../style.css";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
+import CustomEdge from "./CustomEdge";
 import { CollaboratorCursors } from "./CollaboratorCursors";
+import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
+import { SelectedNodesBox } from "./SelectedNodesBox";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
@@ -28,10 +32,6 @@ export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
   const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
-  const [contextMenu, setContextMenu] = useState<{
-    nodeId: string;
-    position: { x: number; y: number };
-  } | null>(null);
 
   const { activeMode, setActiveMode } = useDiagramStore();
   const currentUser = useSelf();
@@ -40,9 +40,45 @@ export function DiagramCanvas() {
     edgeIds: [],
   };
 
+  // Get interaction handlers from CombinedInteractionHandler
+  const [handlers, setHandlers] = useState<{
+    onNodeContextMenu: (event: React.MouseEvent, node: Node) => void;
+    onEdgeContextMenu?: (event: React.MouseEvent, edge: Edge) => void;
+    onPaneClick: (event: React.MouseEvent) => void;
+    onPaneContextMenu?: (event: React.MouseEvent) => void;
+    onPaneMouseDown?: (event: React.MouseEvent) => void;
+  } | null>(null);
+
   // Use Liveblocks as single source of truth
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
     useDiagramSync();
+
+  // Local state for nodes during drag (preview only)
+  const [localNodes, setLocalNodes] = useState<Node[]>(nodes);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingSelectionBox, setIsDraggingSelectionBox] = useState(false);
+  const nodesFromLiveblocksRef = useRef<Node[]>(nodes);
+
+  // Update ref when nodes change (for comparison)
+  useEffect(() => {
+    nodesFromLiveblocksRef.current = nodes;
+  }, [nodes]);
+
+  // Track if any drag is active (node drag or selection box drag)
+  const isAnyDragging = isDragging || isDraggingSelectionBox;
+
+  // Sync local nodes with Liveblocks nodes when not dragging
+  // This ensures undo/redo works correctly by syncing with Liveblocks state
+  // Using a separate effect to handle the sync after render
+  useEffect(() => {
+    if (!isAnyDragging) {
+      // Use a small timeout to avoid setState during render
+      const timeoutId = setTimeout(() => {
+        setLocalNodes(nodesFromLiveblocksRef.current);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [nodes, isAnyDragging]);
 
   // Track mouse position for create node mode
   const [mousePosition, setMousePosition] = useState<{
@@ -55,13 +91,24 @@ export function DiagramCanvas() {
     setActiveMode(DiagramMode.Select);
   }, [setActiveMode]);
 
-  const onNodeContextMenu = (event: React.MouseEvent, node: Node) => {
-    event.preventDefault();
-    setContextMenu({
-      nodeId: node.id,
-      position: { x: event.clientX, y: event.clientY },
-    });
-  };
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      handlers?.onNodeContextMenu(event, node);
+    },
+    [handlers]
+  );
+
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent | MouseEvent) => {
+      // Convert to React.MouseEvent if needed
+      const reactEvent = event as React.MouseEvent;
+      reactEvent.preventDefault?.();
+      if (handlers?.onPaneContextMenu) {
+        handlers.onPaneContextMenu(reactEvent);
+      }
+    },
+    [handlers]
+  );
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -123,6 +170,12 @@ export function DiagramCanvas() {
   // Handle click on pane to create node or deselect node
   const onPaneClick = useCallback(
     (event: React.MouseEvent) => {
+      // Call interaction handler to close context menu if open
+      handlers?.onPaneClick(event);
+
+      // Don't deselect if right-clicking (for pan)
+      if (event.button === 2) return;
+
       // Deselect both nodes and edges when clicking on pane
       updateMyPresence({
         selectedObjectIds: {
@@ -153,21 +206,11 @@ export function DiagramCanvas() {
 
       addNode(newNode);
     },
-    [activeMode, addNode, updateMyPresence]
+    [activeMode, addNode, updateMyPresence, handlers]
   );
 
-  const onSelectionChange = useCallback(
-    (params: { nodes: Node[]; edges: Edge[] }) => {
-      // Update Presence with selected nodes and edges
-      updateMyPresence({
-        selectedObjectIds: {
-          nodeIds: params.nodes.map((n) => n.id),
-          edgeIds: params.edges.map((e) => e.id),
-        },
-      });
-    },
-    [updateMyPresence]
-  );
+  // Note: onSelectionChange is disabled since we use Presence for selection
+  // ReactFlow's built-in selection is disabled via elementsSelectable={false}
 
   const onEdgeClick = useCallback(
     (event: React.MouseEvent, edge: Edge) => {
@@ -200,6 +243,43 @@ export function DiagramCanvas() {
     [currentSelection.edgeIds, updateMyPresence]
   );
 
+  // Handle node changes - only update local state during drag, save to Liveblocks on drag stop
+  const onNodesChangeLocal = useCallback(
+    (changes: NodeChange[]) => {
+      // Update local state for preview
+      setLocalNodes((nds) => applyNodeChanges(changes, nds));
+
+      // If not dragging (neither node drag nor selection box drag), save to Liveblocks immediately
+      // (for non-drag changes like delete, add, etc.)
+      if (!isAnyDragging) {
+        updateNodes(changes);
+      }
+    },
+    [isAnyDragging, updateNodes]
+  );
+
+  // Handle node drag start
+  const onNodeDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
+  // Handle node drag stop - save to Liveblocks
+  const onNodeDragStop = useCallback(() => {
+    if (isDragging && reactFlowInstance.current) {
+      // Get current node positions from local state
+      const currentNodes = reactFlowInstance.current.getNodes();
+      const positionChanges: NodeChange[] = currentNodes.map((node) => ({
+        id: node.id,
+        type: "position" as const,
+        position: node.position,
+      }));
+
+      // Save to Liveblocks
+      updateNodes(positionChanges);
+      setIsDragging(false);
+    }
+  }, [isDragging, updateNodes]);
+
   return (
     <ReactFlow
       colorMode={
@@ -210,44 +290,60 @@ export function DiagramCanvas() {
           : "system"
       }
       proOptions={{ hideAttribution: true }}
-      nodes={nodes}
+      nodes={localNodes}
       edges={edges}
-      onNodesChange={updateNodes}
+      onNodesChange={onNodesChangeLocal}
       onEdgesChange={updateEdges}
+      onNodeDragStart={onNodeDragStart}
+      onNodeDragStop={onNodeDragStop}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
       onConnect={addNewEdge}
       onPaneClick={onPaneClick}
+      onPaneContextMenu={onPaneContextMenu}
       onNodeClick={onNodeClick}
       onEdgeClick={onEdgeClick}
-      onSelectionChange={onSelectionChange}
-      panOnDrag={activeMode === DiagramMode.Select ? [2] : false}
-      selectionOnDrag={activeMode === DiagramMode.Select}
+      onEdgeContextMenu={(event, edge) => {
+        handlers?.onEdgeContextMenu?.(event, edge);
+      }}
+      panOnDrag={false}
+      selectionOnDrag={false}
       nodeTypes={{ custom: CustomNode }}
+      edgeTypes={{
+        default: CustomEdge,
+        straight: CustomEdge,
+        step: CustomEdge,
+        smoothstep: CustomEdge,
+        simplebezier: CustomEdge,
+        custom: CustomEdge,
+      }}
       onNodeContextMenu={onNodeContextMenu}
       onInit={(instance) => (reactFlowInstance.current = instance)}
       nodesDraggable={true}
       nodesConnectable={true}
-      elementsSelectable={true}
-      selectNodesOnDrag={activeMode === DiagramMode.Select}
+      elementsSelectable={false}
+      selectNodesOnDrag={false}
     >
       <DiagramHeader />
       <DiagramToolBar />
       <PropertiesPanel />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
+      <CombinedInteractionHandler onHandlersReady={(h) => setHandlers(h)} />
+      <SelectedNodesBox
+        onDragStart={() => setIsDraggingSelectionBox(true)}
+        onDragStop={() => setIsDraggingSelectionBox(false)}
+        onContextMenu={(event) => {
+          // Open context menu when right-clicking on selection box
+          handlers?.onPaneContextMenu?.(event);
+        }}
+      />
       <MiniMap
+        pannable
         position="bottom-left"
         maskColor="transparent"
         className="border-2 border-text-foreground rounded-md min-h-fit min-w-fit"
       />
-      {contextMenu && (
-        <NodeContextMenu
-          nodeId={contextMenu.nodeId}
-          position={contextMenu.position}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
       {/* Show Box icon when in create node mode */}
       {activeMode === DiagramMode.CreateNode && mousePosition && (
         <div

@@ -23,7 +23,8 @@ interface DiagramProviderProps {
  */
 export function DiagramProvider({ children }: DiagramProviderProps) {
   const { setActiveMode } = useDiagramStore();
-  const { copySelected, paste, nodes, edges } = useDiagramSync();
+  const { copySelected, paste, nodes, edges, deleteNodesAndEdges } =
+    useDiagramSync();
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
@@ -38,11 +39,52 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
       nodeIds: [],
       edgeIds: [],
     };
-    if (selection.nodeIds.length === 0 && selection.edgeIds.length === 0) {
+    // Only copy nodes, not edges
+    if (selection.nodeIds.length === 0) {
       return;
     }
-    copySelected(selection.nodeIds, selection.edgeIds);
+    copySelected(selection.nodeIds, []); // Don't copy edges
   }, [currentUser, copySelected]);
+
+  // Handle cut
+  const handleCut = useCallback(() => {
+    const selection = currentUser?.presence?.selectedObjectIds ?? {
+      nodeIds: [],
+      edgeIds: [],
+    };
+    // Only cut nodes, not edges
+    if (selection.nodeIds.length === 0) {
+      return;
+    }
+
+    // First, copy nodes to clipboard
+    copySelected(selection.nodeIds, []); // Don't copy edges
+
+    // Also delete edges connected to deleted nodes
+    const connectedEdgeIds = edges
+      .filter(
+        (edge) =>
+          selection.nodeIds.includes(edge.source) ||
+          selection.nodeIds.includes(edge.target)
+      )
+      .map((edge) => edge.id);
+
+    // Delete nodes and edges in a single operation (creates only one undo entry)
+    if (selection.nodeIds.length > 0 || connectedEdgeIds.length > 0) {
+      deleteNodesAndEdges({
+        nodeIds: selection.nodeIds,
+        edgeIds: connectedEdgeIds,
+      });
+    }
+
+    // Clear selection
+    updateMyPresence({
+      selectedObjectIds: {
+        nodeIds: [],
+        edgeIds: [],
+      },
+    });
+  }, [currentUser, copySelected, edges, deleteNodesAndEdges, updateMyPresence]);
 
   // Handle paste
   const handlePaste = useCallback(async () => {
@@ -130,6 +172,13 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
         return;
       }
 
+      // Ctrl+X / Cmd+X: Cut
+      if (ctrlOrCmd && e.key === "x") {
+        e.preventDefault();
+        handleCut();
+        return;
+      }
+
       // Ctrl+V / Cmd+V: Paste
       if (ctrlOrCmd && e.key === "v") {
         e.preventDefault();
@@ -150,6 +199,7 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
     setActiveMode,
     handleSelectAll,
     handleCopy,
+    handleCut,
     handlePaste,
   ]);
 

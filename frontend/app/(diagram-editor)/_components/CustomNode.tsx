@@ -49,18 +49,6 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
 
   const isSelected = isSelectedByCurrentUser || selectingUsers.length > 0;
 
-  // Get color for current user's selection (for border)
-  const getUserColor = (connectionId: number): string => {
-    const colors = [
-      "rgb(59, 130, 246)", // blue
-      "rgb(236, 72, 153)", // pink
-      "rgb(34, 197, 94)", // green
-      "rgb(251, 146, 60)", // orange
-      "rgb(168, 85, 247)", // purple
-    ];
-    return colors[connectionId % colors.length];
-  };
-
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -153,33 +141,15 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     }
   };
 
-  // Determine border color based on selection
-  const borderColor = useMemo(() => {
-    if (!isSelected) return "var(--border)";
-    if (isSelectedByCurrentUser) return "var(--ring)";
-    // Use first other user's color
-    if (selectingUsers.length > 0) {
-      return getUserColor(selectingUsers[0].connectionId);
-    }
-    return "var(--ring)";
-  }, [isSelected, isSelectedByCurrentUser, selectingUsers]);
+  // Get ring color (same as edge)
+  const ringColor = "#3b82f6"; // blue color for ring
 
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
     color: "var(--card-foreground)",
-    border:
-      shape === "diamond"
-        ? "none"
-        : isSelected
-        ? `2px solid ${borderColor}`
-        : "1px solid var(--border)",
+    border: shape === "diamond" ? "none" : "1px solid var(--border)",
     padding: "10px 15px",
-    boxShadow:
-      shape === "diamond"
-        ? "none"
-        : isSelected
-        ? `0 0 0 1px ${borderColor}, 0 1px 2px 0 rgba(0, 0, 0, 0.1)`
-        : "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
     position: "relative",
     display: "flex",
     alignItems: "center",
@@ -216,30 +186,45 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
   const renderDiamondBackground = () => {
     if (shape !== "diamond") return null;
     return (
-      <svg
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-        }}
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        <polygon
-          points="50,2 98,50 50,98 2,50"
-          fill={nodeColor}
-          stroke={isSelected ? borderColor : "var(--border)"}
-          strokeWidth={isSelected ? "3" : "1.5"}
-        />
-      </svg>
+      <>
+        <svg
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          {/* Ring for diamond when selected */}
+          {isSelected && (
+            <polygon
+              points="50,2 98,50 50,98 2,50"
+              fill="none"
+              stroke={ringColor}
+              strokeWidth="6"
+              opacity="0.5"
+            />
+          )}
+          {/* Main diamond */}
+          <polygon
+            points="50,2 98,50 50,98 2,50"
+            fill={nodeColor}
+            stroke="var(--border)"
+            strokeWidth="1.5"
+          />
+        </svg>
+      </>
     );
   };
 
   return (
     <div data-node-id={id} data-node-label={label} style={shapeStyle}>
+      {/* Ring for selection - similar to edge */}
       {renderDiamondBackground()}
       {isSelectedByCurrentUser && (
         <NodeResizer
