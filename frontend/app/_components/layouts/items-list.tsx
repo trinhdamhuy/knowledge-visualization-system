@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Copy, Grid3X3, List } from "lucide-react";
+import { Grid3X3, List } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { MasonryLayout } from "./masonry-layout";
 import { ItemCard } from "../cards/item-card";
@@ -12,14 +12,16 @@ import { Sparkles } from "@/components/animate-ui/icons/sparkles";
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useItemSelection } from "@/app/(main)/_hooks/use-item-selection";
 import { CreateDiagramDialog } from "../dialogs/create-diagram-dialog";
 import { useItems } from "@/hooks/use-items";
 import type { DiagramSortBy, SortDirection, Item } from "@/types";
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
+import { UnifiedBackgroundContextMenu } from "../context-menus/unified-background-context-menu";
+import { useUnifiedKeyboardShortcuts } from "@/app/(main)/_hooks/use-unified-keyboard-shortcuts";
+import type { TrashItem } from "@/types/trash";
 
 interface ItemsListProps {
   onlyMine?: boolean; // If true, only show items owned by current user (for my-diagrams)
@@ -35,6 +37,9 @@ interface ItemsListProps {
   sortByOptions?: Array<{ label: string; value: DiagramSortBy | string }>;
   renderContextMenu?: (item: Item) => ReactNode;
   showCreateButtons?: boolean; // Show create buttons (default: true)
+  isTrashMode?: boolean; // If true, use trash-specific context menu and disable normal shortcuts
+  renderTrashContextMenu?: (selectedItems: Item[]) => ReactNode; // Custom trash background context menu
+  trashItemsMap?: Map<string, TrashItem>; // Map of trash items for keyboard shortcuts (only in trash mode)
 }
 
 export function ItemsList({
@@ -51,6 +56,9 @@ export function ItemsList({
   sortByOptions: customSortByOptions,
   renderContextMenu,
   showCreateButtons = true,
+  isTrashMode = false,
+  renderTrashContextMenu,
+  trashItemsMap,
 }: ItemsListProps = {}) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -134,6 +142,46 @@ export function ItemsList({
 
   const sortByOptions = customSortByOptions ?? defaultSortByOptions;
 
+  // Filter selected items to only include diagrams (not folders)
+  const selectedDiagramIds = useMemo(() => {
+    return Array.from(selectedItems).filter((itemId) => {
+      const item = items.find((i) => i.id === itemId);
+      return item?.type === "diagram";
+    });
+  }, [selectedItems, items]);
+
+  // Get selected items for trash mode
+  const selectedItemsArray = useMemo(() => {
+    return Array.from(selectedItems)
+      .map((itemId) => items.find((i) => i.id === itemId))
+      .filter((item): item is Item => item !== undefined);
+  }, [selectedItems, items]);
+
+  // Get selected trash items for keyboard shortcuts (only in trash mode)
+  const selectedTrashItems = useMemo(() => {
+    if (!isTrashMode || !trashItemsMap) return [];
+    return Array.from(selectedItems)
+      .map((itemId) => trashItemsMap.get(itemId))
+      .filter((item): item is TrashItem => item !== undefined);
+  }, [isTrashMode, trashItemsMap, selectedItems]);
+
+  // Handle unified keyboard shortcuts
+  useUnifiedKeyboardShortcuts({
+    selectedDiagramIds: isTrashMode ? [] : selectedDiagramIds,
+    selectedTrashItems: isTrashMode ? selectedTrashItems : [],
+    isTrashMode,
+    onCopy: () => {
+      // Selection will remain after copy
+    },
+    onDelete: () => {
+      // Selection will be cleared when items are removed
+    },
+    onRestore: () => {
+      // Selection will be cleared when items are removed
+    },
+    enabled: true,
+  });
+
   return (
     <div className="flex flex-col gap-4">
       {showCreateButtons && (
@@ -200,17 +248,35 @@ export function ItemsList({
               <>
                 {viewMode === "list" ? (
                   <div className="flex flex-col w-full items-center justify-center space-y-2">
-                    {items.map((item) => (
-                      <ItemCard
-                        key={`${item.type}-${item.id}`}
-                        ref={(el) => setCardRef(item.id, el)}
-                        variant="list"
-                        item={item}
-                        isSelected={selectedItems.has(item.id)}
-                        onCardClick={handleCardClick}
-                        onCardRightClick={handleCardRightClick}
-                      />
-                    ))}
+                    {items.map((item) => {
+                      const card = (
+                        <ItemCard
+                          key={`${item.type}-${item.id}`}
+                          ref={(el) => setCardRef(item.id, el)}
+                          variant="list"
+                          item={item}
+                          isSelected={selectedItems.has(item.id)}
+                          onCardClick={handleCardClick}
+                          onCardRightClick={handleCardRightClick}
+                        />
+                      );
+
+                      // Wrap with ContextMenu if renderContextMenu is provided
+                      if (renderContextMenu) {
+                        return (
+                          <ContextMenu key={`${item.type}-${item.id}`}>
+                            <ContextMenuTrigger asChild>
+                              {card}
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              {renderContextMenu(item)}
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        );
+                      }
+
+                      return card;
+                    })}
                     {/* Infinite scroll trigger */}
                     <div ref={loadMoreRef} className="h-4 w-full" />
                     {isFetchingNextPage && (
@@ -223,17 +289,35 @@ export function ItemsList({
                   </div>
                 ) : (
                   <MasonryLayout>
-                    {items.map((item) => (
-                      <ItemCard
-                        key={`${item.type}-${item.id}`}
-                        ref={(el) => setCardRef(item.id, el)}
-                        variant="grid"
-                        item={item}
-                        isSelected={selectedItems.has(item.id)}
-                        onCardClick={handleCardClick}
-                        onCardRightClick={handleCardRightClick}
-                      />
-                    ))}
+                    {items.map((item) => {
+                      const card = (
+                        <ItemCard
+                          key={`${item.type}-${item.id}`}
+                          ref={(el) => setCardRef(item.id, el)}
+                          variant="grid"
+                          item={item}
+                          isSelected={selectedItems.has(item.id)}
+                          onCardClick={handleCardClick}
+                          onCardRightClick={handleCardRightClick}
+                        />
+                      );
+
+                      // Wrap with ContextMenu if renderContextMenu is provided
+                      if (renderContextMenu) {
+                        return (
+                          <ContextMenu key={`${item.type}-${item.id}`}>
+                            <ContextMenuTrigger asChild>
+                              {card}
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              {renderContextMenu(item)}
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        );
+                      }
+
+                      return card;
+                    })}
                     {/* Infinite scroll trigger */}
                     <div ref={loadMoreRef} className="h-4 w-full" />
                     {isFetchingNextPage && (
@@ -266,24 +350,29 @@ export function ItemsList({
             )}
           </div>
         </ContextMenuTrigger>
-        {renderContextMenu ? (
-          selectedItems.size > 0 && (
-            <ContextMenuContent>
-              {(() => {
-                const firstSelectedId = Array.from(selectedItems)[0];
-                const item = items.find((i) => i.id === firstSelectedId);
-                return item ? renderContextMenu(item) : null;
-              })()}
-            </ContextMenuContent>
-          )
-        ) : (
-          <ContextMenuContent>
-            <ContextMenuItem>
-              <Copy />
-              Copy
-            </ContextMenuItem>
-          </ContextMenuContent>
-        )}
+        <ContextMenuContent>
+          {isTrashMode && renderTrashContextMenu ? (
+            renderTrashContextMenu(selectedItemsArray)
+          ) : (
+            <UnifiedBackgroundContextMenu
+              selectedDiagramIds={selectedDiagramIds}
+              selectedTrashItems={selectedTrashItems}
+              isTrashMode={isTrashMode}
+              showCreate={showCreateButtons && !isTrashMode}
+              onCreate={() => setIsCreateDialogOpen(true)}
+              onCopy={() => {
+                // Clear selection after copy if needed
+              }}
+              onDelete={() => {
+                // Clear selection after delete
+                // The selection will be cleared automatically when items are removed
+              }}
+              onRestore={() => {
+                // Selection will be cleared when items are removed
+              }}
+            />
+          )}
+        </ContextMenuContent>
       </ContextMenu>
     </div>
   );

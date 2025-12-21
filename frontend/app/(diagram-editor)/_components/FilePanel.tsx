@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { X, FileText, Upload, GripVertical } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,7 @@ export function FilePanel() {
     "pdf" | "txt" | "md" | null
   >(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
-  const [width, setWidth] = useState(400);
+  const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
 
   // Get page number from URL params (check both "page" and "pdf-page")
@@ -311,65 +310,53 @@ export function FilePanel() {
     if (!isOpen) return null;
 
     return (
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed left-20 bottom-3 z-100 h-[90vh] flex"
-            style={{ width: `${width}px` }}
-          >
-            <Card className="flex-1 flex flex-col gap-3 max-w-3xl min-w-sm h-full p-3">
-              {fileContentJSX}
-            </Card>
-            {/* Resize handle - invisible in docked mode */}
-            <div
-              className="w-2 cursor-ew-resize shrink-0"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsResizing(true);
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      isOpen && (
+        <div
+          className="fixed left-20 bottom-3 z-10 h-[90vh] flex"
+          style={{ width: `${width}px` }}
+        >
+          <Card className="flex-1 flex flex-col gap-3 max-w-3xl min-w-sm h-full p-3">
+            {fileContentJSX}
+          </Card>
+          {/* Resize handle - invisible in docked mode */}
+          <div
+            className="w-2 cursor-ew-resize shrink-0"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+          />
+        </div>
+      )
     );
   }
 
   // Sidebar mode: resizable panel on the left
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-          className="h-full flex shrink-0 border-none shadow-none"
+    isOpen && (
+      <div className="h-full flex shrink-0">
+        <Card
+          className="h-full flex flex-col overflow-hidden rounded-none border-none shadow-none p-3 shrink-0"
           style={{ width: `${width}px` }}
         >
-          <Card className="flex-1 h-full flex flex-col gap-3 overflow-hidden rounded-none border-none shadow-none p-3">
-            {fileContentJSX}
-          </Card>
-          {/* Resize handle */}
-          <div
-            className={cn(
-              "w-1 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
-              isResizing && "bg-primary"
-            )}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setIsResizing(true);
-            }}
-          >
-            <div className="h-full flex items-center justify-center">
-              <GripVertical className="size-4 text-muted-foreground" />
-            </div>
+          {fileContentJSX}
+        </Card>
+        {/* Resize handle */}
+        <div
+          className={cn(
+            "w-2.5 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
+            isResizing && "bg-primary"
+          )}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+          }}
+        >
+          <div className="h-full flex items-center justify-center">
+            <GripVertical className="text-muted-foreground" />
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
+      </div>
+    )
   );
 }

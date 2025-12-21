@@ -47,6 +47,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatKeys } from "@/hooks/use-chat";
 import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 import { ReferenceLink } from "./ReferenceLink";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function ChatPanel() {
   const params = useParams();
@@ -60,7 +61,7 @@ export function ChatPanel() {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [allMessages, setAllMessages] = useState<BaseMessage[]>([]);
-  const [width, setWidth] = useState(400);
+  const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   const hasRestoredFromCacheRef = useRef(false);
@@ -294,14 +295,8 @@ export function ChatPanel() {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (displayMode === "sidebar") {
-        // Sidebar mode: resize from left edge
-        const newWidth = e.clientX;
-        if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
-          setWidth(newWidth);
-        }
-      } else if (displayMode === "docked") {
-        // Docked mode: resize from right edge (resize to left)
+      if (displayMode === "docked") {
+        // Docked mode: resize from right edge (resize to left) (left drag for bigger, right drag for smaller)
         const newWidth = window.innerWidth - e.clientX - 12; // 12px for right-3 (0.75rem)
         if (newWidth >= 300 && newWidth <= window.innerWidth * 0.6) {
           setWidth(newWidth);
@@ -636,12 +631,9 @@ export function ChatPanel() {
         )}
 
         <div
-          className={cn(
-            "w-fit rounded-lg p-3 max-w-[80%]",
-            isHuman
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-foreground"
-          )}
+          className={`w-fit rounded-lg max-w-[80%] ${
+            isHuman && "bg-primary text-primary-foreground px-3 py-2"
+          }`}
         >
           {isAI ? (
             <div className="markdown-content">
@@ -729,7 +721,7 @@ export function ChatPanel() {
   };
 
   const chatContent = (
-    <div className="flex flex-col h-full gap-3">
+    <>
       <CardHeader className="flex flex-col gap-3 shrink-0 p-0">
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
@@ -790,91 +782,95 @@ export function ChatPanel() {
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto relative"
+          className="flex-1 overflow-y-hidden relative"
         >
-          {/* Load More Button - shown when at top and has more messages */}
-          {isAtTop && hasMoreMessages && (
-            <div className="flex justify-center pb-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                className="text-xs"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <RefreshCw className="size-3 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <p className="text-xs">Load more messages</p>
-                )}
-              </Button>
-            </div>
-          )}
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 px-4">
-              <p className="text-center text-muted-foreground mb-4">
-                No messages yet. Start a conversation!
-              </p>
-              {promptSuggestions.length > 0 && (
-                <div className="w-full max-w-2xl space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground text-center">
-                    Suggested prompts:
-                  </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {promptSuggestions.map((prompt, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          setValue(prompt);
-                          adjustHeight();
-                          textareaRef.current?.focus();
-                        }}
-                        disabled={isBusy}
-                        className={cn(
-                          "px-3 py-1.5 text-sm rounded-md border transition-all",
-                          "bg-background hover:bg-accent hover:text-accent-foreground",
-                          "border-border hover:border-primary/50 hover:shadow-sm",
-                          "disabled:opacity-50 disabled:cursor-not-allowed",
-                          "text-left max-w-xs"
-                        )}
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            messages.map((msg: BaseMessage, index: number) =>
-              renderMessage(msg, index)
-            )
-          )}
-          <AnimatePresence>
-            {currentStatus && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{
-                  duration: 0.4,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                className="flex gap-3 mb-4"
-              >
-                <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                  <Bot className="size-5 text-primary-foreground" />
-                </div>
-                <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
-                  <span className="animate-pulse">{currentStatus}</span>
-                </div>
-              </motion.div>
+          <ScrollArea className="h-full pr-4">
+            {/* Load More Button - shown when at top and has more messages */}
+            {isAtTop && hasMoreMessages && (
+              <div className="flex justify-center pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="text-xs"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <RefreshCw className="size-3 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <p className="text-xs">Load more messages</p>
+                  )}
+                </Button>
+              </div>
             )}
-          </AnimatePresence>
-          <div ref={messagesEndRef} />
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                <p className="text-center text-muted-foreground mb-4">
+                  No messages yet. Start a conversation!
+                </p>
+                {promptSuggestions.length > 0 && (
+                  <div className="w-full max-w-2xl space-y-3">
+                    <p className="text-xs font-medium text-muted-foreground text-center">
+                      Suggested prompts:
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {promptSuggestions.map((prompt, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setValue(prompt);
+                            adjustHeight();
+                            textareaRef.current?.focus();
+                          }}
+                          disabled={isBusy}
+                          className={cn(
+                            "px-3 py-1.5 text-sm rounded-md border transition-all",
+                            "bg-background hover:bg-accent hover:text-accent-foreground",
+                            "border-border hover:border-primary/50 hover:shadow-sm",
+                            "disabled:opacity-50 disabled:cursor-not-allowed",
+                            "text-left max-w-xs"
+                          )}
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              messages.map((msg: BaseMessage, index: number) =>
+                renderMessage(msg, index)
+              )
+            )}
+
+            <AnimatePresence>
+              {currentStatus && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{
+                    duration: 0.4,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                  className="flex gap-3 mb-4"
+                >
+                  <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                    <Bot className="size-5 text-primary-foreground" />
+                  </div>
+                  <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
+                    <span className="animate-pulse">{currentStatus}</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div ref={messagesEndRef} />
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         </div>
 
         {/* Input area */}
@@ -940,42 +936,32 @@ export function ChatPanel() {
           </div>
         </div>
       </CardContent>
-    </div>
+    </>
   );
+
+  if (!isOpen) return null;
 
   // Docked mode: floating card
   if (displayMode === "docked") {
-    if (!isOpen) return null;
-
     return (
       <>
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{
-                duration: 0.3,
-                ease: [0.16, 1, 0.3, 1],
+        {isOpen && (
+          <div className="fixed right-3 bottom-3 z-10 h-[90vh] flex">
+            <div
+              className="w-2 cursor-ew-resize shrink-0"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
               }}
-              className="fixed bottom-3 right-3 max-w-3xl min-w-sm z-100 flex"
+            />
+            <Card
+              className="flex flex-col gap-3 max-w-3xl min-w-sm h-full p-3 shrink-0"
               style={{ width: `${width}px` }}
             >
-              {/* Resize handle - invisible in docked mode */}
-              <div
-                className="w-2 cursor-ew-resize shrink-0"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setIsResizing(true);
-                }}
-              />
-              <Card className="flex-1 flex flex-col h-[90vh] p-3">
-                {chatContent}
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {chatContent}
+            </Card>
+          </div>
+        )}
 
         <ImportMindmapDialog
           open={importDialogOpen}
@@ -993,42 +979,33 @@ export function ChatPanel() {
     );
   }
 
-  // Sidebar mode: resizable panel
-  if (!isOpen) return null;
-
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="h-full flex shrink-0 border-none shadow-none"
+      {isOpen && (
+        <div className="h-full flex shrink-0">
+          {/* Resize handle */}
+          <div
+            className={cn(
+              "w-2.5 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
+              isResizing && "bg-primary"
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
+          >
+            <div className="h-full flex items-center justify-center">
+              <GripVertical className="text-muted-foreground" />
+            </div>
+          </div>
+          <Card
+            className="h-full flex flex-col overflow-hidden rounded-none border-none shadow-none p-3 shrink-0"
             style={{ width: `${width}px` }}
           >
-            {/* Resize handle */}
-            <div
-              className={cn(
-                "w-1 bg-border cursor-ew-resize hover:bg-primary/50 transition-colors shrink-0",
-                isResizing && "bg-primary"
-              )}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsResizing(true);
-              }}
-            >
-              <div className="h-full flex items-center justify-center">
-                <GripVertical className="size-4 text-muted-foreground" />
-              </div>
-            </div>
-            <Card className="flex-1 h-full flex flex-col overflow-hidden rounded-none border-none shadow-none p-3">
-              {chatContent}
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {chatContent}
+          </Card>
+        </div>
+      )}
 
       <ImportMindmapDialog
         open={importDialogOpen}

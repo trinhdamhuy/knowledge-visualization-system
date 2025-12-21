@@ -73,7 +73,11 @@ export function ReferenceLink({ page, nodeId, children }: ReferenceLinkProps) {
 
   return (
     <HoverCard>
-      <HoverCardTrigger>{children}</HoverCardTrigger>
+      <HoverCardTrigger asChild>
+        <Button className="p-0 text-blue-500" variant="link">
+          {children}
+        </Button>
+      </HoverCardTrigger>
       <HoverCardContent className="w-64 flex flex-col gap-1 p-1 z-999">
         {hasPage && (
           <Button

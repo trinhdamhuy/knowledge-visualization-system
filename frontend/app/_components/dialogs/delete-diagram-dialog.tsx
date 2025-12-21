@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { deleteDiagram } from "@/app/_actions/diagram";
+import { deleteDiagrams } from "@/app/_actions/diagram";
 import { useQueryClient } from "@tanstack/react-query";
 import { itemsKeys } from "@/hooks/use-items";
 import { diagramKeys } from "@/hooks/use-diagram";
@@ -36,9 +36,9 @@ export function DeleteDiagramDialog({
   async function handleDelete() {
     try {
       setIsDeleting(true);
-      const success = await deleteDiagram(diagramId);
+      const successCount = await deleteDiagrams([diagramId]);
 
-      if (success) {
+      if (successCount > 0) {
         toast.success("Diagram moved to trash");
         // Invalidate queries to refresh the list
         queryClient.invalidateQueries({ queryKey: itemsKeys.all });

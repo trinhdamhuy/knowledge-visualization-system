@@ -56,16 +56,24 @@ export function SelectionBox({
   useEffect(() => {
     if (!selectedNodesBox || !containerRef.current) return;
 
-    // Convert flow coordinates to screen coordinates (relative to pane)
+    // Get ReactFlow pane element to calculate relative position
+    const paneElement = document.querySelector(".react-flow") as HTMLElement;
+    if (!paneElement) return;
+
+    const paneRect = paneElement.getBoundingClientRect();
+
+    // Convert flow coordinates to screen coordinates (relative to viewport)
     const screenPosition = reactFlowInstance.flowToScreenPosition({
       x: selectedNodesBox.x,
       y: selectedNodesBox.y,
     });
 
-    // flowToScreenPosition returns coordinates relative to ReactFlow pane
-    // So we can use them directly
-    containerRef.current.style.left = `${screenPosition.x}px`;
-    containerRef.current.style.top = `${screenPosition.y}px`;
+    // Calculate relative positions for rendering (relative to ReactFlow pane)
+    const relativeX = screenPosition.x - paneRect.left;
+    const relativeY = screenPosition.y - paneRect.top;
+
+    containerRef.current.style.left = `${relativeX}px`;
+    containerRef.current.style.top = `${relativeY}px`;
     containerRef.current.style.width = `${selectedNodesBox.width * zoom}px`;
     containerRef.current.style.height = `${selectedNodesBox.height * zoom}px`;
   }, [selectedNodesBox, reactFlowInstance, zoom, viewport]);
