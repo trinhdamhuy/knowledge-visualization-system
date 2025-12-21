@@ -13,7 +13,6 @@ export interface BaseMessage {
   additional_kwargs?: Record<string, Json>; // additional kwargs for the message, known contained fields are: user_id, mindmap_data
   response_metadata?: Record<string, Json>;
   type: string; // ai, human
-  name?: string | null; // if name = mindmap, then it contains a mindmap data
   id?: string | null;
 }
 
@@ -32,7 +31,6 @@ export interface HistoryResponse {
 export interface ChatRequest {
   user_id: string;
   diagram_id: string;
-  mode: "generate" | "chat";
   file_url?: string | null;
   messages?: BaseMessage[] | null;
   mindmap_data?: MindmapData | null;

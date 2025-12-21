@@ -211,16 +211,37 @@
   @apply border-l-4 border-muted-foreground/30 pl-4 italic my-4 text-muted-foreground;
 }
 
+/* Inline code styling */
 .markdown-content code {
-  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  @apply bg-muted/80 dark:bg-muted/60 px-1.5 py-0.5 rounded-md text-sm font-mono;
+  @apply border border-border/50 dark:border-border/30;
+  @apply before:content-[''] after:content-[''];
 }
 
+/* Code block container */
 .markdown-content pre {
-  @apply bg-muted p-4 rounded-lg overflow-x-auto mb-4;
+  @apply bg-muted/80 dark:bg-muted/40 p-4 rounded-lg overflow-x-auto mb-4;
+  @apply border border-border/50 dark:border-border/30;
+  @apply shadow-sm dark:shadow-md;
+  @apply relative;
 }
 
+/* Code inside pre (code blocks) */
 .markdown-content pre code {
-  @apply bg-transparent p-0;
+  @apply bg-transparent p-0 border-0;
+  @apply text-sm leading-relaxed;
+  @apply block;
+  @apply font-mono;
+}
+
+/* Inline code (not inside pre) */
+.markdown-content :not(pre) > code {
+  @apply bg-muted/80 dark:bg-muted/60;
+  @apply text-foreground;
+  @apply font-medium;
+  @apply px-1.5 py-0.5;
+  @apply rounded-md;
+  @apply border border-border/50 dark:border-border/30;
 }
 
 .markdown-content a {
@@ -267,8 +288,33 @@
 /* Syntax highlighting styles */
 .markdown-content pre code.hljs {
   @apply block overflow-x-auto;
+  @apply text-foreground;
+  @apply p-0;
+  @apply whitespace-pre;
+  @apply font-mono;
+  @apply text-[0.875rem] leading-[1.6];
 }
 
 .markdown-content code.hljs {
   @apply inline;
+}
+
+/* Custom scrollbar for code blocks */
+.markdown-content pre::-webkit-scrollbar {
+  @apply h-2;
+}
+
+.markdown-content pre::-webkit-scrollbar-track {
+  @apply bg-muted/30 dark:bg-muted/20 rounded;
+}
+
+.markdown-content pre::-webkit-scrollbar-thumb {
+  @apply bg-border dark:bg-border/60 rounded;
+  @apply hover:bg-border/80 dark:hover:bg-border/80;
+}
+
+/* Firefox scrollbar */
+.markdown-content pre {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(var(--border)) oklch(var(--muted) / 0.3);
 }

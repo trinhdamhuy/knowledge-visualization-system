@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 
 interface ContextMenuProps {
   nodeId: string; // Keep for backward compatibility
@@ -46,6 +48,18 @@ export function NodeContextMenu({
 
   // Only allow "Add child" if exactly one node is selected
   const canAddChild = selectedNodes.length === 1;
+
+  // Check if exactly one node is selected (for reference options)
+  const canChangeReference = selectedNodes.length === 1;
+
+  // Check if selected node has pageReference
+  const hasPageReference = useMemo(() => {
+    if (selectedNodes.length !== 1) return false;
+    const nodeData = selectedNodes[0].data as
+      | { pageReference?: number }
+      | undefined;
+    return nodeData?.pageReference && nodeData.pageReference > 0;
+  }, [selectedNodes]);
 
   // Get current selection to also delete connected edges
   const currentSelection = useMemo(
@@ -292,12 +306,79 @@ export function NodeContextMenu({
     onClose();
   }, [currentSelection.edgeIds, edges, batchUpdateEdgeData, onClose]);
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { setIsOpen: setFilePanelOpen } = useChatPanelStore();
+
+  // Handle "Change REFERENCE" - focus on pageReference input in PropertiesPanel
+  const handleChangeReference = useCallback(() => {
+    if (selectedNodes.length !== 1) return;
+
+    // Dispatch custom event to focus on pageReference input
+    window.dispatchEvent(
+      new CustomEvent("focus-page-reference-input", {
+        detail: { nodeId: selectedNodes[0].id },
+      })
+    );
+
+    onClose();
+  }, [selectedNodes, onClose]);
+
+  // Handle "Open REFERENCE" - open PDF page
+  const handleOpenReference = useCallback(() => {
+    if (selectedNodes.length !== 1) return;
+
+    const node = selectedNodes[0];
+    const nodeData = node.data as { pageReference?: number } | undefined;
+    const pageRef = nodeData?.pageReference;
+
+    if (!pageRef || pageRef <= 0) return;
+
+    // Open file panel if not already open
+    setFilePanelOpen(true);
+
+    // Set page number in URL params
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("pdf-page", pageRef.toString());
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+
+    onClose();
+  }, [
+    selectedNodes,
+    setFilePanelOpen,
+    router,
+    pathname,
+    searchParams,
+    onClose,
+  ]);
+
   const options: Array<{
     label: string;
     kbd: React.ReactNode;
     onClick: () => void;
     variant?: "destructive";
   }> = [
+    // Change REFERENCE - only when exactly one node is selected
+    ...(canChangeReference
+      ? [
+          {
+            label: "Change REFERENCE",
+            kbd: null,
+            onClick: handleChangeReference,
+          },
+        ]
+      : []),
+    // Open REFERENCE - only when exactly one node is selected and has pageReference
+    ...(canChangeReference && hasPageReference
+      ? [
+          {
+            label: "Open REFERENCE",
+            kbd: null,
+            onClick: handleOpenReference,
+          },
+        ]
+      : []),
     // Add label - only shown when there are edges selected
     ...(hasEdgeSelection
       ? [

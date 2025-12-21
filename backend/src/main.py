@@ -30,10 +30,8 @@ from src.edges import (
     load_file,
     rewrite_question,
     generate_answer,
-    generate_mindmap_data,
     retrieve_documents,
-    summarize_documents,
-    route_mode,
+    route_workflow,
 )
 from src.models.vector_store import (
     init_vector_store,
@@ -92,30 +90,23 @@ async def lifespan(fastapi_app: FastAPI):
         workflow.add_node("load_file", load_file)
         workflow.add_node("add_documents", add_documents)
         workflow.add_node("retrieve_documents", retrieve_documents)
-        workflow.add_node("summarize_documents", summarize_documents)
         workflow.add_node("grade_documents", grade_documents)
         workflow.add_node("rewrite_question", rewrite_question)
         workflow.add_node("generate_answer", generate_answer)
-        workflow.add_node("generate_mindmap_data", generate_mindmap_data)
 
-        # Route from START based on user-provided mode and file conditions
+        # Route from START based on need_initialize_data
         workflow.add_conditional_edges(
             START,
-            route_mode,
+            route_workflow,
             {
                 "load_file": "load_file",
-                "generate_mindmap_data": "generate_mindmap_data",
                 "retrieve_documents": "retrieve_documents",
             },
         )
 
-        # Generate flow with file loading: load_file -> add_documents -> summarize_documents -> generate_mindmap_data
+        # Reload flow: load_file -> add_documents -> retrieve_documents
         workflow.add_edge("load_file", "add_documents")
-        workflow.add_edge("add_documents", "summarize_documents")
-        workflow.add_edge("summarize_documents", "generate_mindmap_data")
-
-        # Generate flow: generate_mindmap_data -> END
-        workflow.add_edge("generate_mindmap_data", END)
+        workflow.add_edge("add_documents", "retrieve_documents")
 
         # Chat flow: retrieve_documents -> grade_documents -> (rewrite_question -> retrieve_documents)? -> generate_answer -> END
         workflow.add_conditional_edges(
@@ -240,8 +231,8 @@ async def process_chat(
     graph_state = await app_state.graph.aget_state(config)
     state = graph_state.values
 
-    # For generate mode with new file_url, we'll rebuild context from file
-    # For chat mode, we keep existing context
+    # If need_initialize_data, we'll rebuild context from file
+    # Otherwise, we keep existing context
     context = state.get("context", [])
 
     input_dict = State(
@@ -257,7 +248,6 @@ async def process_chat(
         diagram_id=diagram_id,
         file_url=request.file_url,
         context=context,
-        mode=request.mode,
         need_initialize_data=request.need_initialize_data,
     )
 

@@ -14,5 +14,4 @@ class State(TypedDict):
         default=[], description="The context of the documents"
     )
     diagram_id: Optional[str] = Field(default="", description="The diagram id")
-    mode: Optional[Literal["generate", "chat"]]
     need_initialize_data: Optional[bool] = False

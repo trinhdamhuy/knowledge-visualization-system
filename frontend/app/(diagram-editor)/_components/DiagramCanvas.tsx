@@ -23,6 +23,8 @@ import { CollaboratorCursors } from "./CollaboratorCursors";
 import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
 import { SelectionBox } from "./SelectionBox";
 import { useSelectedNodesBox } from "./hooks/use-selected-nodes-box";
+import { useHashNavigation } from "./hooks/use-hash-navigation";
+import { usePdfPageParams } from "./hooks/use-pdf-page-params";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 
 // Component wrapper to use hook inside ReactFlow context
@@ -64,6 +66,12 @@ export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
   const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+
+  // Handle hash-based navigation for reference links
+  useHashNavigation();
+
+  // Handle pdf-page URL parameter to open FilePanel and navigate to page
+  usePdfPageParams();
 
   const { activeMode, setActiveMode } = useDiagramStore();
   const currentUser = useSelf();
@@ -122,6 +130,37 @@ export function DiagramCanvas() {
   useEffect(() => {
     setActiveMode(DiagramMode.Select);
   }, [setActiveMode]);
+
+  // Listen for focus-node events from ReferenceLink
+  useEffect(() => {
+    const handleFocusNode = (event: CustomEvent<{ nodeId: string }>) => {
+      if (!reactFlowInstance.current) return;
+
+      const { nodeId } = event.detail;
+      const node = reactFlowInstance.current.getNode(nodeId);
+
+      if (!node) {
+        console.warn(`Node ${nodeId} not found`);
+        return;
+      }
+
+      // Focus on the node
+      reactFlowInstance.current.fitView({
+        nodes: [node],
+        padding: 0.2,
+        duration: 500,
+      });
+    };
+
+    window.addEventListener("focus-node", handleFocusNode as EventListener);
+
+    return () => {
+      window.removeEventListener(
+        "focus-node",
+        handleFocusNode as EventListener
+      );
+    };
+  }, []);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -312,30 +351,6 @@ export function DiagramCanvas() {
     }
   }, [isDragging, updateNodes]);
 
-  // Canvas boundaries configuration
-  // translateExtent: Limits the area that can be panned (viewport movement)
-  // Format: [[minX, minY], [maxX, maxY]] in flow coordinates
-  // nodeExtent: Limits where nodes can be placed
-  // Format: [[minX, minY], [maxX, maxY]] in flow coordinates
-  const CANVAS_BOUNDARIES = {
-    // Example: Limit canvas to 5000x5000 area
-    // You can adjust these values based on your needs
-    minX: -2000,
-    minY: -2000,
-    maxX: 5000,
-    maxY: 5000,
-  };
-
-  const translateExtent: [[number, number], [number, number]] = [
-    [CANVAS_BOUNDARIES.minX, CANVAS_BOUNDARIES.minY],
-    [CANVAS_BOUNDARIES.maxX, CANVAS_BOUNDARIES.maxY],
-  ];
-
-  const nodeExtent: [[number, number], [number, number]] = [
-    [CANVAS_BOUNDARIES.minX, CANVAS_BOUNDARIES.minY],
-    [CANVAS_BOUNDARIES.maxX, CANVAS_BOUNDARIES.maxY],
-  ];
-
   // Zoom limits (optional)
   const minZoom = 0.1; // Minimum zoom level (10%)
   const maxZoom = 2; // Maximum zoom level (200%)
@@ -383,8 +398,6 @@ export function DiagramCanvas() {
       nodesConnectable={true}
       elementsSelectable={false}
       selectNodesOnDrag={false}
-      translateExtent={translateExtent}
-      nodeExtent={nodeExtent}
       minZoom={minZoom}
       maxZoom={maxZoom}
     >

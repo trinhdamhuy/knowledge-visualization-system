@@ -83,6 +83,20 @@ async def retrieve_documents(state: State):
     """Retrieve documents from the vector store."""
 
     writer = get_stream_writer()
+
+    # If need_initialize_data is True, we just loaded the full file
+    # Return all documents from context instead of similarity search
+    need_initialize_data = state.get("need_initialize_data", False)
+    existing_context = state.get("context", [])
+
+    if need_initialize_data and existing_context:
+        # When reloading from file, use all loaded documents for mindmap generation
+        writer(
+            {"current_status": "Using full document content for mindmap generation..."}
+        )
+        return {"context": existing_context}
+
+    # Normal chat flow: use similarity search
     writer({"current_status": "Searching for relevant documents..."})
 
     question = get_question_for_retrieval(state)
@@ -93,7 +107,9 @@ async def retrieve_documents(state: State):
         question, k=5, filter={"diagram_id": diagram_id}
     )
     if len(retrieved_docs) == 0:
-        return "no_relevant_data"
+        # Clear context and return signal for no relevant data
+        # This will be handled by grade_documents which checks for empty context
+        return {"context": []}
     return {"context": retrieved_docs}
 
 
@@ -239,6 +255,42 @@ ANSWER_PROMPT = (
     "- Break long paragraphs into shorter, readable chunks\n"
     "- Use proper spacing between sections for readability\n"
     "\n"
+    "REFERENCE LINKS WITH HOVERCARD:\n"
+    "When referring to specific pages in the PDF or nodes in the mindmap, use reference links with hash-based format:\n"
+    "- For PDF page references: [**text content**](#pdf/page-number) where page-number is the page number from document metadata\n"
+    "- For node references: [**text content**](#node/node-id) where node-id is the node ID\n"
+    "- For both page and node: [**text content**](#node/node-id#pdf/page-number) - combine with multiple hash fragments\n"
+    "\n"
+    "CRITICAL FORMATTING RULES:\n"
+    "- The text inside the square brackets MUST be wrapped in **bold** markdown: [**text content**](#pdf/page-number#node/node-id) or [**text content**](#pdf/page-number)\n"
+    "- The text content should be natural, readable keywords or short phrases that flow naturally in the sentence\n"
+    "- Use hash-based format: #pdf/page-number for PDF pages, #node/node-id for nodes\n"
+    "- When combining both, use multiple hash fragments: #node/node-id#pdf/page-number\n"
+    "- Example format: 'The [**text content**](#pdf/page-number#node/node-id) concept is important.'\n"
+    "- Example with both: 'The [**text content**](#pdf/page-number#node/node-id) pattern is explained.'\n"
+    "- NOT: 'The **Text** ([page page-number](#pdf/page-number#node/node-id))' - this is WRONG\n"
+    "- CORRECT: 'The [**text content**](#pdf/page-number#node/node-id) concept is important.'\n"
+    "\n"
+    "USAGE GUIDELINES:\n"
+    "- ALWAYS use reference links when you have page numbers from document metadata - this is MANDATORY, not optional\n"
+    "- When node IDs are provided (from existing or newly generated mindmap), you MUST include node references in your response\n"
+    "- Embed references naturally within your sentences using format: [**text content**](#node/node-id#pdf/page-number) or [**text content**](#pdf/page-number)\n"
+    "- The text should be keywords or short phrases, like: 'According to the [**Introduction**](#node/node-id#pdf/page-number) node, this concept is important'\n"
+    "- Or: 'See [**this section**](#node/node-id#pdf/page-number) for more details'\n"
+    "- When page numbers are available in document metadata, you MUST include at least one page reference in your response\n"
+    "- If node IDs are provided to you, you MUST include node references in your response - this is MANDATORY when node IDs are available\n"
+    "- When both page numbers and node IDs are available, combine them: [**text content**](#node/node-id#pdf/page-number)\n"
+    "- The text inside brackets should be bold: [**text content**] not just [text content]\n"
+    "\n"
+    "CRITICAL: If node IDs are provided to you in the prompt, you MUST include node references in your response. Do not skip node references when node IDs are available.\n"
+    "\n"
+    "Examples:\n"
+    "- 'The concept is represented by the [**Introduction**](#pdf/page-number#node/node-id) node in the mindmap.'\n"
+    "- 'For comprehensive information, see [**this section**](#pdf/page-number#node/node-id) which covers this topic.'\n"
+    "- 'According to [**the document**](#pdf/page-number#node/node-id), the main principles are...'\n"
+    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern is explained in detail.'\n"
+    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern combines both references.'\n"
+    "\n"
     "User request:\n"
     "{request}\n"
     "\n"
@@ -276,9 +328,37 @@ class NodeData(BaseModel):
         default="",
         description="Background color of the node (hex color code, e.g., '#E3F2FD'). Leave empty for default card color.",
     )
+    fontFamily: str = Field(
+        default="",
+        description="Font family for the node text. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default font (Inter).",
+    )
+    fontSize: float = Field(
+        default=0,
+        description="Font size for the node text in pixels (e.g., 14, 16, 18). Use 0 for default size.",
+    )
+    fontWeight: str = Field(
+        default="",
+        description="Font weight for the node text (e.g., 'normal', 'bold', '600', '700'). Leave empty for default weight.",
+    )
+    fontStyle: str = Field(
+        default="",
+        description="Font style for the node text (e.g., 'normal', 'italic'). Leave empty for default style.",
+    )
+    textDecoration: str = Field(
+        default="",
+        description="Text decoration for the node text (e.g., 'none', 'underline'). Leave empty for default decoration.",
+    )
     textColor: str = Field(
         default="",
-        description="Text color of the node (hex color code, e.g., '#000000'). Leave empty for default text color.",
+        description="Text color for the node (hex color code, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST be set when color (background) is provided. If background color is light (e.g., '#E3F2FD', '#F3E5F5', '#E8F5E9'), use dark text (#000000 or dark colors like '#1a1a1a'). If background color is dark (e.g., '#1a1a1a', '#2d2d2d'), use light text (#ffffff or light colors). Leave empty for default (theme-based).",
+    )
+    pageReference: int = Field(
+        default=0,
+        description="Page number in PDF document that this node references (e.g., 26, 96). Use 0 if no page reference. This allows users to navigate to the specific page when clicking on the node.",
+    )
+    handleType: str = Field(
+        default="right-source",
+        description="Handle configuration for the node. Determines which handle is a source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source'.",
     )
 
 
@@ -303,9 +383,7 @@ class Node(BaseModel):
     )
     width: float = Field(default=150, description="Width of the node in pixels")
     height: float = Field(default=50, description="Height of the node in pixels")
-    data: NodeData = Field(
-        ..., description="Node data containing the label, color, and textColor"
-    )
+    data: NodeData = Field(..., description="Node data containing the label and color")
     type: str = Field(
         default="custom",
         description="Node type for React Flow. Always use 'custom' for all nodes.",
@@ -313,6 +391,23 @@ class Node(BaseModel):
     measured: Measured = Field(
         default_factory=lambda: Measured(width=150, height=50),
         description="Measured dimensions of the node",
+    )
+
+
+class EdgeData(BaseModel):
+    """Edge data structure for React Flow."""
+
+    label: str = Field(
+        default="",
+        description="Optional label text displayed on the edge. Leave empty if no label is needed.",
+    )
+    labelFontFamily: str = Field(
+        default="",
+        description="Font family for the edge label text. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default font (Inter).",
+    )
+    labelFontSize: float = Field(
+        default=0,
+        description="Font size for the edge label text in pixels (e.g., 12, 14, 16). Use 0 for default size.",
     )
 
 
@@ -333,6 +428,14 @@ class Edge(BaseModel):
         default_factory=dict,
         description="Optional CSS styles for the edge (e.g., stroke, strokeWidth). Use colors to match parent node branches.",
     )
+    animated: bool = Field(
+        default=False,
+        description="Whether the edge should be animated (true) or static (false). Use animation for emphasis or visual interest.",
+    )
+    data: EdgeData = Field(
+        default_factory=EdgeData,
+        description="Edge data containing optional label, labelFontFamily, and labelFontSize.",
+    )
 
 
 class MindmapData(BaseModel):
@@ -347,31 +450,229 @@ class MindmapData(BaseModel):
 
 
 async def generate_answer(state: State):
-    """Generate an answer based on user request (text only, no mindmap data)."""
+    """Generate an answer and optionally mindmap data based on user request."""
 
-    request = state["messages"][0].content
+    # Get the latest HumanMessage (user's most recent question)
+    # Find the last HumanMessage in the messages list
+    request = None
+    for msg in reversed(state["messages"]):
+        if msg.__class__.__name__ == "HumanMessage":
+            request = msg.content
+            break
+
+    # Fallback to last message if no HumanMessage found
+    if request is None:
+        request = state["messages"][-1].content if state["messages"] else ""
+
     context_docs = state["context"]
+    existing_mindmap_data = (
+        state["messages"][-1].additional_kwargs.get("mindmap_data", {})
+        if state["messages"]
+        else {}
+    )
 
     writer = get_stream_writer()
     writer({"current_status": "Generating answer..."})
 
-    # Check if context is empty or no relevant documents
-    # Also check if we've exceeded rewrite attempts (indicates no_relevant_data)
-    human_message_count = sum(
-        1 for msg in state["messages"] if msg.__class__.__name__ == "HumanMessage"
-    )
-
-    if not context_docs or len(context_docs) == 0 or human_message_count >= 4:
-        # Use NO_RELEVANT_DATA_PROMPT when no context or too many rewrite attempts
+    # Logic:
+    # - If no context documents, use NO_RELEVANT_DATA_PROMPT
+    # - If context documents exist, generate answer with context
+    # Note: Rewrite logic is already handled in grade_documents:
+    #   - If documents are not relevant and not yet rewritten -> rewrite_question
+    #   - If documents are not relevant and already rewritten -> no_relevant_data -> generate_answer (with empty context)
+    #   - If documents are relevant -> generate_answer (with context)
+    if not context_docs or len(context_docs) == 0:
+        # No documents found - use no relevant data prompt
         prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
+        response = await model.with_structured_output(GenerateAnswer).ainvoke(
+            [{"role": "user", "content": prompt}]
+        )
+        return {"messages": [AIMessage(content=response.answer)]}
     else:
-        context = "\n".join([doc.page_content for doc in context_docs])
+        # We have context documents - generate answer with context
+        # Include metadata (page numbers) in context so AI can use reference links
+        context_parts = []
+        for doc in context_docs:
+            content = doc.page_content
+            # Add page number if available in metadata
+            if doc.metadata and "page" in doc.metadata:
+                page_num = doc.metadata["page"]
+                context_parts.append(f"[Page {page_num}]\n{content}")
+            else:
+                context_parts.append(content)
+        context = "\n\n".join(context_parts)
         prompt = ANSWER_PROMPT.format(request=request, context=context)
 
-    response = await model.with_structured_output(GenerateAnswer).ainvoke(
-        [{"role": "user", "content": prompt}]
-    )
-    return {"messages": [AIMessage(content=response.answer)]}
+        # Generate answer
+        response = await model.with_structured_output(GenerateAnswer).ainvoke(
+            [{"role": "user", "content": prompt}]
+        )
+
+        mindmap_dict = None
+
+        try:
+            # Prepare context for mindmap generation
+            full_context = "\n".join([doc.page_content for doc in context_docs])
+
+            # If context is very long, create a high-level summary for mindmap generation
+            if len(full_context) > 50000:
+                summary_prompt = (
+                    "You are summarizing a large document to create a mindmap.\n"
+                    "Extract ONLY the high-level structure:\n"
+                    "- Main topic/subject\n"
+                    "- Major sections/chapters (3-5 main sections)\n"
+                    "- Key topics within each section (2-4 topics per section)\n"
+                    "Focus on organizational structure, not details.\n"
+                    "Output format: A structured summary with main topic, sections, and key topics.\n"
+                    "\n"
+                    "Document content:\n"
+                    f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
+                )
+                summary_response = await model.ainvoke(
+                    [{"role": "user", "content": summary_prompt}]
+                )
+                mindmap_context = summary_response.content
+            else:
+                mindmap_context = full_context
+
+            # Extract node IDs from existing mindmap if available
+            # Include ALL node IDs, not just first 10
+            existing_node_ids = []
+            existing_node_labels_map = {}
+            if existing_mindmap_data and isinstance(existing_mindmap_data, dict):
+                nodes = existing_mindmap_data.get("nodes", {})
+                if isinstance(nodes, dict):
+                    existing_node_ids = list(nodes.keys())
+                    # Build a map of node IDs to labels for better context
+                    for node_id, node_data in nodes.items():
+                        if isinstance(node_data, dict) and "data" in node_data:
+                            label = node_data.get("data", {}).get("label", "")
+                            if label:
+                                existing_node_labels_map[node_id] = label
+
+            # Update prompt to include node IDs for reference
+            answer_prompt_with_nodes = prompt
+            if existing_node_ids:
+                # Create a more helpful list showing node IDs with their labels
+                node_info_list = []
+                for node_id in existing_node_ids:
+                    label = existing_node_labels_map.get(node_id, "")
+                    if label:
+                        node_info_list.append(f"{node_id} (label: '{label}')")
+                    else:
+                        node_info_list.append(node_id)
+
+                node_ids_str = "\n".join(node_info_list)
+                answer_prompt_with_nodes = (
+                    f"{prompt}\n\n"
+                    f"Available nodes from existing mindmap (you can reference these using hash format [**text content**](#node/node-id)):\n"
+                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                    f"\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above.\n"
+                    f"Format example: [**Introduction**](#node/node-1766205361492)\n"
+                )
+                # Re-generate answer with node context
+                response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                    [{"role": "user", "content": answer_prompt_with_nodes}]
+                )
+
+            # Generate mindmap data
+            # Add instruction to create more nodes when reloading from full PDF
+            need_initialize_data = state.get("need_initialize_data", False)
+            mindmap_prompt_base = MINDMAP_PROMPT.format(
+                request=request,
+                context=mindmap_context,
+                data=existing_mindmap_data,
+            )
+
+            # When reloading from PDF, encourage creating comprehensive mindmap
+            if need_initialize_data and len(context_docs) > 10:
+                mindmap_prompt = (
+                    f"{mindmap_prompt_base}\n\n"
+                    "IMPORTANT: You are creating a mindmap from the FULL document content (not just a few chunks). "
+                    "Create a COMPREHENSIVE mindmap that covers the entire document structure. "
+                    "Aim for 25-40 nodes to properly represent the document's content and structure. "
+                    "Include all major sections, chapters, and key topics. "
+                    "This is a full document mindmap, so be thorough but still organized."
+                )
+            else:
+                mindmap_prompt = mindmap_prompt_base
+
+            mindmap_response = await model.with_structured_output(MindmapData).ainvoke(
+                [{"role": "user", "content": mindmap_prompt}]
+            )
+            mindmap_dict = mindmap_response.model_dump()
+
+            # Extract node IDs from newly generated mindmap for reference
+            # Include ALL node IDs, not just first 10, so AI can reference any node
+            new_node_ids = []
+            node_labels_map = {}  # Map node IDs to their labels for better context
+            if mindmap_dict and isinstance(mindmap_dict, dict):
+                nodes = mindmap_dict.get("nodes", {})
+                if isinstance(nodes, dict):
+                    new_node_ids = list(nodes.keys())
+                    # Build a map of node IDs to labels for better context
+                    for node_id, node_data in nodes.items():
+                        if isinstance(node_data, dict) and "data" in node_data:
+                            label = node_data.get("data", {}).get("label", "")
+                            if label:
+                                node_labels_map[node_id] = label
+
+            # Regenerate answer with node IDs from the new mindmap
+            if new_node_ids:
+                # Create a more helpful list showing node IDs with their labels
+                node_info_list = []
+                for node_id in new_node_ids:
+                    label = node_labels_map.get(node_id, "")
+                    if label:
+                        node_info_list.append(f"{node_id} (label: '{label}')")
+                    else:
+                        node_info_list.append(node_id)
+
+                node_ids_str = "\n".join(node_info_list)
+                final_prompt = (
+                    f"{prompt}\n\n"
+                    f"IMPORTANT: A mindmap has just been generated with the following nodes. "
+                    f"You MUST include references to these nodes in your response using the hash-based format [**text**](#node/node-id).\n"
+                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                    f"\n"
+                    f"Available nodes from the generated mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above. "
+                    f"For example, if a node ID is 'node-1766205361492', use exactly '#node/node-1766205361492' in your reference link.\n"
+                    f"\n"
+                    f"Also include page references when available. Combine both when relevant: [**text**](#node/node-id#pdf/page-number).\n"
+                    f"Format examples:\n"
+                    f"- Node only: [**Introduction**](#node/node-1766205361492)\n"
+                    f"- Page only: [**Page 26**](#pdf/26)\n"
+                    f"- Both: [**Introduction**](#node/node-1766205361492#pdf/26)\n"
+                    f"\n"
+                    f"Make sure to reference multiple nodes throughout your response to help users navigate the mindmap."
+                )
+                response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                    [{"role": "user", "content": final_prompt}]
+                )
+        except (ValueError, KeyError, AttributeError) as e:
+            # If mindmap generation fails, just continue with answer
+            print(f"Failed to generate mindmap data: {e}")
+            mindmap_dict = None
+
+        # Return message with answer and optional mindmap data
+        additional_kwargs = {}
+        if mindmap_dict:
+            additional_kwargs["mindmap_data"] = mindmap_dict
+
+        return {
+            "messages": [
+                AIMessage(
+                    content=response.answer,
+                    additional_kwargs=additional_kwargs if additional_kwargs else None,
+                )
+            ]
+        }
 
 
 MINDMAP_PROMPT = (
@@ -461,7 +762,17 @@ MINDMAP_PROMPT = (
     "     * position: object with 'x' and 'y' as numbers\n"
     "     * width: number (e.g., 150)\n"
     "     * height: number (e.g., 50)\n"
-    "     * data: object with 'label' (string), 'color' (string, hex color or empty), 'textColor' (string, hex color or empty)\n"
+    "     * data: object with:\n"
+    "       - 'label' (string, required): The node text\n"
+    "       - 'color' (string, optional): Background color hex code (e.g., '#E3F2FD') or empty string for default\n"
+    "       - 'fontFamily' (string, optional): Font family name. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default (Inter)\n"
+    "       - 'fontSize' (number, optional): Font size in pixels (e.g., 14, 16, 18) or 0 for default\n"
+    "       - 'fontWeight' (string, optional): Font weight (e.g., 'normal', 'bold', '600', '700') or empty string for default\n"
+    "       - 'fontStyle' (string, optional): Font style (e.g., 'normal', 'italic') or empty string for default\n"
+    "       - 'textDecoration' (string, optional): Text decoration (e.g., 'none', 'underline') or empty string for default\n"
+    "       - 'textColor' (string, optional): Text color hex code (e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set when color is provided. If background is light, use dark text (#000000). If background is dark, use light text (#ffffff). NEVER leave empty when color is set. Leave empty ONLY when color is also empty.\n"
+    "       - 'pageReference' (number, optional): PDF page number (e.g., 26, 96). Use 0 if no page reference.\n"
+    "       - 'handleType' (string, optional): Handle configuration determining which handle is source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source' if not specified.\n"
     "     * measured: object with 'width' (number, e.g., 150) and 'height' (number, e.g., 50)\n"
     "   - Each edge MUST have:\n"
     "     * id: string (format: 'xy-edge__{{source}}-{{target}}' or custom, same as the dictionary key)\n"
@@ -469,12 +780,19 @@ MINDMAP_PROMPT = (
     "     * target: string (target node ID)\n"
     "     * type: string (one of: 'default', 'straight', 'step', 'smoothstep', 'simplebezier')\n"
     "     * style: object (e.g., {{'stroke': '#FFB74D', 'strokeWidth': '1'}})\n"
+    "     * animated: boolean (true or false) - use true for emphasis or visual interest\n"
+    "     * data: object with:\n"
+    "       - 'label' (string, optional): Edge label text or empty string if no label\n"
+    "       - 'labelFontFamily' (string, optional): Font family for edge label. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default (Inter)\n"
+    "       - 'labelFontSize' (number, optional): Font size for edge label in pixels (e.g., 12, 14) or 0 for default\n"
     "   - Example edge format:\n"
     "     'xy-edge__node-1766209382911-node-1766209382477': {{\n"
     "       'source': 'node-1766209382911',\n"
     "       'target': 'node-1766209382477',\n"
     "       'id': 'xy-edge__node-1766209382911-node-1766209382477',\n"
     "       'type': 'smoothstep',\n"
+    "       'animated': false,\n"
+    "       'data': {{'label': 'related to', 'labelFontFamily': 'Inter', 'labelFontSize': 12}}\n"
     "     }}\n"
     "   - Example node format:\n"
     "     'node-1766205361492': {{\n"
@@ -483,17 +801,49 @@ MINDMAP_PROMPT = (
     "       'position': {{'x': 0, 'y': 0}},\n"
     "       'width': 150,\n"
     "       'height': 50,\n"
-    "       'data': {{'label': 'New Node', 'color': '#E3F2FD', 'textColor': '#000000'}},\n"
+    "       'data': {{\n"
+    "         'label': 'New Node',\n"
+    "         'color': '#E3F2FD',\n"
+    "         'fontFamily': 'Inter',\n"
+    "         'fontSize': 16,\n"
+    "         'fontWeight': 'bold',\n"
+    "         'fontStyle': 'normal',\n"
+    "         'textDecoration': 'none',\n"
+    "         'handleType': 'right-source'\n"
+    "       }},\n"
     "       'measured': {{'width': 150, 'height': 50}}\n"
     "     }}\n"
     "\n"
-    "9. REACT FLOW FEATURES:\n"
+    "9. REACT FLOW FEATURES & STYLING:\n"
     "   - Use node.type='custom' for ALL nodes (never use 'input', 'default', or 'output')\n"
     "   - Use VARIETY of edge types: 'smoothstep' (most common for hierarchy), 'simplebezier' (smooth curves), 'step' (structured), 'straight' (direct), 'default' (simple)\n"
     "   - Mix edge types throughout the mindmap to create visual interest and hierarchy\n"
-    "   - Use node.data.color for background color (hex format, e.g., '#E3F2FD')\n"
-    "   - Use node.data.textColor for text color (hex format, e.g., '#000000')\n"
-    "   - Use edge.style.stroke and edge.style.strokeWidth for visual hierarchy\n"
+    "   - NODE STYLING:\n"
+    "     * Use node.data.color for background color (hex format, e.g., '#E3F2FD')\n"
+    "     * Use node.data.textColor for text color (hex format, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set textColor when color (background) is provided. If background is light (e.g., '#E3F2FD', '#F3E5F5'), use dark text (#000000). If background is dark (e.g., '#1a1a1a'), use light text (#ffffff). NEVER leave textColor empty when color is set - this causes poor contrast. Leave empty ONLY when color is also empty (using default theme).\n"
+    "     * Use node.data.pageReference for PDF page number (integer, e.g., 26, 96). Use 0 if no page reference. This allows users to navigate to the specific page.\n"
+    "     * Use node.data.fontFamily to set font. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Default is 'Inter'\n"
+    "     * Use node.data.fontSize for font size in pixels (e.g., 14, 16, 18, 20)\n"
+    "     * Use node.data.fontWeight for emphasis: 'normal', 'bold', '600', '700' (use 'bold' for important nodes like center or main branches)\n"
+    "     * Use node.data.fontStyle: 'normal' or 'italic' (use 'italic' sparingly for emphasis)\n"
+    "     * Use node.data.textDecoration: 'none' or 'underline' (use 'underline' sparingly)\n"
+    "     * Use node.data.handleType to control handle configuration (which handle is source vs target). Options: 'top-source', 'bottom-source', 'right-source', 'left-source'. IMPORTANT: Use VARIETY across nodes to create diverse connection patterns. For example:\n"
+    "       - Central node: Use 'right-source' or 'bottom-source' (most common)\n"
+    "       - Main branches: Mix 'top-source', 'bottom-source', 'left-source', 'right-source' for visual variety\n"
+    "       - Sub-branches: Vary handleType based on their position relative to parent (e.g., if parent is on top, child might use 'top-source')\n"
+    "       - Create visual interest by using different handleTypes throughout the mindmap\n"
+    "       - Default is 'right-source' if not specified\n"
+    "     * Central node and main branches: Consider using larger fontSize (18-20), bold fontWeight for hierarchy\n"
+    "     * Sub-branches: Use medium fontSize (14-16), normal fontWeight\n"
+    "   - EDGE STYLING:\n"
+    "     * Use edge.style.stroke and edge.style.strokeWidth for visual hierarchy\n"
+    "     * Use edge.animated: true for important connections or visual emphasis, false for regular connections\n"
+    "     * Use edge.data.label for edge labels when relationships need clarification (e.g., 'contains', 'leads to', 'related to')\n"
+    "     * Use edge.data.labelFontFamily for edge label font. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Default is 'Inter'\n"
+    "     * Use edge.data.labelFontSize for edge label size in pixels (e.g., 12, 14)\n"
+    "     * Use edge.data.labelBackgroundColor for edge label background (hex format, e.g., '#E3F2FD'). Leave empty for default card color.\n"
+    "     * Use edge.data.labelColor for edge label text color (hex format, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set labelColor when labelBackgroundColor is provided. If labelBackgroundColor is light (e.g., '#E3F2FD', '#F3E5F5'), use dark text (#000000). If labelBackgroundColor is dark (e.g., '#1a1a1a'), use light text (#ffffff). NEVER leave labelColor empty when labelBackgroundColor is set - this causes poor contrast. Leave empty ONLY when labelBackgroundColor is also empty (using default theme).\n"
+    "     * Only add edge labels when they add meaningful information about the relationship\n"
     "\n"
     "10. LAYOUT CALCULATION (SPACIOUS POSITIONING):\n"
     "   - Center node: position (0, 0) or near center\n"
@@ -567,103 +917,6 @@ MINDMAP_PROMPT = (
 )
 
 
-async def generate_mindmap_data(state: State):
-    """Generate React Flow mindmap data based on user request and documents."""
-
-    writer = get_stream_writer()
-    writer({"current_status": "Generating mindmap data..."})
-
-    request = state["messages"][-1].content
-    context_docs = state["context"]
-    data = state["messages"][-1].additional_kwargs["mindmap_data"]
-
-    # Check if context contains a summary document (from summarize_documents)
-    # If summary exists, use it; otherwise use original documents
-    if context_docs and len(context_docs) > 0:
-        # Check if the first document is a summary
-        first_doc = context_docs[0]
-        if first_doc.metadata.get("type") == "summary":
-            # Use the summary from summarize_documents
-            context = first_doc.page_content
-        else:
-            # Use original documents (fallback for direct generate_mindmap_data calls)
-            full_context = "\n".join([doc.page_content for doc in context_docs])
-
-            # If context is very long, create a high-level summary for mindmap generation
-            if len(full_context) > 50000:
-                # Create a summary focusing on structure and main topics
-                summary_prompt = (
-                    "You are summarizing a large document to create a mindmap.\n"
-                    "Extract ONLY the high-level structure:\n"
-                    "- Main topic/subject\n"
-                    "- Major sections/chapters (3-5 main sections)\n"
-                    "- Key topics within each section (2-4 topics per section)\n"
-                    "Focus on organizational structure, not details.\n"
-                    "Output format: A structured summary with main topic, sections, and key topics.\n"
-                    "\n"
-                    "Document content:\n"
-                    f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
-                )
-
-                summary_response = await model.ainvoke(
-                    [{"role": "user", "content": summary_prompt}]
-                )
-                context = summary_response.content
-            else:
-                context = full_context
-    else:
-        context = ""
-
-    prompt = MINDMAP_PROMPT.format(
-        request=request,
-        context=context,
-        data=data,
-    )
-
-    # Use structured output to ensure valid JSON format
-    response = await model.with_structured_output(MindmapData).ainvoke(
-        [{"role": "user", "content": prompt}]
-    )
-
-    # Convert to dict for JSON serialization
-    mindmap_dict = response.model_dump()
-
-    # Generate a natural response about the mindmap generation
-    writer({"current_status": "Generating response..."})
-
-    # Count nodes and edges (they are now dictionaries)
-    nodes_count = len(mindmap_dict.get("nodes", {}))
-    edges_count = len(mindmap_dict.get("edges", {}))
-
-    response_prompt = (
-        "You are an AI assistant that has just generated a mindmap from documents.\n"
-        "User request:\n"
-        f"{request}\n"
-        "\n"
-        "The mindmap has been successfully created with:\n"
-        f"- {nodes_count} nodes\n"
-        f"- {edges_count} edges\n"
-        "\n"
-        "Provide a natural, conversational response to the user about the mindmap that was generated.\n"
-        "User language can be different from the document's language, so you MUST ALWAYS use the user's language to answer.\n"
-        "Keep the response brief and friendly. Mention that the mindmap has been created and is ready to be imported.\n"
-        "Do NOT repeat the exact phrase 'Mindmap generated successfully' - be more natural and conversational.\n"
-        "Use Markdown formatting if needed for clarity.\n"
-    )
-
-    ai_response = await model.ainvoke([{"role": "user", "content": response_prompt}])
-
-    return {
-        "messages": [
-            AIMessage(
-                name="mindmap",
-                content=ai_response.content,
-                additional_kwargs={"mindmap_data": mindmap_dict},
-            )
-        ]
-    }
-
-
 SUMMARIZE_PROMPT = (
     "You are a summarizer summarizing a list of documents. \n"
     "Here is the list of documents: \n\n {documents} \n\n"
@@ -704,24 +957,20 @@ async def summarize_documents(
     }
 
 
-async def route_mode(
+async def route_workflow(
     state: State,
-) -> Literal["load_file", "generate_mindmap_data", "retrieve_documents"]:
+) -> Literal["load_file", "retrieve_documents"]:
     """
-    Decide workflow branch based on user-provided mode and file conditions.
-    - mode = "generate" + need_initialize_data -> load_file
-    - mode = "generate" + not need_initialize_data -> generate_mindmap_data
-    - mode = "chat" -> retrieve_documents
+    Decide workflow branch based on need_initialize_data.
+    - need_initialize_data = True -> load_file (reload from file)
+    - need_initialize_data = False -> retrieve_documents (normal chat)
     """
 
     writer = get_stream_writer()
     writer({"current_status": "Calculating how the workflow should proceed..."})
 
-    mode = state["mode"]
     need_initialize_data = state["need_initialize_data"]
 
-    if mode == "generate":
-        if need_initialize_data:
-            return "load_file"
-        return "generate_mindmap_data"
+    if need_initialize_data:
+        return "load_file"
     return "retrieve_documents"

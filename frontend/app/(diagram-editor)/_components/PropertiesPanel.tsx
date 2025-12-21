@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  startTransition,
+} from "react";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { useTheme } from "next-themes";
@@ -80,6 +87,8 @@ interface NodeStyle {
   textColor: StyleValue<string>;
   shape: StyleValue<string>;
   color: StyleValue<string>;
+  pageReference: StyleValue<number>;
+  handleType: StyleValue<string>;
 }
 
 interface EdgeStyle {
@@ -90,6 +99,7 @@ interface EdgeStyle {
   labelFontFamily: StyleValue<string>;
   labelFontSize: StyleValue<number>;
   labelColor: StyleValue<string | undefined>;
+  labelBackgroundColor: StyleValue<string | undefined>;
 }
 
 // Get card background color hex based on theme
@@ -127,7 +137,49 @@ export function PropertiesPanel() {
     fontSize: false,
     edgeType: false,
     edgeWidth: false,
+    handleType: false,
   });
+
+  // State for editing node labels
+  const [editingNodeLabel, setEditingNodeLabel] = useState<string>("");
+  const [editingNodeLabelId, setEditingNodeLabelId] = useState<string | null>(
+    null
+  );
+
+  // State for editing edge labels
+  const [editingEdgeLabel, setEditingEdgeLabel] = useState<string>("");
+  const [editingEdgeLabelId, setEditingEdgeLabelId] = useState<string | null>(
+    null
+  );
+
+  // Ref for pageReference input to allow focusing from context menu
+  const pageReferenceInputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for focus event from context menu
+  useEffect(() => {
+    const handleFocusPageReference = (e: CustomEvent<{ nodeId: string }>) => {
+      // Check if the requested node is selected
+      if (selectedObjectIds.nodeIds.includes(e.detail.nodeId)) {
+        // Focus the input after a small delay to ensure it's rendered
+        setTimeout(() => {
+          pageReferenceInputRef.current?.focus();
+          pageReferenceInputRef.current?.select();
+        }, 100);
+      }
+    };
+
+    window.addEventListener(
+      "focus-page-reference-input",
+      handleFocusPageReference as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus-page-reference-input",
+        handleFocusPageReference as EventListener
+      );
+    };
+  }, [selectedObjectIds.nodeIds]);
 
   const users = useOthers();
   const allUsers = [...users, currentUser];
@@ -144,6 +196,25 @@ export function PropertiesPanel() {
     () => edges.filter((e) => selectedObjectIds.edgeIds.includes(e.id)),
     [edges, selectedObjectIds.edgeIds]
   );
+
+  // Reset editing state when selection changes
+  useEffect(() => {
+    if (selectedNodes.length !== 1) {
+      startTransition(() => {
+        setEditingNodeLabelId((prev) => (prev !== null ? null : prev));
+        setEditingNodeLabel((prev) => (prev !== "" ? "" : prev));
+      });
+    }
+  }, [selectedNodes.length]);
+
+  useEffect(() => {
+    if (selectedEdges.length !== 1) {
+      startTransition(() => {
+        setEditingEdgeLabelId((prev) => (prev !== null ? null : prev));
+        setEditingEdgeLabel((prev) => (prev !== "" ? "" : prev));
+      });
+    }
+  }, [selectedEdges.length]);
 
   // Helper function to group nodes by color
   const groupNodesByColor = useCallback(
@@ -234,6 +305,22 @@ export function PropertiesPanel() {
     }));
   }, [selectedNodes]);
 
+  // Helper function to group nodes by handle type
+  const groupNodesByHandleType = useCallback(() => {
+    const groups = new Map<string, string[]>();
+    selectedNodes.forEach((node) => {
+      const handleType = (node.data?.handleType as string) || "right-source";
+      if (!groups.has(handleType)) {
+        groups.set(handleType, []);
+      }
+      groups.get(handleType)!.push(node.id);
+    });
+    return Array.from(groups.entries()).map(([handleType, ids]) => ({
+      handleType,
+      ids,
+    }));
+  }, [selectedNodes]);
+
   // Helper function to group edges by type
   const groupEdgesByType = useCallback(() => {
     const groups = new Map<string, string[]>();
@@ -282,6 +369,8 @@ export function PropertiesPanel() {
         textColor: "#000000",
         shape: "rectangle",
         color: "var(--card)", // Use CSS variable for card background
+        pageReference: 0,
+        handleType: "right-source",
       };
     }
 
@@ -320,6 +409,8 @@ export function PropertiesPanel() {
       textColor: getValue("textColor", "#000000"),
       shape: getValue("shape", "rectangle"),
       color: getColorValue(),
+      pageReference: getValue("pageReference", 0),
+      handleType: getValue("handleType", "right-source"),
     };
   }, [selectedNodes]);
 
@@ -408,6 +499,7 @@ export function PropertiesPanel() {
         labelFontFamily: "Inter",
         labelFontSize: 12,
         labelColor: undefined, // undefined means default (theme-based)
+        labelBackgroundColor: undefined, // undefined means default (var(--card))
       };
     }
 
@@ -442,6 +534,16 @@ export function PropertiesPanel() {
           value = (
             edgeLabelColor !== undefined ? edgeLabelColor : defaultValue
           ) as T;
+        } else if (key === "labelBackgroundColor") {
+          // labelBackgroundColor can be undefined (default/var(--card)) or a custom color
+          const edgeLabelBackgroundColor = (
+            edge.data as Record<string, unknown>
+          )?.labelBackgroundColor;
+          value = (
+            edgeLabelBackgroundColor !== undefined
+              ? edgeLabelBackgroundColor
+              : defaultValue
+          ) as T;
         } else {
           value = defaultValue;
         }
@@ -460,6 +562,7 @@ export function PropertiesPanel() {
       labelFontFamily: getValue("labelFontFamily", "Inter"),
       labelFontSize: getValue("labelFontSize", 12),
       labelColor: getValue("labelColor", undefined),
+      labelBackgroundColor: getValue("labelBackgroundColor", undefined),
     };
   }, [selectedEdges]);
 
@@ -761,6 +864,140 @@ export function PropertiesPanel() {
                       )}
                     </div>
 
+                    {/* Handle Type */}
+                    <div className="px-2 space-y-2">
+                      <label className="block text-xs text-muted-foreground mb-1.5">
+                        Handle Configuration
+                      </label>
+                      <Select
+                        value={
+                          isMixed(unifiedStyle.handleType)
+                            ? ""
+                            : (unifiedStyle.handleType as string)
+                        }
+                        onValueChange={(value) =>
+                          updateSelectedNodesStyle({ handleType: value })
+                        }
+                      >
+                        <SelectTrigger className="w-full" size="sm">
+                          <SelectValue
+                            placeholder={
+                              isMixed(unifiedStyle.handleType)
+                                ? "Mixed configurations"
+                                : "Select handle configuration"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[
+                            {
+                              value: "top-source",
+                              label: "Top Source (rest are target)",
+                            },
+                            {
+                              value: "bottom-source",
+                              label: "Bottom Source (rest are target)",
+                            },
+                            {
+                              value: "right-source",
+                              label: "Right Source (rest are target)",
+                            },
+                            {
+                              value: "left-source",
+                              label: "Left Source (rest are target)",
+                            },
+                          ].map(({ value, label }) => (
+                            <SelectItem
+                              key={value}
+                              value={value}
+                              className="text-xs"
+                            >
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {isMixed(unifiedStyle.handleType) && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() =>
+                              setExpandedProperties((prev) => ({
+                                ...prev,
+                                handleType: !prev.handleType,
+                              }))
+                            }
+                          >
+                            {expandedProperties.handleType ? (
+                              <>
+                                <ChevronUp className="h-3.5 w-3.5" />
+                                Hide individual configurations
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3.5 w-3.5" />
+                                Show individual configurations
+                              </>
+                            )}
+                          </Button>
+                          {expandedProperties.handleType && (
+                            <div className="space-y-2 pl-2 border-l-2 border-border">
+                              {groupNodesByHandleType().map((group) => (
+                                <Select
+                                  key={`handle-type-group-${group.handleType}`}
+                                  value={group.handleType}
+                                  onValueChange={(newHandleType) => {
+                                    if (group.ids.length > 0) {
+                                      debouncedBatchUpdateNodeData(
+                                        group.ids,
+                                        { handleType: newHandleType },
+                                        undefined
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="w-full" size="sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[
+                                      {
+                                        value: "top-source",
+                                        label: "Top Source (rest are target)",
+                                      },
+                                      {
+                                        value: "bottom-source",
+                                        label:
+                                          "Bottom Source (rest are target)",
+                                      },
+                                      {
+                                        value: "right-source",
+                                        label: "Right Source (rest are target)",
+                                      },
+                                      {
+                                        value: "left-source",
+                                        label: "Left Source (rest are target)",
+                                      },
+                                    ].map(({ value, label }) => (
+                                      <SelectItem
+                                        key={value}
+                                        value={value}
+                                        className="text-xs"
+                                      >
+                                        {label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
                     {/* Color */}
                     <div className="px-2 space-y-2">
                       <label className="block text-xs text-muted-foreground mb-1.5">
@@ -860,6 +1097,47 @@ export function PropertiesPanel() {
                   {/* Text Section */}
                   <div className="space-y-3">
                     <h3 className="text-sm font-semibold">Text</h3>
+
+                    {/* Node Label */}
+                    {selectedNodes.length === 1 && (
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          Label
+                        </label>
+                        <Input
+                          value={
+                            editingNodeLabelId === selectedNodes[0].id
+                              ? editingNodeLabel
+                              : (selectedNodes[0].data?.label as string) || ""
+                          }
+                          onChange={(e) => {
+                            setEditingNodeLabel(e.target.value);
+                            setEditingNodeLabelId(selectedNodes[0].id);
+                          }}
+                          onBlur={() => {
+                            if (
+                              editingNodeLabelId === selectedNodes[0].id &&
+                              editingNodeLabel !== undefined
+                            ) {
+                              batchUpdateNodeData(
+                                [selectedNodes[0].id],
+                                { label: editingNodeLabel },
+                                undefined
+                              );
+                              setEditingNodeLabelId(null);
+                              setEditingNodeLabel("");
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          placeholder="Enter label text"
+                          className="h-fit text-xs px-2 py-1 rounded-sm"
+                        />
+                      </div>
+                    )}
 
                     {/* Font Family */}
                     <div className="px-2 space-y-2">
@@ -1259,6 +1537,36 @@ export function PropertiesPanel() {
                         </>
                       )}
                     </div>
+
+                    {/* Page Reference - Only show when exactly one node is selected */}
+                    {selectedNodes.length === 1 && (
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          PDF Page Reference
+                        </label>
+                        <Input
+                          ref={pageReferenceInputRef}
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={
+                            isMixed(unifiedStyle.pageReference)
+                              ? 0
+                              : (unifiedStyle.pageReference as number) || 0
+                          }
+                          onChange={(e) => {
+                            const pageNum = parseInt(e.target.value, 10) || 0;
+                            updateSelectedNodesStyle({
+                              pageReference: pageNum,
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          placeholder="Page number (0 = no reference)"
+                          className="h-fit text-xs px-2 py-1 rounded-sm"
+                        />
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -1580,6 +1888,45 @@ export function PropertiesPanel() {
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold">Label</h3>
 
+                      {/* Edge Label Text */}
+                      {selectedEdges.length === 1 && (
+                        <div className="px-2 space-y-2">
+                          <label className="block text-xs text-muted-foreground mb-1.5">
+                            Label Text
+                          </label>
+                          <Input
+                            value={
+                              editingEdgeLabelId === selectedEdges[0].id
+                                ? editingEdgeLabel
+                                : (selectedEdges[0].data?.label as string) || ""
+                            }
+                            onChange={(e) => {
+                              setEditingEdgeLabel(e.target.value);
+                              setEditingEdgeLabelId(selectedEdges[0].id);
+                            }}
+                            onBlur={() => {
+                              if (
+                                editingEdgeLabelId === selectedEdges[0].id &&
+                                editingEdgeLabel !== undefined
+                              ) {
+                                batchUpdateEdgeData([selectedEdges[0].id], {
+                                  data: { label: editingEdgeLabel },
+                                });
+                                setEditingEdgeLabelId(null);
+                                setEditingEdgeLabel("");
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            placeholder="Enter label text"
+                            className="h-fit text-xs px-2 py-1 rounded-sm"
+                          />
+                        </div>
+                      )}
+
                       {/* Label Font Family */}
                       <div className="px-2 space-y-2">
                         <label className="block text-xs text-muted-foreground mb-1.5">
@@ -1664,7 +2011,7 @@ export function PropertiesPanel() {
                       {/* Label Color */}
                       <div className="px-2 space-y-2">
                         <label className="block text-xs text-muted-foreground mb-1.5">
-                          Color
+                          Text Color
                         </label>
                         <CustomColorPicker
                           pickerKey={`label-color-picker-${selectedObjectIds.edgeIds.join(
@@ -1692,6 +2039,46 @@ export function PropertiesPanel() {
                                 unifiedEdgeStyle.labelColor === undefined
                               ? "Default"
                               : (unifiedEdgeStyle.labelColor as string)
+                          }
+                          format="hex"
+                          size="sm"
+                          className="max-w-70"
+                        />
+                      </div>
+
+                      {/* Label Background Color */}
+                      <div className="px-2 space-y-2">
+                        <label className="block text-xs text-muted-foreground mb-1.5">
+                          Background Color
+                        </label>
+                        <CustomColorPicker
+                          pickerKey={`label-bg-color-picker-${selectedObjectIds.edgeIds.join(
+                            ","
+                          )}`}
+                          defaultValue={
+                            isMixed(unifiedEdgeStyle.labelBackgroundColor)
+                              ? "#ffffff"
+                              : !unifiedEdgeStyle.labelBackgroundColor ||
+                                unifiedEdgeStyle.labelBackgroundColor ===
+                                  undefined
+                              ? resolvedTheme === "dark"
+                                ? "#353535"
+                                : "#ffffff"
+                              : (unifiedEdgeStyle.labelBackgroundColor as string)
+                          }
+                          onValueChange={(newColor) =>
+                            updateSelectedEdgesStyle({
+                              data: { labelBackgroundColor: newColor },
+                            })
+                          }
+                          displayValue={
+                            isMixed(unifiedEdgeStyle.labelBackgroundColor)
+                              ? "Mixed"
+                              : !unifiedEdgeStyle.labelBackgroundColor ||
+                                unifiedEdgeStyle.labelBackgroundColor ===
+                                  undefined
+                              ? "Default"
+                              : (unifiedEdgeStyle.labelBackgroundColor as string)
                           }
                           format="hex"
                           size="sm"

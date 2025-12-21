@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, startTransition } from "react";
 import { useReactFlow, useStore } from "@xyflow/react";
 
 import {
@@ -13,7 +13,7 @@ import {
 import { Separator } from "react-aria-components";
 
 export default function ZoomSelect() {
-  const { zoomTo, fitView, getZoom } = useReactFlow();
+  const { zoomTo, fitView } = useReactFlow();
   const [currentZoom, setCurrentZoom] = useState<string>("");
 
   // Subscribe to zoom changes
@@ -23,7 +23,9 @@ export default function ZoomSelect() {
   useEffect(() => {
     // Use zoom directly from store instead of getZoom() to avoid dependency issues
     const zoomPercent = Math.round(zoom * 100);
-    setCurrentZoom(zoomPercent.toString());
+    startTransition(() => {
+      setCurrentZoom(zoomPercent.toString());
+    });
   }, [zoom]);
 
   const handleZoomChange = useCallback(
@@ -84,7 +86,7 @@ export default function ZoomSelect() {
       <SelectTrigger className="w-24">
         <SelectValue placeholder="Zoom">{getDisplayValue()}</SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="z-999">
         <SelectItem value="best-fit">Best Fit</SelectItem>
         <Separator className="my-1" />
         {zoomLevels.map((level) => (

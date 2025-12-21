@@ -23,6 +23,12 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     textDecoration?: string;
     textAlign?: string;
     textColor?: string;
+    pageReference?: number;
+    handleType?:
+      | "top-source"
+      | "bottom-source"
+      | "right-source"
+      | "left-source";
   };
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(nodeData.label);
@@ -280,8 +286,57 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
           keepAspectRatio={isSquareShape}
         />
       )}
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      {/* Render handles based on handleType */}
+      {(() => {
+        const handleType = nodeData.handleType || "right-source";
+        switch (handleType) {
+          case "top-source":
+            return (
+              <>
+                <Handle type="source" position={Position.Top} />
+                <Handle type="target" position={Position.Bottom} />
+                <Handle type="target" position={Position.Left} />
+                <Handle type="target" position={Position.Right} />
+              </>
+            );
+          case "bottom-source":
+            return (
+              <>
+                <Handle type="target" position={Position.Top} />
+                <Handle type="source" position={Position.Bottom} />
+                <Handle type="target" position={Position.Left} />
+                <Handle type="target" position={Position.Right} />
+              </>
+            );
+          case "right-source":
+            return (
+              <>
+                <Handle type="target" position={Position.Top} />
+                <Handle type="target" position={Position.Bottom} />
+                <Handle type="target" position={Position.Left} />
+                <Handle type="source" position={Position.Right} />
+              </>
+            );
+          case "left-source":
+            return (
+              <>
+                <Handle type="target" position={Position.Top} />
+                <Handle type="target" position={Position.Bottom} />
+                <Handle type="source" position={Position.Left} />
+                <Handle type="target" position={Position.Right} />
+              </>
+            );
+          default:
+            return (
+              <>
+                <Handle type="target" position={Position.Top} />
+                <Handle type="target" position={Position.Bottom} />
+                <Handle type="target" position={Position.Left} />
+                <Handle type="source" position={Position.Right} />
+              </>
+            );
+        }
+      })()}
 
       {isEditing ? (
         <textarea

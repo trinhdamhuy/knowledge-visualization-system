@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import "highlight.js/styles/github-dark.css";
 
 export function FilePanel() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const diagramId = params?.diagramId as string | undefined;
   const { isOpen, setIsOpen } = useFileCardStore();
   const { displayMode } = useChatPanelStore();
@@ -31,6 +32,10 @@ export function FilePanel() {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [width, setWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
+
+  // Get page number from URL params (check both "page" and "pdf-page")
+  const pageParam = searchParams.get("page") || searchParams.get("pdf-page");
+  const pdfPage = pageParam ? parseInt(pageParam, 10) : null;
 
   const {
     fileName,
@@ -234,10 +239,15 @@ export function FilePanel() {
                 </div>
               ) : currentFileUrl && currentFileType === "pdf" ? (
                 <iframe
-                  src={currentFileUrl}
+                  src={
+                    pdfPage && pdfPage > 0
+                      ? `${currentFileUrl}#page=${pdfPage}`
+                      : currentFileUrl
+                  }
                   className="w-full h-full border-0 p-0"
                   onError={handleFileError}
                   title="File Viewer"
+                  key={pdfPage || 0}
                 />
               ) : currentFileUrl &&
                 (currentFileType === "txt" || currentFileType === "md") ? (

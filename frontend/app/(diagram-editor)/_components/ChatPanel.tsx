@@ -26,13 +26,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { useFile } from "@/hooks/use-file";
 import { useChat } from "@/hooks/use-chat";
@@ -53,6 +46,7 @@ import { useChatUIStore } from "@/stores/chat-ui-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatKeys } from "@/hooks/use-chat";
 import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { ReferenceLink } from "./ReferenceLink";
 
 export function ChatPanel() {
   const params = useParams();
@@ -69,6 +63,7 @@ export function ChatPanel() {
   const [width, setWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
+  const hasRestoredFromCacheRef = useRef(false);
 
   // Default prompt suggestions (detailed prompts)
   const defaultPrompts = [
@@ -78,8 +73,7 @@ export function ChatPanel() {
   ];
 
   // Use stores for chat settings and UI state
-  const { mode, needInitializeData, setMode, setNeedInitializeData } =
-    useChatSettingsStore();
+  const { needInitializeData, setNeedInitializeData } = useChatSettingsStore();
   const {
     isOpen,
     currentStatus,
@@ -124,6 +118,34 @@ export function ChatPanel() {
     messagesOffset
   );
 
+  // Load messages from cache when component mounts or when switching modes
+  // This ensures chat history persists when switching between sidebar and dock modes
+  useEffect(() => {
+    if (!diagramId) return;
+
+    // Only restore from cache once per diagramId
+    if (hasRestoredFromCacheRef.current) return;
+
+    // Try to get cached data for offset 0 (latest messages)
+    const cachedData = queryClient.getQueryData<typeof historyData>([
+      ...chatKeys.history(diagramId),
+      10,
+      0,
+    ]);
+
+    if (cachedData?.messages && Array.isArray(cachedData.messages)) {
+      // Restore from cache if available
+      setAllMessages(cachedData.messages);
+      setHasMoreMessages(cachedData.has_more || false);
+      hasRestoredFromCacheRef.current = true;
+    }
+  }, [diagramId, queryClient]);
+
+  // Reset restore flag when diagramId changes
+  useEffect(() => {
+    hasRestoredFromCacheRef.current = false;
+  }, [diagramId]);
+
   // Update messages and hasMore when historyData changes
   useEffect(() => {
     if (historyData?.messages && Array.isArray(historyData.messages)) {
@@ -142,8 +164,8 @@ export function ChatPanel() {
   // Reset pagination when diagramId changes
   useEffect(() => {
     setMessagesOffset(0);
-    setAllMessages([]);
     setHasMoreMessages(false);
+    // Don't reset allMessages here - let it be restored from cache or loaded from query
   }, [diagramId]);
 
   const messages = useMemo(() => allMessages, [allMessages]);
@@ -450,9 +472,9 @@ export function ChatPanel() {
     // Set chatbot as busy
     setChatbotBusy();
 
-    // Prepare mindmap_data if mode is generate
+    // Always send mindmap_data if we have nodes
     const mindmapData: MindmapData | null =
-      mode === "generate" && nodes.length > 0
+      nodes.length > 0
         ? {
             nodes: nodes,
             edges: edges,
@@ -464,7 +486,6 @@ export function ChatPanel() {
       await sendChatRequestMutation.mutateAsync({
         user_id: userId,
         diagram_id: diagramId,
-        mode: mode,
         file_url: fileUrl || null,
         messages: [
           {
@@ -555,6 +576,15 @@ export function ChatPanel() {
     };
   }, [isResizing, displayMode]);
 
+  // Pre-process content - the new format is already [text](ref:page:X:node:Y)
+  // So we don't need to convert, just ensure it's properly formatted
+  const processRefLinks = (text: string): string => {
+    // The new format from AI is already [text](ref:page:X:node:Y)
+    // We just need to ensure it's properly formatted for ReactMarkdown
+    // No conversion needed - AI now outputs the correct format directly
+    return text;
+  };
+
   const renderMessage = (message: BaseMessage, index: number) => {
     const isHuman = message.type === "human";
     const isAI = message.type === "ai";
@@ -564,10 +594,9 @@ export function ChatPanel() {
         ? userCache[message.additional_kwargs.user_id as string]
         : null;
 
-    const mindmapData =
-      message.name === "mindmap" && message.additional_kwargs?.mindmap_data
-        ? (message.additional_kwargs.mindmap_data as unknown as MindmapData)
-        : null;
+    const mindmapData = message.additional_kwargs?.mindmap_data
+      ? (message.additional_kwargs.mindmap_data as unknown as MindmapData)
+      : null;
 
     const content =
       typeof message.content === "string"
@@ -619,8 +648,47 @@ export function ChatPanel() {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
+                components={{
+                  // Override link rendering to handle hash-based ref links
+                  a: ({ href, children, ...props }) => {
+                    // Check if this is a hash-based ref link (#node/... or #pdf/...)
+                    if (
+                      href &&
+                      typeof href === "string" &&
+                      href.startsWith("#")
+                    ) {
+                      // Parse hash fragments: #node/node-123#pdf/96
+                      const hashString = href.substring(1); // Remove leading #
+                      const fragments = hashString.split("#"); // Split multiple hash fragments
+                      let page: number | undefined;
+                      let nodeId: string | undefined;
+
+                      fragments.forEach((fragment) => {
+                        if (fragment.startsWith("node/")) {
+                          nodeId = fragment.substring(5); // Remove "node/"
+                        } else if (fragment.startsWith("pdf/")) {
+                          page = parseInt(fragment.substring(4), 10); // Remove "pdf/"
+                        }
+                      });
+
+                      if (page || nodeId) {
+                        return (
+                          <ReferenceLink page={page} nodeId={nodeId}>
+                            {children}
+                          </ReferenceLink>
+                        );
+                      }
+                    }
+                    // Regular link - render as normal <a> tag
+                    return (
+                      <a href={href} {...props}>
+                        {children}
+                      </a>
+                    );
+                  },
+                }}
               >
-                {content}
+                {processRefLinks(content)}
               </ReactMarkdown>
             </div>
           ) : (
@@ -634,7 +702,7 @@ export function ChatPanel() {
             </div>
           )}
 
-          {mindmapData && (
+          {mindmapData && isAI && (
             <Badge
               variant="outline"
               className="cursor-pointer hover:bg-accent mt-2"
@@ -691,28 +759,6 @@ export function ChatPanel() {
         </div>
         {/* Options */}
         <div className="flex items-center gap-4 flex-wrap text-sm">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="mode-select" className="text-sm font-medium">
-              Mode:
-            </Label>
-            <Select
-              value={mode}
-              onValueChange={(value: "chat" | "generate") => setMode(value)}
-              disabled={isBusy}
-            >
-              <SelectTrigger id="mode-select" size="sm" className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="z-100">
-                <SelectItem value="chat" className="text-xs">
-                  Chat
-                </SelectItem>
-                <SelectItem value="generate" className="text-xs">
-                  Generate
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
           {fileUrl && fileName && (
             <div className="flex items-center gap-2">
               <Checkbox
@@ -729,11 +775,11 @@ export function ChatPanel() {
                 title="Reload data from uploaded PDF file"
               >
                 <RefreshCw className="size-3.5" />
-                Reload from file
+                Reload data from uploaded PDF file
               </Label>
             </div>
           )}
-          {mode === "generate" && (
+          {nodes.length > 0 && (
             <Badge variant="secondary">
               {nodes.length} nodes, {edges.length} edges
             </Badge>

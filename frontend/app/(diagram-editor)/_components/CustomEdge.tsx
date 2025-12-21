@@ -38,12 +38,14 @@ function CustomEdge({
         labelFontFamily?: string;
         labelFontSize?: number;
         labelColor?: string;
+        labelBackgroundColor?: string;
       }
     | undefined;
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingLabel, setEditingLabel] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSavingRef = useRef(false);
 
   // Check if edge is selected
   const isSelectedByCurrentUser = useMemo(() => {
@@ -81,6 +83,39 @@ function CustomEdge({
     setEditingLabel(currentLabel);
     setIsEditing(true);
     setActiveMode(DiagramMode.Select);
+    isSavingRef.current = false; // Reset saving flag when starting to edit
+  };
+
+  const saveLabel = () => {
+    // Prevent multiple saves
+    if (isSavingRef.current) {
+      return;
+    }
+
+    isSavingRef.current = true;
+    const trimmedLabel = editingLabel.trim();
+    const currentLabel = edgeData?.label || "";
+
+    // Only update if label actually changed
+    if (trimmedLabel !== currentLabel) {
+      setIsEditing(false);
+      setActiveMode(DiagramMode.Select);
+      updateEdge(id, {
+        data: {
+          ...edgeData,
+          label: trimmedLabel,
+        },
+      });
+    } else {
+      // Just exit editing mode if no change
+      setIsEditing(false);
+      setActiveMode(DiagramMode.Select);
+    }
+
+    // Reset saving flag after a short delay
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 100);
   };
 
   const handleBlur = () => {
@@ -96,22 +131,20 @@ function CustomEdge({
         console.error(e);
       }
 
-      setIsEditing(false);
-      setActiveMode(DiagramMode.Select);
-      updateEdge(id, {
-        data: {
-          ...edgeData,
-          label: editingLabel.trim(),
-        },
-      });
+      // Only save when actually blurring (not clicking on toolbar)
+      if (isEditing) {
+        saveLabel();
+      }
     }, 0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleBlur();
+      // Blur the textarea to trigger save
+      textareaRef.current?.blur();
     }
+    // Shift+Enter allows new line, so we don't prevent default
   };
 
   // Get path based on edge type
@@ -206,6 +239,8 @@ function CustomEdge({
   // Default: black for light mode, white for dark mode
   const defaultLabelColor = resolvedTheme === "dark" ? "#ffffff" : "#000000";
   const labelColor = edgeData?.labelColor || defaultLabelColor;
+  // Use custom labelBackgroundColor if set, otherwise use theme-based background (default)
+  const labelBackgroundColor = edgeData?.labelBackgroundColor || "var(--card)";
 
   const hasLabel = edgeData?.label !== undefined && edgeData.label !== "";
 
@@ -253,86 +288,86 @@ function CustomEdge({
           {isEditing ? (
             <>
               {/* Background for label when editing */}
-              <rect
-                x={-40}
-                y={-12}
-                width={80}
-                height={24}
-                fill="var(--card)"
-                stroke="var(--border)"
-                strokeWidth="1"
-                rx="4"
-                style={{ pointerEvents: "none" }}
-              />
               <foreignObject
-                x={-40}
-                y={-12}
-                width={80}
-                height={24}
-                style={{ overflow: "visible" }}
+                width={100}
+                height={100}
+                style={{ overflow: "visible", pointerEvents: "auto" }}
               >
-                <textarea
-                  ref={textareaRef}
-                  value={editingLabel}
-                  onChange={(e) => {
-                    setEditingLabel(e.target.value);
-                    e.target.style.height = "auto";
-                    e.target.style.height = `${e.target.scrollHeight}px`;
-                  }}
-                  onBlur={handleBlur}
-                  onKeyDown={handleKeyDown}
-                  className="nodrag nopan"
-                  style={{
-                    width: "100%",
-                    minWidth: 50,
-                    textAlign: "center",
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    color: labelColor,
-                    resize: "none",
-                    overflow: "hidden",
-                    lineHeight: "1.5",
-                    wordWrap: "break-word",
-                    whiteSpace: "pre-wrap",
-                    padding: "2px 4px",
-                    fontFamily: labelFontFamily,
-                    fontSize: `${labelFontSize}px`,
-                  }}
-                />
+                <div style={{ textAlign: "center", width: "100%" }}>
+                  <textarea
+                    ref={textareaRef}
+                    value={editingLabel}
+                    onChange={(e) => {
+                      setEditingLabel(e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
+                    className="nodrag nopan"
+                    style={{
+                      display: "inline-block",
+                      maxWidth: "100px",
+                      minWidth: "50px",
+                      width: "auto",
+                      textAlign: "center",
+                      background: labelBackgroundColor,
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      outline: "none",
+                      color: labelColor,
+                      resize: "none",
+                      overflow: "hidden",
+                      lineHeight: "1.5",
+                      wordWrap: "break-word",
+                      wordBreak: "break-word",
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "break-word",
+                      padding: "4px 8px",
+                      fontFamily: labelFontFamily,
+                      fontSize: `${labelFontSize}px`,
+                    }}
+                  />
+                </div>
               </foreignObject>
             </>
           ) : (
             <>
-              {/* Background for label */}
-              <rect
-                x={-30}
-                y={-10}
-                width={60}
-                height={20}
-                fill="var(--card)"
-                stroke="var(--border)"
-                strokeWidth="1"
-                rx="4"
-                style={{ pointerEvents: "none" }}
-              />
-              <text
-                x={0}
-                y={0}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={labelColor}
-                fontFamily={labelFontFamily}
-                fontSize={labelFontSize}
+              {/* Background for label - sized based on content with max-width */}
+              <foreignObject
+                width={100}
+                height={100}
+                style={{ overflow: "visible", pointerEvents: "auto" }}
                 onDoubleClick={handleDoubleClick}
-                style={{
-                  cursor: "pointer",
-                  userSelect: "none",
-                  pointerEvents: "auto",
-                }}
               >
-                {edgeData?.label}
-              </text>
+                <div style={{ textAlign: "center", width: "100%" }}>
+                  <div
+                    style={{
+                      display: "inline-block",
+                      maxWidth: "100px",
+                      minWidth: "50px",
+                      width: "auto",
+                      padding: "4px 8px",
+                      background: labelBackgroundColor,
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      wordBreak: "break-word",
+                      whiteSpace: "normal",
+                      overflowWrap: "break-word",
+                      color: labelColor,
+                      fontFamily: labelFontFamily,
+                      fontSize: `${labelFontSize}px`,
+                      lineHeight: "1.4",
+                      cursor: "pointer",
+                      userSelect: "none",
+                    }}
+                  >
+                    {edgeData?.label}
+                  </div>
+                </div>
+              </foreignObject>
             </>
           )}
         </g>

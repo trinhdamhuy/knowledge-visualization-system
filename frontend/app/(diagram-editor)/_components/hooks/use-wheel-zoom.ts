@@ -30,7 +30,7 @@ export function useWheelZoom({
       e.preventDefault();
       e.stopPropagation();
 
-      // Get current zoom
+      // Get current viewport
       const viewport = reactFlowInstance.getViewport();
       const currentZoom = viewport.zoom;
 
@@ -45,8 +45,40 @@ export function useWheelZoom({
       // Clamp to min/max zoom limits
       newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
 
-      // Zoom towards mouse position
-      reactFlowInstance.zoomTo(newZoom);
+      // Get mouse position relative to the ReactFlow pane
+      // Try to find the ReactFlow pane from the event target
+      let reactFlowPane: HTMLElement | null = null;
+      let element: HTMLElement | null = e.target as HTMLElement;
+
+      // Traverse up the DOM tree to find the ReactFlow pane
+      while (element && !reactFlowPane) {
+        if (element.classList.contains("react-flow")) {
+          reactFlowPane = element;
+        } else {
+          element = element.parentElement;
+        }
+      }
+
+      if (!reactFlowPane) {
+        // Fallback: zoom to center if can't find pane
+        reactFlowInstance.zoomTo(newZoom);
+        return;
+      }
+
+      const paneRect = reactFlowPane.getBoundingClientRect();
+      const mouseX = e.clientX - paneRect.left;
+      const mouseY = e.clientY - paneRect.top;
+
+      // Calculate new viewport position to keep mouse point fixed
+      // Formula: newViewportX = viewportX * zoomRatio + mouseX * (1 - zoomRatio)
+      // Where zoomRatio = newZoom / currentZoom
+      // This ensures the flow position under the mouse cursor stays fixed
+      const zoomRatio = newZoom / currentZoom;
+      const newX = viewport.x * zoomRatio + mouseX * (1 - zoomRatio);
+      const newY = viewport.y * zoomRatio + mouseY * (1 - zoomRatio);
+
+      // Set viewport with new zoom and position
+      reactFlowInstance.setViewport({ x: newX, y: newY, zoom: newZoom });
     },
     [reactFlowInstance]
   );
