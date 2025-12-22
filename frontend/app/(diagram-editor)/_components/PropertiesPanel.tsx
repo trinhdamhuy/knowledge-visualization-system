@@ -38,6 +38,7 @@ import {
   Layout,
   ChevronDown,
   ChevronUp,
+  Share2,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -59,6 +60,8 @@ import {
 } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { useParams } from "next/navigation";
+import { ShareDialog } from "@/app/_components/dialogs/share-dialog";
 
 const MAX_SHOWN_USERS = 3;
 
@@ -122,6 +125,9 @@ export function PropertiesPanel() {
   };
   const { resolvedTheme } = useTheme();
   const { displayMode, setDisplayMode } = useChatPanelStore();
+  const params = useParams();
+  const diagramId = params?.diagramId as string | undefined;
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
   // State to track expanded color pickers
   const [expandedColors, setExpandedColors] = useState({
@@ -686,6 +692,21 @@ export function PropertiesPanel() {
                       ? "Switch to Sidebar mode"
                       : "Switch to Docked mode"}
                   </p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsShareDialogOpen(true)}
+                    disabled={!diagramId}
+                  >
+                    <Share2 />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Share diagram</p>
                 </TooltipContent>
               </Tooltip>
               <ThemeToggle variant="outline" size="icon" />
@@ -2093,6 +2114,13 @@ export function PropertiesPanel() {
           </ScrollArea>
         )}
       </Card>
+      {diagramId && (
+        <ShareDialog
+          open={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+          diagramId={diagramId}
+        />
+      )}
     </div>
   );
 }
