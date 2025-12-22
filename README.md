@@ -71,12 +71,12 @@ The web application provides the user interface for diagram creation and collabo
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         Client Layer                         │
-│                    (Next.js Frontend)                        │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐│
-│  │  Diagram       │  │  Chat          │  │  File          ││
-│  │  Editor        │  │  Interface     │  │  Management    ││
-│  └────────────────┘  └────────────────┘  └────────────────┘│
+│                         Client Layer                        │
+│                    (Next.js Frontend)                       │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐ │
+│  │  Diagram       │  │  Chat          │  │  File          │ │
+│  │  Editor        │  │  Interface     │  │  Management    │ │
+│  └────────────────┘  └────────────────┘  └────────────────┘ │
 └──────────────┬──────────────────┬────────────────┬──────────┘
                │                  │                │
                ▼                  ▼                ▼
