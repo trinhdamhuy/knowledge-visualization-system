@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useDiagram } from "@/hooks/use-diagram";
-import { useTeamContext } from "@/contexts/team-context";
+import { useActiveTeam } from "@/hooks/use-active-team";
 
 interface CreateDiagramDialogProps {
   open: boolean;
@@ -34,7 +34,7 @@ export function CreateDiagramDialog({
   onOpenChange,
 }: CreateDiagramDialogProps) {
   const { createDiagram, isCreatingDiagram } = useDiagram();
-  const { activeTeam } = useTeamContext();
+  const { activeTeam } = useActiveTeam();
 
   const formSchema = z.object({
     name: z.string().min(1, {

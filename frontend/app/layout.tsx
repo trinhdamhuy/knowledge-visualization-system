@@ -8,12 +8,12 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const roboto = Roboto({
   subsets: ["latin"],
-  variable: "--font-roboto",
+  variable: "--font-mono",
 });
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ["latin"],
-  variable: "--font-noto-sans-jp",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {

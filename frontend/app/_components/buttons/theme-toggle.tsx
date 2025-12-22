@@ -39,7 +39,7 @@ export function ThemeToggle({
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-fit">
+      <DropdownMenuContent align="end" className="min-w-fit z-999">
         <DropdownMenuItem onClick={() => setTheme("light")}>
           <Sun />
         </DropdownMenuItem>

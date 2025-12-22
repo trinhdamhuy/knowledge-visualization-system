@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useTeam } from "@/hooks/use-team";
-import { useTeamContext } from "@/contexts/team-context";
+import { useActiveTeam } from "@/hooks/use-active-team";
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -34,7 +34,7 @@ export function CreateTeamDialog({
   onOpenChange,
 }: CreateTeamDialogProps) {
   const { createTeam, isCreatingTeam, refetchTeams } = useTeam();
-  const { setActiveTeam } = useTeamContext();
+  const { setActiveTeam } = useActiveTeam();
 
   const formSchema = z.object({
     name: z.string().min(1, {

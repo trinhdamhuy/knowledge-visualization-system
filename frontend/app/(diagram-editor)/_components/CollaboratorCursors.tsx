@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useOther, useOthersConnectionIds } from "@liveblocks/react/suspense";
+import { getUserColor } from "./utils/user-colors";
 
 const Cursor = memo(({ connectionId }: { connectionId: number }) => {
   const info = useOther(connectionId, (user) => user?.info);
@@ -23,15 +24,7 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
 
   const { x, y } = screenPosition;
 
-  const colors = [
-    "rgb(59, 130, 246)", // blue
-    "rgb(236, 72, 153)", // pink
-    "rgb(34, 197, 94)", // green
-    "rgb(251, 146, 60)", // orange
-    "rgb(168, 85, 247)", // purple
-  ];
-
-  const color = colors[connectionId % colors.length];
+  const color = getUserColor(connectionId);
 
   return (
     <div
@@ -64,7 +57,7 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
         />
       </svg>
 
-      {/* Name label */}
+      {/* Name label with border */}
       <div
         style={{
           position: "absolute",
@@ -78,6 +71,7 @@ const Cursor = memo(({ connectionId }: { connectionId: number }) => {
           color: "white",
           whiteSpace: "nowrap",
           boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          border: `2px solid ${color}`,
         }}
       >
         {name}

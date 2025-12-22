@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { ItemsList } from "@/app/_components/layouts/items-list";
-import { DiagramContextMenu } from "@/app/_components/context-menus/diagram-context-menu";
 import { RenameDiagramDialog } from "@/app/_components/dialogs/rename-diagram-dialog";
 import { DeleteDiagramDialog } from "@/app/_components/dialogs/delete-diagram-dialog";
+import { ShareDialog } from "@/app/_components/dialogs/share-dialog";
 import type { Item } from "@/types";
 
 export default function HomePage() {
@@ -13,6 +13,10 @@ export default function HomePage() {
     item: Item | null;
   }>({ open: false, item: null });
   const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    item: Item | null;
+  }>({ open: false, item: null });
+  const [shareDialog, setShareDialog] = useState<{
     open: boolean;
     item: Item | null;
   }>({ open: false, item: null });
@@ -25,16 +29,16 @@ export default function HomePage() {
     setDeleteDialog({ open: true, item });
   };
 
+  const handleShare = (item: Item) => {
+    setShareDialog({ open: true, item });
+  };
+
   return (
     <>
       <ItemsList
-        renderContextMenu={(item: Item) => (
-          <DiagramContextMenu
-            item={item}
-            onRename={handleRename}
-            onDelete={handleDelete}
-          />
-        )}
+        onRename={handleRename}
+        onDeleteItem={handleDelete}
+        onShare={handleShare}
       />
       {renameDialog.item && (
         <RenameDiagramDialog
@@ -54,6 +58,15 @@ export default function HomePage() {
           }
           diagramId={deleteDialog.item.id}
           diagramTitle={deleteDialog.item.name}
+        />
+      )}
+      {shareDialog.item && (
+        <ShareDialog
+          open={shareDialog.open}
+          onOpenChange={(open) =>
+            setShareDialog({ open, item: open ? shareDialog.item : null })
+          }
+          diagramId={shareDialog.item.id}
         />
       )}
     </>

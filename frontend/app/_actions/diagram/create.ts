@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { Diagram } from "@/generated/prisma/client";
+import { liveblocks } from "@/lib/liveblocks";
 
 /**
  * Create a new diagram
@@ -60,6 +61,25 @@ async function createDiagram(
         imageUrl: imageUrl || null,
       },
     });
+
+    if (teamId) {
+      await liveblocks.createRoom(diagram.id, {
+        defaultAccesses: [],
+        groupsAccesses: {
+          [teamId]: ["room:write"],
+        },
+        usersAccesses: {
+          [user.id]: ["room:write"],
+        },
+      });
+    } else {
+      await liveblocks.createRoom(diagram.id, {
+        defaultAccesses: [],
+        usersAccesses: {
+          [user.id]: ["room:write"],
+        },
+      });
+    }
 
     return diagram;
   } catch (error) {

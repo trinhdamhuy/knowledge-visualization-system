@@ -9,8 +9,10 @@ import type { Item } from "@/types";
 import {
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
 } from "@/components/ui/context-menu";
 import { RotateCcw, Trash2 } from "lucide-react";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { DeleteForeverDialog } from "@/app/_components/dialogs/delete-forever-dialog";
 
 /**
@@ -141,6 +143,8 @@ export default function TrashPage() {
         }
         sortByOptions={sortByOptions}
         showCreateButtons={false}
+        isTrashMode={true}
+        trashItemsMap={trashItemsMap}
         renderContextMenu={(item) => (
           <>
             <ContextMenuItem
@@ -149,6 +153,12 @@ export default function TrashPage() {
             >
               <RotateCcw />
               Restore
+              <ContextMenuShortcut>
+                <KbdGroup>
+                  <Kbd>Ctrl</Kbd>
+                  <Kbd>R</Kbd>
+                </KbdGroup>
+              </ContextMenuShortcut>
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -158,6 +168,9 @@ export default function TrashPage() {
             >
               <Trash2 />
               Delete Forever
+              <ContextMenuShortcut>
+                <Kbd>Del</Kbd>
+              </ContextMenuShortcut>
             </ContextMenuItem>
           </>
         )}

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { Permission } from "@/generated/prisma/client";
+import { liveblocks } from "@/lib/liveblocks";
 
 /**
  * Helper function to compare permissions and return the highest one
@@ -115,23 +116,85 @@ async function getDiagramRole(diagramId: string): Promise<Permission | null> {
 }
 
 /**
+ * Check Liveblocks room access for anonymous users
+ * @param diagramId - Diagram ID
+ * @returns Object with view and edit permissions, or null if no access
+ */
+async function checkLiveblocksRoomAccess(diagramId: string): Promise<{
+  canView: boolean;
+  canEdit: boolean;
+} | null> {
+  try {
+    const roomInfo = await liveblocks.getRoom(diagramId);
+
+    // Check if room has defaultAccesses (public access)
+    if (!roomInfo?.defaultAccesses || roomInfo.defaultAccesses.length === 0) {
+      return null;
+    }
+
+    const defaultAccesses = Array.isArray(roomInfo.defaultAccesses)
+      ? roomInfo.defaultAccesses
+      : [];
+
+    const hasRead = defaultAccesses.some(
+      (perm: string) => perm === "room:read" || perm === "room:presence:write"
+    );
+    const hasWrite = defaultAccesses.some(
+      (perm: string) => perm === "room:write"
+    );
+
+    if (!hasRead && !hasWrite) {
+      return null;
+    }
+
+    return {
+      canView: hasRead || hasWrite,
+      canEdit: hasWrite,
+    };
+  } catch (error) {
+    console.error("Failed to check Liveblocks room access:", error);
+    return null;
+  }
+}
+
+/**
  * Check if the user has permission to edit the diagram (OWNER or EDITOR)
+ * For anonymous users, checks Liveblocks room defaultAccesses with write permission
  * @param diagramId - Diagram ID
  * @returns true if user has edit permission, false otherwise
  */
 async function canEditDiagram(diagramId: string): Promise<boolean> {
-  const role = await getDiagramRole(diagramId);
-  return role === Permission.OWNER || role === Permission.EDITOR;
+  const user = await getCurrentUser();
+
+  // If user is authenticated, check database permissions
+  if (user && user.id) {
+    const role = await getDiagramRole(diagramId);
+    return role === Permission.OWNER || role === Permission.EDITOR;
+  }
+
+  // If user is not authenticated, check Liveblocks room defaultAccesses
+  const roomAccess = await checkLiveblocksRoomAccess(diagramId);
+  return roomAccess?.canEdit ?? false;
 }
 
 /**
  * Check if the user has permission to view the diagram (any role)
+ * For anonymous users, checks Liveblocks room defaultAccesses with read/write permission
  * @param diagramId - Diagram ID
  * @returns true if user has view permission, false otherwise
  */
 async function canViewDiagram(diagramId: string): Promise<boolean> {
-  const role = await getDiagramRole(diagramId);
-  return role !== null;
+  const user = await getCurrentUser();
+
+  // If user is authenticated, check database permissions
+  if (user && user.id) {
+    const role = await getDiagramRole(diagramId);
+    return role !== null;
+  }
+
+  // If user is not authenticated, check Liveblocks room defaultAccesses
+  const roomAccess = await checkLiveblocksRoomAccess(diagramId);
+  return roomAccess?.canView ?? false;
 }
 
 export { getDiagramRole, canEditDiagram, canViewDiagram };

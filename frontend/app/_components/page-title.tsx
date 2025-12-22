@@ -8,7 +8,12 @@ export default function PageTitle() {
 
   return (
     <h1 className="text-4xl font-bold px-8">
-      {title ? title.charAt(0).toUpperCase() + title.slice(1) : ""}
+      {title
+        ? (() => {
+            const replaced = title.replace(/-/g, " ");
+            return replaced.charAt(0).toUpperCase() + replaced.slice(1);
+          })()
+        : ""}
     </h1>
   );
 }

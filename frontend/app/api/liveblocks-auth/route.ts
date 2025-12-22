@@ -39,19 +39,77 @@ function getLiveblocksPermissions(permission: Permission | null): string[] {
 export async function POST(request: NextRequest) {
   try {
     const authSession = await auth();
-
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = authSession.user.id!;
-    const userName = authSession.user.name ?? "Anonymous";
-    const userImage = authSession.user.image ?? "";
-
     const { room } = await request.json();
+
     if (!room) {
       return NextResponse.json({ error: "No room specified" }, { status: 400 });
     }
+
+    // If user is not authenticated, check if room is public (has defaultAccesses)
+    if (!authSession?.user?.id) {
+      try {
+        const roomInfo = await liveblocks.getRoom(room);
+
+        // Check if room has defaultAccesses (public access)
+        if (roomInfo?.defaultAccesses && roomInfo.defaultAccesses.length > 0) {
+          // Room is public - allow anonymous access with default permissions
+          const defaultAccesses = Array.isArray(roomInfo.defaultAccesses)
+            ? roomInfo.defaultAccesses
+            : [];
+
+          // Create anonymous session
+          const anonymousId = `anonymous-${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(7)}`;
+          const liveblocksSession = liveblocks.prepareSession(anonymousId, {
+            userInfo: {
+              name: "Anonymous",
+              avatar: "",
+            },
+          });
+
+          // Grant permissions based on defaultAccesses
+          const hasWrite = defaultAccesses.some(
+            (perm: string) => perm === "room:write"
+          );
+          const hasRead = defaultAccesses.some(
+            (perm: string) => perm === "room:read"
+          );
+
+          if (hasWrite) {
+            // Edit access
+            liveblocksSession.allow(room, liveblocksSession.FULL_ACCESS);
+          } else if (hasRead) {
+            // View access
+            liveblocksSession.allow(room, liveblocksSession.READ_ACCESS);
+          } else {
+            // No access even though defaultAccesses exists
+            return NextResponse.json(
+              {
+                error:
+                  "Forbidden: You don't have permission to access this room",
+              },
+              { status: 403 }
+            );
+          }
+
+          // Authorize and return response
+          const { status, body } = await liveblocksSession.authorize();
+          return new Response(body, { status });
+        } else {
+          // Room is not public - require authentication
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+      } catch (error) {
+        console.error("Error checking room access:", error);
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    // User is authenticated - proceed with normal permission check
+    const userId = authSession.user.id!;
+    const userName = authSession.user.name ?? "Anonymous";
+    const userImage = authSession.user.image ?? "";
 
     // Check user's permission for this diagram (room)
     // Room is private by default - only owner has access unless explicitly shared

@@ -38,8 +38,8 @@ export const useTeam = () => {
   // Query: Get teams
   const {
     data: teams,
-    isLoading: isLoadingTeams,
-    error: teamsError,
+    isLoading,
+    error,
     refetch: refetchTeams,
   } = useQuery({
     queryKey: teamKeys.lists(),
@@ -93,8 +93,8 @@ export const useTeam = () => {
   return {
     // Query data
     teams: teams ?? [],
-    isLoadingTeams,
-    teamsError,
+    isLoading,
+    error,
     refetchTeams,
 
     // Mutations

@@ -6,6 +6,7 @@ import {
   updateDiagram,
   getDiagramById,
   copyDiagram,
+  pasteDiagrams,
 } from "@/app/_actions/diagram";
 import { itemsKeys } from "./use-items";
 import { starredKeys } from "./use-starred";
@@ -101,21 +102,39 @@ export const useDiagram = () => {
     },
   });
 
+  // Mutation: Paste diagrams
+  const pasteDiagramsMutation = useMutation({
+    mutationFn: async (diagramIds: string[]) => {
+      return await pasteDiagrams(diagramIds);
+    },
+    onSuccess: (data) => {
+      if (data && data.length > 0) {
+        // Invalidate and refetch diagrams list
+        queryClient.invalidateQueries({ queryKey: diagramKeys.lists() });
+        // Invalidate items list (for home, my-diagrams pages)
+        queryClient.invalidateQueries({ queryKey: itemsKeys.all });
+      }
+    },
+  });
+
   return {
     // Mutations
     createDiagram: createDiagramMutation.mutateAsync,
     updateDiagram: updateDiagramMutation.mutateAsync,
     copyDiagram: copyDiagramMutation.mutateAsync,
+    pasteDiagrams: pasteDiagramsMutation.mutateAsync,
 
     // Mutation states
     isCreatingDiagram: createDiagramMutation.isPending,
     isUpdatingDiagram: updateDiagramMutation.isPending,
     isCopyingDiagram: copyDiagramMutation.isPending,
+    isPastingDiagrams: pasteDiagramsMutation.isPending,
 
     // Mutation results
     createDiagramError: createDiagramMutation.error,
     updateDiagramError: updateDiagramMutation.error,
     copyDiagramError: copyDiagramMutation.error,
+    pasteDiagramsError: pasteDiagramsMutation.error,
   };
 };
 

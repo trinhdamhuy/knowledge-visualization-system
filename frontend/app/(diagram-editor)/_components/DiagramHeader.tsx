@@ -2,27 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Card, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  AvatarGroup,
-  AvatarGroupTooltip,
-} from "@/components/animate-ui/components/animate/avatar-group";
-import { useOthers, useSelf } from "@liveblocks/react/suspense";
 import { useParams } from "next/navigation";
 import { useDiagramById, useDiagram } from "@/hooks/use-diagram";
 import { EditableTitle } from "@/app/_components/editable-title";
 import { toast } from "sonner";
 import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
-import { Panel } from "@xyflow/react";
-import { ThemeToggle } from "@/app/_components/buttons/theme-toggle";
-import ZoomSelect from "@/components/zoom-select";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const MAX_SHOWN_USERS = 3;
 
 export function DiagramHeader() {
   const router = useRouter();
@@ -32,11 +20,6 @@ export function DiagramHeader() {
   const { updateDiagram, isUpdatingDiagram } = useDiagram();
   const { data: canEdit = false, isLoading: isLoadingPermission } =
     useCanEditDiagram(diagramId);
-
-  const users = useOthers();
-  const currentUser = useSelf();
-  const allUsers = [...users, currentUser];
-  const hasMoreUsers = allUsers.length > MAX_SHOWN_USERS;
 
   const handleSaveTitle = async (newTitle: string) => {
     if (!diagramId || !newTitle.trim()) {
@@ -63,11 +46,8 @@ export function DiagramHeader() {
   };
 
   return (
-    <Panel
-      position="top-center"
-      className="w-full flex items-center justify-between z-50 px-3"
-    >
-      {/* Left: Back button and title */}
+    <div className="absolute left-3 top-3 z-10">
+      {/* Back button and title */}
       <Card className="flex items-center gap-2 p-2 w-fit">
         <CardContent className="flex items-center gap-2 p-0">
           <Button
@@ -90,48 +70,6 @@ export function DiagramHeader() {
           )}
         </CardContent>
       </Card>
-
-      {/* Right: Participants */}
-      <Card className="flex items-center gap-2 p-2 w-fit">
-        <CardContent className="flex items-center gap-2 p-0">
-          <AvatarGroup
-            translate="0%"
-            className="h-full"
-            sideOffset={10}
-            tooltipTransition={{ type: "tween", duration: 0.2 }}
-          >
-            {allUsers
-              .slice(0, MAX_SHOWN_USERS)
-              .map(({ connectionId, info }) => (
-                <Avatar key={connectionId}>
-                  <AvatarImage src={info?.avatar} />
-                  <AvatarFallback className="text-xs font-medium">
-                    {info?.name?.[0] || "U"}
-                  </AvatarFallback>
-                  <AvatarGroupTooltip>
-                    <p>{info?.name}</p>
-                  </AvatarGroupTooltip>
-                </Avatar>
-              ))}
-          </AvatarGroup>
-
-          {hasMoreUsers && (
-            <Avatar className="h-8 w-8 border-2">
-              <AvatarFallback className="text-xs font-medium">
-                +{allUsers.length - MAX_SHOWN_USERS}
-              </AvatarFallback>
-            </Avatar>
-          )}
-          <Separator orientation="vertical" className="min-h-6" />
-
-          <CardDescription className="font-medium flex items-center gap-2">
-            <ButtonGroup>
-              <ZoomSelect />
-              <ThemeToggle variant="outline" size="icon" />
-            </ButtonGroup>
-          </CardDescription>
-        </CardContent>
-      </Card>
-    </Panel>
+    </div>
   );
 }

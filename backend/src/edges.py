@@ -1,0 +1,977 @@
+"""Edges for the chatbot workflow."""
+
+from typing import Literal, Dict
+from pydantic import BaseModel, Field
+
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.documents import Document
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langgraph.config import get_stream_writer
+
+from src.schemas.states import State
+from src.models.chat_model import model
+from src.models.vector_store import get_vector_store
+
+
+async def load_file(state: State):
+    """Load a file into documents."""
+
+    writer = get_stream_writer()
+    writer({"current_status": "Loading file..."})
+
+    file_url = state["file_url"]
+    if file_url.endswith(".txt"):
+        loader = TextLoader(file_url)
+    elif file_url.endswith(".pdf"):
+        loader = PyPDFLoader(file_url)
+    else:
+        writer({"current_status": "Can not load file"})
+        raise ValueError("Unsupported file type")
+    documents = await loader.aload()
+
+    return {"context": documents}
+
+
+async def add_documents(state: State):
+    """Add documents to the vector store."""
+
+    writer = get_stream_writer()
+    writer({"current_status": "Adding documents..."})
+
+    vector_store = get_vector_store()
+
+    diagram_id = state["diagram_id"]
+    context = state["context"]
+
+    if not diagram_id:
+        writer({"current_status": "Diagram ID not found"})
+        raise ValueError("Diagram ID not found")
+
+    # Add metadata directly to each document instead of passing separately
+    for doc in context:
+        if doc.metadata is None:
+            doc.metadata = {}
+        doc.metadata["diagram_id"] = diagram_id
+
+    await vector_store.aadd_documents(context)
+
+    return {"context": context}
+
+
+def get_question_for_retrieval(state: State) -> str:
+    """Get the question to use for retrieval: rewritten question if available, otherwise original question."""
+    # Find the original user message (first HumanMessage)
+    original_message = None
+    for msg in state["messages"]:
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            break
+
+    if (
+        original_message
+        and original_message.additional_kwargs
+        and "rewritten_question" in original_message.additional_kwargs
+    ):
+        # Use rewritten question if available
+        return original_message.additional_kwargs["rewritten_question"]
+
+    # Fallback to last message content
+    return state["messages"][-1].content
+
+
+async def retrieve_documents(state: State):
+    """Retrieve documents from the vector store."""
+
+    writer = get_stream_writer()
+
+    # If need_initialize_data is True, we just loaded the full file
+    # Return all documents from context instead of similarity search
+    need_initialize_data = state.get("need_initialize_data", False)
+    existing_context = state.get("context", [])
+
+    if need_initialize_data and existing_context:
+        # When reloading from file, use all loaded documents for mindmap generation
+        writer(
+            {"current_status": "Using full document content for mindmap generation..."}
+        )
+        return {"context": existing_context}
+
+    # Normal chat flow: use similarity search
+    writer({"current_status": "Searching for relevant documents..."})
+
+    question = get_question_for_retrieval(state)
+    diagram_id = state["diagram_id"]
+    vector_store = get_vector_store()
+
+    retrieved_docs = await vector_store.asimilarity_search(
+        question, k=5, filter={"diagram_id": diagram_id}
+    )
+    if len(retrieved_docs) == 0:
+        # Clear context and return signal for no relevant data
+        # This will be handled by grade_documents which checks for empty context
+        return {"context": []}
+    return {"context": retrieved_docs}
+
+
+GRADE_PROMPT = (
+    "You are a grader assessing relevance of a retrieved document to a user question. \n"
+    "Context: \n\n {context} \n\n"
+    "Here is the user question: \n\n {question} \n\n"
+    "If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n"
+    "Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."
+)
+
+
+class GradeDocuments(BaseModel):
+    """Grade documents using a binary score for relevance check."""
+
+    binary_score: str = Field(
+        default="",
+        description="Relevance score: 'yes' if relevant, or 'no' if not relevant",
+    )
+
+
+async def grade_documents(
+    state: State,
+) -> Literal["generate_answer", "rewrite_question", "no_relevant_data"]:
+    """Run LLM to grade relevance and store the result in the state."""
+    question = get_question_for_retrieval(state)
+    context_docs = state["context"]
+
+    # Check if no documents were retrieved
+    if not context_docs or len(context_docs) == 0:
+        # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
+        return "no_relevant_data"
+
+    # Find the original user message to check rewrite count
+    original_message = None
+    for msg in state["messages"]:
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            break
+
+    # Prevent infinite loop: limit to 1 rewrite attempt
+    # Check if rewritten_question already exists in additional_kwargs
+    if (
+        original_message
+        and original_message.additional_kwargs
+        and "rewritten_question" in original_message.additional_kwargs
+    ):
+        # Already rewritten once, force generate_answer
+        return "no_relevant_data"
+
+    context = "\n".join([doc.page_content for doc in context_docs])
+
+    prompt = GRADE_PROMPT.format(question=question, context=context)
+    response = await model.with_structured_output(GradeDocuments).ainvoke(
+        [{"role": "user", "content": prompt}]
+    )
+    score = response.binary_score
+
+    if score == "yes":
+        return "generate_answer"
+
+    writer = get_stream_writer()
+    writer({"current_status": "Cannot find relevant documents"})
+    return "rewrite_question"
+
+
+REWRITE_PROMPT = (
+    "Look at the input and try to reason about the underlying semantic intent / meaning. \n"
+    + "Here is the initial question: \n\n {question} \n\n"
+    + "Formulate an improved question: \n\n"
+)
+
+
+async def rewrite_question(state: State):
+    """Rewrite the original user question and store it in additional_kwargs of the original message."""
+    writer = get_stream_writer()
+    writer({"current_status": "Rewriting question..."})
+
+    # Find the original user message (first HumanMessage)
+    original_message = None
+    original_index = -1
+    for i, msg in enumerate(state["messages"]):
+        if msg.__class__.__name__ == "HumanMessage":
+            original_message = msg
+            original_index = i
+            break
+
+    if not original_message:
+        # Fallback: use last message
+        original_message = state["messages"][-1]
+        original_index = len(state["messages"]) - 1
+
+    # Get the original question
+    original_question = original_message.content
+
+    # Rewrite the question
+    prompt = REWRITE_PROMPT.format(question=original_question)
+    response = await model.ainvoke([{"role": "user", "content": prompt}])
+    rewritten_question = response.content
+
+    # Update the original message's additional_kwargs with rewritten_question
+    updated_additional_kwargs = (
+        original_message.additional_kwargs.copy()
+        if original_message.additional_kwargs
+        else {}
+    )
+    updated_additional_kwargs["rewritten_question"] = rewritten_question
+
+    # Create updated HumanMessage with new additional_kwargs
+    # Preserve all other attributes from original message
+    updated_message = HumanMessage(
+        content=original_message.content,
+        additional_kwargs=updated_additional_kwargs,
+        response_metadata=(
+            original_message.response_metadata
+            if hasattr(original_message, "response_metadata")
+            else None
+        ),
+        id=original_message.id if hasattr(original_message, "id") else None,
+        name=original_message.name if hasattr(original_message, "name") else None,
+    )
+
+    # Create new messages list with updated message
+    updated_messages = list(state["messages"])
+    updated_messages[original_index] = updated_message
+
+    return {"messages": updated_messages}
+
+
+ANSWER_PROMPT = (
+    "You are an AI assistant helping the user understand their documents.\n"
+    "User language can be different from the document's language, so you MUST ALWAYS use the user's language to answer the question except if the user asked to answer in a different language.\n"
+    "Provide a helpful, conversational answer to the user's request.\n"
+    "Explain the content clearly like a helpful assistant.\n"
+    "\n"
+    "FORMATTING REQUIREMENTS:\n"
+    "- Use Markdown formatting to make your answer clear and well-structured\n"
+    "- Use headings (##, ###) to organize different sections\n"
+    "- Use bullet points (-) or numbered lists (1.) for multiple items\n"
+    "- Use **bold** for important terms or concepts\n"
+    "- Use `code blocks` for technical terms, code snippets, or specific values\n"
+    "- Use > blockquotes for important notes or highlights\n"
+    "- Break long paragraphs into shorter, readable chunks\n"
+    "- Use proper spacing between sections for readability\n"
+    "\n"
+    "REFERENCE LINKS WITH HOVERCARD:\n"
+    "When referring to specific pages in the PDF or nodes in the mindmap, use reference links with hash-based format:\n"
+    "- For PDF page references: [**text content**](#pdf/page-number) where page-number is the page number from document metadata\n"
+    "- For node references: [**text content**](#node/node-id) where node-id is the node ID\n"
+    "- For both page and node: [**text content**](#node/node-id#pdf/page-number) - combine with multiple hash fragments\n"
+    "\n"
+    "CRITICAL FORMATTING RULES:\n"
+    "- The text inside the square brackets MUST be wrapped in **bold** markdown: [**text content**](#pdf/page-number#node/node-id) or [**text content**](#pdf/page-number)\n"
+    "- The text content should be natural, readable keywords or short phrases that flow naturally in the sentence\n"
+    "- Use hash-based format: #pdf/page-number for PDF pages, #node/node-id for nodes\n"
+    "- When combining both, use multiple hash fragments: #node/node-id#pdf/page-number\n"
+    "- Example format: 'The [**text content**](#pdf/page-number#node/node-id) concept is important.'\n"
+    "- Example with both: 'The [**text content**](#pdf/page-number#node/node-id) pattern is explained.'\n"
+    "- NOT: 'The **Text** ([page page-number](#pdf/page-number#node/node-id))' - this is WRONG\n"
+    "- CORRECT: 'The [**text content**](#pdf/page-number#node/node-id) concept is important.'\n"
+    "\n"
+    "USAGE GUIDELINES:\n"
+    "- ALWAYS use reference links when you have page numbers from document metadata - this is MANDATORY, not optional\n"
+    "- When node IDs are provided (from existing or newly generated mindmap), you MUST include node references in your response\n"
+    "- Embed references naturally within your sentences using format: [**text content**](#node/node-id#pdf/page-number) or [**text content**](#pdf/page-number)\n"
+    "- The text should be keywords or short phrases, like: 'According to the [**Introduction**](#node/node-id#pdf/page-number) node, this concept is important'\n"
+    "- Or: 'See [**this section**](#node/node-id#pdf/page-number) for more details'\n"
+    "- When page numbers are available in document metadata, you MUST include at least one page reference in your response\n"
+    "- If node IDs are provided to you, you MUST include node references in your response - this is MANDATORY when node IDs are available\n"
+    "- When both page numbers and node IDs are available, combine them: [**text content**](#node/node-id#pdf/page-number)\n"
+    "- The text inside brackets should be bold: [**text content**] not just [text content]\n"
+    "\n"
+    "CRITICAL: If node IDs are provided to you in the prompt, you MUST include node references in your response. Do not skip node references when node IDs are available.\n"
+    "\n"
+    "Examples:\n"
+    "- 'The concept is represented by the [**Introduction**](#pdf/page-number#node/node-id) node in the mindmap.'\n"
+    "- 'For comprehensive information, see [**this section**](#pdf/page-number#node/node-id) which covers this topic.'\n"
+    "- 'According to [**the document**](#pdf/page-number#node/node-id), the main principles are...'\n"
+    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern is explained in detail.'\n"
+    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern combines both references.'\n"
+    "\n"
+    "User request:\n"
+    "{request}\n"
+    "\n"
+    "Documents context:\n"
+    "{context}\n"
+)
+
+NO_RELEVANT_DATA_PROMPT = (
+    "The user's question is not related to the available documents, or no relevant documents were found.\n"
+    "You MUST respond that you don't know the answer or cannot answer based on the available documents.\n"
+    "CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question. If the user asked in Vietnamese, respond in Vietnamese. If the user asked in English, respond in English. Match the user's language exactly.\n"
+    "Keep your response brief and simple. Examples:\n"
+    "- If user asked in Vietnamese: 'Tôi không biết câu trả lời dựa trên các tài liệu hiện có.' or 'Tôi không thể trả lời câu hỏi này dựa trên các tài liệu có sẵn.'\n"
+    "- If user asked in English: 'I don't know the answer based on the available documents.' or 'I cannot answer this question based on the available documents.'\n"
+    "\n"
+    "User question:\n"
+    "{request}\n"
+)
+
+
+class GenerateAnswer(BaseModel):
+    """Generate an answer to the user's question."""
+
+    answer: str = Field(default="", description="The answer to the question")
+
+
+class NodeData(BaseModel):
+    """Node data structure for React Flow."""
+
+    label: str = Field(
+        ...,
+        description="The label text displayed in the node. Use concise keywords (1-3 words) following mindmap principles.",
+    )
+    color: str = Field(
+        default="",
+        description="Background color of the node (hex color code, e.g., '#E3F2FD'). Leave empty for default card color.",
+    )
+    fontFamily: str = Field(
+        default="",
+        description="Font family for the node text. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default font (Inter).",
+    )
+    fontSize: float = Field(
+        default=0,
+        description="Font size for the node text in pixels (e.g., 14, 16, 18). Use 0 for default size.",
+    )
+    fontWeight: str = Field(
+        default="",
+        description="Font weight for the node text (e.g., 'normal', 'bold', '600', '700'). Leave empty for default weight.",
+    )
+    fontStyle: str = Field(
+        default="",
+        description="Font style for the node text (e.g., 'normal', 'italic'). Leave empty for default style.",
+    )
+    textDecoration: str = Field(
+        default="",
+        description="Text decoration for the node text (e.g., 'none', 'underline'). Leave empty for default decoration.",
+    )
+    textColor: str = Field(
+        default="",
+        description="Text color for the node (hex color code, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST be set when color (background) is provided. If background color is light (e.g., '#E3F2FD', '#F3E5F5', '#E8F5E9'), use dark text (#000000 or dark colors like '#1a1a1a'). If background color is dark (e.g., '#1a1a1a', '#2d2d2d'), use light text (#ffffff or light colors). Leave empty for default (theme-based).",
+    )
+    pageReference: int = Field(
+        default=0,
+        description="Page number in PDF document that this node references (e.g., 26, 96). Use 0 if no page reference. This allows users to navigate to the specific page when clicking on the node.",
+    )
+    handleType: str = Field(
+        default="right-source",
+        description="Handle configuration for the node. Determines which handle is a source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source'.",
+    )
+
+
+class Measured(BaseModel):
+    """Measured dimensions of the node."""
+
+    width: float = Field(
+        default=150, description="Measured width of the node in pixels"
+    )
+    height: float = Field(
+        default=50, description="Measured height of the node in pixels"
+    )
+
+
+class Node(BaseModel):
+    """React Flow node structure."""
+
+    id: str = Field(..., description="Unique identifier for the node")
+    position: Dict[str, float] = Field(
+        ...,
+        description="Node position with x and y coordinates. Center node should be at (0, 0) or near center. Branch nodes should radiate outward.",
+    )
+    width: float = Field(default=150, description="Width of the node in pixels")
+    height: float = Field(default=50, description="Height of the node in pixels")
+    data: NodeData = Field(..., description="Node data containing the label and color")
+    type: str = Field(
+        default="custom",
+        description="Node type for React Flow. Always use 'custom' for all nodes.",
+    )
+    measured: Measured = Field(
+        default_factory=lambda: Measured(width=150, height=50),
+        description="Measured dimensions of the node",
+    )
+
+
+class EdgeData(BaseModel):
+    """Edge data structure for React Flow."""
+
+    label: str = Field(
+        default="",
+        description="Optional label text displayed on the edge. Leave empty if no label is needed.",
+    )
+    labelFontFamily: str = Field(
+        default="",
+        description="Font family for the edge label text. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default font (Inter).",
+    )
+    labelFontSize: float = Field(
+        default=0,
+        description="Font size for the edge label text in pixels (e.g., 12, 14, 16). Use 0 for default size.",
+    )
+
+
+class Edge(BaseModel):
+    """React Flow edge structure."""
+
+    id: str = Field(
+        ...,
+        description="Unique identifier for the edge (format: 'xy-edge__SOURCE-TARGET' where SOURCE and TARGET are node IDs, or custom)",
+    )
+    source: str = Field(..., description="ID of the source node (parent)")
+    target: str = Field(..., description="ID of the target node (child)")
+    type: str = Field(
+        default="smoothstep",
+        description="Edge type for React Flow. Available types: 'default' (straight line), 'straight' (direct line), 'step' (right-angle), 'smoothstep' (curved hierarchical), 'simplebezier' (bezier curve). Use different types to create visual variety and hierarchy.",
+    )
+    style: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Optional CSS styles for the edge (e.g., stroke, strokeWidth). Use colors to match parent node branches.",
+    )
+    animated: bool = Field(
+        default=False,
+        description="Whether the edge should be animated (true) or static (false). Use animation for emphasis or visual interest.",
+    )
+    data: EdgeData = Field(
+        default_factory=EdgeData,
+        description="Edge data containing optional label, labelFontFamily, and labelFontSize.",
+    )
+
+
+class MindmapData(BaseModel):
+    """React Flow mindmap data structure."""
+
+    nodes: Dict[str, Node] = Field(
+        ..., description="Dictionary of nodes keyed by node ID"
+    )
+    edges: Dict[str, Edge] = Field(
+        ..., description="Dictionary of edges keyed by edge ID"
+    )
+
+
+async def generate_answer(state: State):
+    """Generate an answer and optionally mindmap data based on user request."""
+
+    # Get the latest HumanMessage (user's most recent question)
+    # Find the last HumanMessage in the messages list
+    request = None
+    for msg in reversed(state["messages"]):
+        if msg.__class__.__name__ == "HumanMessage":
+            request = msg.content
+            break
+
+    # Fallback to last message if no HumanMessage found
+    if request is None:
+        request = state["messages"][-1].content if state["messages"] else ""
+
+    context_docs = state["context"]
+    existing_mindmap_data = (
+        state["messages"][-1].additional_kwargs.get("mindmap_data", {})
+        if state["messages"]
+        and state["messages"][-1].additional_kwargs
+        else {}
+    )
+
+    writer = get_stream_writer()
+    writer({"current_status": "Generating answer..."})
+
+    # Logic:
+    # - If no context documents, use NO_RELEVANT_DATA_PROMPT
+    # - If context documents exist, generate answer with context
+    # Note: Rewrite logic is already handled in grade_documents:
+    #   - If documents are not relevant and not yet rewritten -> rewrite_question
+    #   - If documents are not relevant and already rewritten -> no_relevant_data -> generate_answer (with empty context)
+    #   - If documents are relevant -> generate_answer (with context)
+    if not context_docs or len(context_docs) == 0:
+        # No documents found - use no relevant data prompt
+        prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
+        response = await model.with_structured_output(GenerateAnswer).ainvoke(
+            [{"role": "user", "content": prompt}]
+        )
+        return {"messages": [AIMessage(content=response.answer)]}
+    else:
+        # We have context documents - generate answer with context
+        # Include metadata (page numbers) in context so AI can use reference links
+        context_parts = []
+        for doc in context_docs:
+            content = doc.page_content
+            # Add page number if available in metadata
+            if doc.metadata and "page" in doc.metadata:
+                page_num = doc.metadata["page"]
+                context_parts.append(f"[Page {page_num}]\n{content}")
+            else:
+                context_parts.append(content)
+        context = "\n\n".join(context_parts)
+        prompt = ANSWER_PROMPT.format(request=request, context=context)
+
+        # Generate answer
+        response = await model.with_structured_output(GenerateAnswer).ainvoke(
+            [{"role": "user", "content": prompt}]
+        )
+
+        mindmap_dict = None
+
+        try:
+            # Prepare context for mindmap generation
+            full_context = "\n".join([doc.page_content for doc in context_docs])
+
+            # If context is very long, create a high-level summary for mindmap generation
+            if len(full_context) > 50000:
+                summary_prompt = (
+                    "You are summarizing a large document to create a mindmap.\n"
+                    "Extract ONLY the high-level structure:\n"
+                    "- Main topic/subject\n"
+                    "- Major sections/chapters (3-5 main sections)\n"
+                    "- Key topics within each section (2-4 topics per section)\n"
+                    "Focus on organizational structure, not details.\n"
+                    "Output format: A structured summary with main topic, sections, and key topics.\n"
+                    "\n"
+                    "Document content:\n"
+                    f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
+                )
+                summary_response = await model.ainvoke(
+                    [{"role": "user", "content": summary_prompt}]
+                )
+                mindmap_context = summary_response.content
+            else:
+                mindmap_context = full_context
+
+            # Extract node IDs from existing mindmap if available
+            # Include ALL node IDs, not just first 10
+            existing_node_ids = []
+            existing_node_labels_map = {}
+            if existing_mindmap_data and isinstance(existing_mindmap_data, dict):
+                nodes = existing_mindmap_data.get("nodes", {})
+                if isinstance(nodes, dict):
+                    existing_node_ids = list(nodes.keys())
+                    # Build a map of node IDs to labels for better context
+                    for node_id, node_data in nodes.items():
+                        if isinstance(node_data, dict) and "data" in node_data:
+                            label = node_data.get("data", {}).get("label", "")
+                            if label:
+                                existing_node_labels_map[node_id] = label
+
+            # Update prompt to include node IDs for reference
+            answer_prompt_with_nodes = prompt
+            if existing_node_ids:
+                # Create a more helpful list showing node IDs with their labels
+                node_info_list = []
+                for node_id in existing_node_ids:
+                    label = existing_node_labels_map.get(node_id, "")
+                    if label:
+                        node_info_list.append(f"{node_id} (label: '{label}')")
+                    else:
+                        node_info_list.append(node_id)
+
+                node_ids_str = "\n".join(node_info_list)
+                answer_prompt_with_nodes = (
+                    f"{prompt}\n\n"
+                    f"Available nodes from existing mindmap (you can reference these using hash format [**text content**](#node/node-id)):\n"
+                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                    f"\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above.\n"
+                    f"Format example: [**Introduction**](#node/node-1766205361492)\n"
+                )
+                # Re-generate answer with node context
+                response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                    [{"role": "user", "content": answer_prompt_with_nodes}]
+                )
+
+            # Generate mindmap data
+            # Add instruction to create more nodes when reloading from full PDF
+            need_initialize_data = state.get("need_initialize_data", False)
+            mindmap_prompt_base = MINDMAP_PROMPT.format(
+                request=request,
+                context=mindmap_context,
+                data=existing_mindmap_data,
+            )
+
+            # When reloading from PDF, encourage creating comprehensive mindmap
+            if need_initialize_data and len(context_docs) > 10:
+                mindmap_prompt = (
+                    f"{mindmap_prompt_base}\n\n"
+                    "IMPORTANT: You are creating a mindmap from the FULL document content (not just a few chunks). "
+                    "Create a COMPREHENSIVE mindmap that covers the entire document structure. "
+                    "Aim for 25-40 nodes to properly represent the document's content and structure. "
+                    "Include all major sections, chapters, and key topics. "
+                    "This is a full document mindmap, so be thorough but still organized."
+                )
+            else:
+                mindmap_prompt = mindmap_prompt_base
+
+            mindmap_response = await model.with_structured_output(MindmapData).ainvoke(
+                [{"role": "user", "content": mindmap_prompt}]
+            )
+            mindmap_dict = mindmap_response.model_dump()
+
+            # Extract node IDs from newly generated mindmap for reference
+            # Include ALL node IDs, not just first 10, so AI can reference any node
+            new_node_ids = []
+            node_labels_map = {}  # Map node IDs to their labels for better context
+            if mindmap_dict and isinstance(mindmap_dict, dict):
+                nodes = mindmap_dict.get("nodes", {})
+                if isinstance(nodes, dict):
+                    new_node_ids = list(nodes.keys())
+                    # Build a map of node IDs to labels for better context
+                    for node_id, node_data in nodes.items():
+                        if isinstance(node_data, dict) and "data" in node_data:
+                            label = node_data.get("data", {}).get("label", "")
+                            if label:
+                                node_labels_map[node_id] = label
+
+            # Regenerate answer with node IDs from the new mindmap
+            if new_node_ids:
+                # Create a more helpful list showing node IDs with their labels
+                node_info_list = []
+                for node_id in new_node_ids:
+                    label = node_labels_map.get(node_id, "")
+                    if label:
+                        node_info_list.append(f"{node_id} (label: '{label}')")
+                    else:
+                        node_info_list.append(node_id)
+
+                node_ids_str = "\n".join(node_info_list)
+                final_prompt = (
+                    f"{prompt}\n\n"
+                    f"IMPORTANT: A mindmap has just been generated with the following nodes. "
+                    f"You MUST include references to these nodes in your response using the hash-based format [**text**](#node/node-id).\n"
+                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                    f"\n"
+                    f"Available nodes from the generated mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above. "
+                    f"For example, if a node ID is 'node-1766205361492', use exactly '#node/node-1766205361492' in your reference link.\n"
+                    f"\n"
+                    f"Also include page references when available. Combine both when relevant: [**text**](#node/node-id#pdf/page-number).\n"
+                    f"Format examples:\n"
+                    f"- Node only: [**Introduction**](#node/node-1766205361492)\n"
+                    f"- Page only: [**Page 26**](#pdf/26)\n"
+                    f"- Both: [**Introduction**](#node/node-1766205361492#pdf/26)\n"
+                    f"\n"
+                    f"Make sure to reference multiple nodes throughout your response to help users navigate the mindmap."
+                )
+                response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                    [{"role": "user", "content": final_prompt}]
+                )
+        except (ValueError, KeyError, AttributeError) as e:
+            # If mindmap generation fails, just continue with answer
+            print(f"Failed to generate mindmap data: {e}")
+            mindmap_dict = None
+
+        # Return message with answer and optional mindmap data
+        additional_kwargs = {}
+        if mindmap_dict:
+            additional_kwargs["mindmap_data"] = mindmap_dict
+
+        return {
+            "messages": [
+                AIMessage(
+                    content=response.answer,
+                    additional_kwargs=additional_kwargs,  # Always pass dict, never None
+                )
+            ]
+        }
+
+
+MINDMAP_PROMPT = (
+    "You are an AI assistant generating a professional React Flow mindmap from documents following established mindmap principles.\n"
+    "User language can be different from the document's language, but the mindmap language must be the same as the document's language (can be translated if user asked to do so).\n"
+    "\n"
+    "MINDMAP DESIGN PRINCIPLES (MUST FOLLOW):\n"
+    "\n"
+    "1. CENTRAL TOPIC:\n"
+    "   - Place the main/central topic at position (0, 0) or near the center\n"
+    "   - Use node type 'custom' for ALL nodes including the central node\n"
+    "   - This should be the overarching theme or main subject of the documents\n"
+    "\n"
+    "2. HIERARCHICAL STRUCTURE (STRICT LIMITS):\n"
+    "   - Create a radial, tree-like structure radiating from the center\n"
+    "   - Main branches (level 1): Maximum 3-5 branches from center\n"
+    "   - Sub-branches (level 2): Maximum 2-4 sub-concepts per main branch\n"
+    "   - Sub-sub-branches (level 3): ONLY if absolutely essential, maximum 2-3 per sub-branch\n"
+    "   - MAXIMUM DEPTH: 3 levels total (center -> main branch -> sub-branch -> sub-sub-branch)\n"
+    "   - TOTAL NODES LIMIT: Maximum 30-40 nodes total (including center)\n"
+    "   - TOTAL EDGES LIMIT: Maximum 35-45 edges total\n"
+    "   - Each branch should represent a major theme, category, or section\n"
+    "   - If document is very large, focus on TOP-LEVEL structure only (2 levels max)\n"
+    "\n"
+    "3. KEYWORDS & LABELS:\n"
+    "   - Use concise keywords (1-3 words maximum per node)\n"
+    "   - Avoid full sentences - use nouns, short phrases, or key concepts\n"
+    "   - Labels should be clear, memorable, and capture the essence\n"
+    "   - Use action verbs or descriptive terms when appropriate\n"
+    "\n"
+    "4. VISUAL ORGANIZATION & SPACING (CRITICAL):\n"
+    "   - Use GENEROUS spacing between all nodes - minimum 400-600 pixels between any two nodes\n"
+    "   - Nodes should NEVER be placed too close together - maintain wide, comfortable spacing\n"
+    "   - Layout can be flexible: radial, free-form, or hybrid - whatever creates the most spacious arrangement\n"
+    "   - You are NOT restricted to strict radial or waterfall layouts - use free-form positioning for optimal spacing\n"
+    "   - Main branches: Position 500-800 pixels from center node for comfortable spacing\n"
+    "   - Sub-branches: Position 400-600 pixels from their parent nodes\n"
+    "   - Sub-sub-branches: Position 400-600 pixels from their parent nodes\n"
+    "   - Spread nodes across a wide canvas area - use the full available space\n"
+    "   - Avoid clustering nodes together - distribute them widely\n"
+    "   - Think of nodes as needing their own 'breathing room' - each node should have ample space around it\n"
+    "   - If using radial layout, increase angles and distances significantly\n"
+    "   - If using free-form layout, spread nodes horizontally and vertically with large gaps\n"
+    "   - Minimum distance between any two nodes: 400 pixels (preferably 500-600 pixels)\n"
+    "   - The mindmap should look spacious and uncluttered, not cramped\n"
+    "\n"
+    "5. COLOR CODING:\n"
+    "   - Assign different colors to different main branches for visual distinction\n"
+    "   - Use consistent colors within each branch (parent and children share similar color scheme)\n"
+    "   - Use node style.backgroundColor for branch colors (e.g., '#E3F2FD', '#F3E5F5', '#E8F5E9', '#FFF3E0', '#FCE4EC')\n"
+    "   - Use edge style.stroke to match parent node colors\n"
+    "   - Central node can have a distinct, prominent color\n"
+    "\n"
+    "6. EDGE STYLING & TYPES (USE VARIETY FOR VISUAL INTEREST):\n"
+    "   - Available edge types: 'default', 'straight', 'step', 'smoothstep', 'simplebezier'\n"
+    "   - Use 'smoothstep' for main hierarchical connections (curved, organic-looking) - MOST COMMON\n"
+    "   - Use 'simplebezier' for secondary connections or cross-branch relationships (smooth curves)\n"
+    "   - Use 'step' for right-angle connections when you want a structured, organized look\n"
+    "   - Use 'straight' for direct, non-hierarchical relationships or when emphasizing direct connections\n"
+    "   - Use 'default' sparingly, mainly for simple direct connections\n"
+    "   - MIX different edge types throughout the mindmap to create visual variety and hierarchy\n"
+    "   - Main branches from center: prefer 'smoothstep' or 'simplebezier'\n"
+    "   - Sub-branches: mix 'smoothstep', 'step', or 'simplebezier' based on relationship type\n"
+    "   - Cross-connections between branches: use 'simplebezier' or 'straight'\n"
+    "   - Match edge colors to their parent branch colors\n"
+    "   - Use edge style.strokeWidth of 2-3 for main branches, 1-2 for sub-branches\n"
+    "\n"
+    "7. CONTENT ANALYSIS & SUMMARIZATION (CRITICAL FOR LARGE DOCUMENTS):\n"
+    "   - FIRST: Summarize and extract ONLY the most important high-level concepts\n"
+    "   - For large documents (100+ pages), focus on MAIN SECTIONS/CHAPTERS only\n"
+    "   - Identify the main topic from the documents\n"
+    "   - Extract 3-5 major themes/categories/sections as main branches (NO MORE)\n"
+    "   - For each main branch, extract ONLY 2-4 most important sub-concepts (NOT all details)\n"
+    "   - Focus on hierarchical relationships (parent-child, general-specific)\n"
+    "   - PRIORITIZE: Only include concepts that are central to understanding the document\n"
+    "   - EXCLUDE: Minor details, examples, specific cases, lengthy explanations\n"
+    "   - EXCLUDE: Repetitive information, redundant concepts\n"
+    "   - Think BIG PICTURE: What are the main ideas someone needs to understand?\n"
+    "   - Maintain logical flow and coherence at high level only\n"
+    "\n"
+    "8. JSON FORMAT REQUIREMENTS (CRITICAL):\n"
+    "   - nodes MUST be a dictionary/object where keys are node IDs (e.g., 'node-1766205361492')\n"
+    "   - edges MUST be a dictionary/object where keys are edge IDs (e.g., 'edge-123')\n"
+    "   - Each node MUST have:\n"
+    "     * id: string (same as the dictionary key)\n"
+    "     * type: 'custom' (ALWAYS use 'custom' for all nodes)\n"
+    "     * position: object with 'x' and 'y' as numbers\n"
+    "     * width: number (e.g., 150)\n"
+    "     * height: number (e.g., 50)\n"
+    "     * data: object with:\n"
+    "       - 'label' (string, required): The node text\n"
+    "       - 'color' (string, optional): Background color hex code (e.g., '#E3F2FD') or empty string for default\n"
+    "       - 'fontFamily' (string, optional): Font family name. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default (Inter)\n"
+    "       - 'fontSize' (number, optional): Font size in pixels (e.g., 14, 16, 18) or 0 for default\n"
+    "       - 'fontWeight' (string, optional): Font weight (e.g., 'normal', 'bold', '600', '700') or empty string for default\n"
+    "       - 'fontStyle' (string, optional): Font style (e.g., 'normal', 'italic') or empty string for default\n"
+    "       - 'textDecoration' (string, optional): Text decoration (e.g., 'none', 'underline') or empty string for default\n"
+    "       - 'textColor' (string, optional): Text color hex code (e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set when color is provided. If background is light, use dark text (#000000). If background is dark, use light text (#ffffff). NEVER leave empty when color is set. Leave empty ONLY when color is also empty.\n"
+    "       - 'pageReference' (number, optional): PDF page number (e.g., 26, 96). Use 0 if no page reference.\n"
+    "       - 'handleType' (string, optional): Handle configuration determining which handle is source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source' if not specified.\n"
+    "     * measured: object with 'width' (number, e.g., 150) and 'height' (number, e.g., 50)\n"
+    "   - Each edge MUST have:\n"
+    "     * id: string (format: 'xy-edge__{{source}}-{{target}}' or custom, same as the dictionary key)\n"
+    "     * source: string (source node ID)\n"
+    "     * target: string (target node ID)\n"
+    "     * type: string (one of: 'default', 'straight', 'step', 'smoothstep', 'simplebezier')\n"
+    "     * style: object (e.g., {{'stroke': '#FFB74D', 'strokeWidth': '1'}})\n"
+    "     * animated: boolean (true or false) - use true for emphasis or visual interest\n"
+    "     * data: object with:\n"
+    "       - 'label' (string, optional): Edge label text or empty string if no label\n"
+    "       - 'labelFontFamily' (string, optional): Font family for edge label. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default (Inter)\n"
+    "       - 'labelFontSize' (number, optional): Font size for edge label in pixels (e.g., 12, 14) or 0 for default\n"
+    "   - Example edge format:\n"
+    "     'xy-edge__node-1766209382911-node-1766209382477': {{\n"
+    "       'source': 'node-1766209382911',\n"
+    "       'target': 'node-1766209382477',\n"
+    "       'id': 'xy-edge__node-1766209382911-node-1766209382477',\n"
+    "       'type': 'smoothstep',\n"
+    "       'animated': false,\n"
+    "       'data': {{'label': 'related to', 'labelFontFamily': 'Inter', 'labelFontSize': 12}}\n"
+    "     }}\n"
+    "   - Example node format:\n"
+    "     'node-1766205361492': {{\n"
+    "       'id': 'node-1766205361492',\n"
+    "       'type': 'custom',\n"
+    "       'position': {{'x': 0, 'y': 0}},\n"
+    "       'width': 150,\n"
+    "       'height': 50,\n"
+    "       'data': {{\n"
+    "         'label': 'New Node',\n"
+    "         'color': '#E3F2FD',\n"
+    "         'fontFamily': 'Inter',\n"
+    "         'fontSize': 16,\n"
+    "         'fontWeight': 'bold',\n"
+    "         'fontStyle': 'normal',\n"
+    "         'textDecoration': 'none',\n"
+    "         'handleType': 'right-source'\n"
+    "       }},\n"
+    "       'measured': {{'width': 150, 'height': 50}}\n"
+    "     }}\n"
+    "\n"
+    "9. REACT FLOW FEATURES & STYLING:\n"
+    "   - Use node.type='custom' for ALL nodes (never use 'input', 'default', or 'output')\n"
+    "   - Use VARIETY of edge types: 'smoothstep' (most common for hierarchy), 'simplebezier' (smooth curves), 'step' (structured), 'straight' (direct), 'default' (simple)\n"
+    "   - Mix edge types throughout the mindmap to create visual interest and hierarchy\n"
+    "   - NODE STYLING:\n"
+    "     * Use node.data.color for background color (hex format, e.g., '#E3F2FD')\n"
+    "     * Use node.data.textColor for text color (hex format, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set textColor when color (background) is provided. If background is light (e.g., '#E3F2FD', '#F3E5F5'), use dark text (#000000). If background is dark (e.g., '#1a1a1a'), use light text (#ffffff). NEVER leave textColor empty when color is set - this causes poor contrast. Leave empty ONLY when color is also empty (using default theme).\n"
+    "     * Use node.data.pageReference for PDF page number (integer, e.g., 26, 96). Use 0 if no page reference. This allows users to navigate to the specific page.\n"
+    "     * Use node.data.fontFamily to set font. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Default is 'Inter'\n"
+    "     * Use node.data.fontSize for font size in pixels (e.g., 14, 16, 18, 20)\n"
+    "     * Use node.data.fontWeight for emphasis: 'normal', 'bold', '600', '700' (use 'bold' for important nodes like center or main branches)\n"
+    "     * Use node.data.fontStyle: 'normal' or 'italic' (use 'italic' sparingly for emphasis)\n"
+    "     * Use node.data.textDecoration: 'none' or 'underline' (use 'underline' sparingly)\n"
+    "     * Use node.data.handleType to control handle configuration (which handle is source vs target). Options: 'top-source', 'bottom-source', 'right-source', 'left-source'. IMPORTANT: Use VARIETY across nodes to create diverse connection patterns. For example:\n"
+    "       - Central node: Use 'right-source' or 'bottom-source' (most common)\n"
+    "       - Main branches: Mix 'top-source', 'bottom-source', 'left-source', 'right-source' for visual variety\n"
+    "       - Sub-branches: Vary handleType based on their position relative to parent (e.g., if parent is on top, child might use 'top-source')\n"
+    "       - Create visual interest by using different handleTypes throughout the mindmap\n"
+    "       - Default is 'right-source' if not specified\n"
+    "     * Central node and main branches: Consider using larger fontSize (18-20), bold fontWeight for hierarchy\n"
+    "     * Sub-branches: Use medium fontSize (14-16), normal fontWeight\n"
+    "   - EDGE STYLING:\n"
+    "     * Use edge.style.stroke and edge.style.strokeWidth for visual hierarchy\n"
+    "     * Use edge.animated: true for important connections or visual emphasis, false for regular connections\n"
+    "     * Use edge.data.label for edge labels when relationships need clarification (e.g., 'contains', 'leads to', 'related to')\n"
+    "     * Use edge.data.labelFontFamily for edge label font. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Default is 'Inter'\n"
+    "     * Use edge.data.labelFontSize for edge label size in pixels (e.g., 12, 14)\n"
+    "     * Use edge.data.labelBackgroundColor for edge label background (hex format, e.g., '#E3F2FD'). Leave empty for default card color.\n"
+    "     * Use edge.data.labelColor for edge label text color (hex format, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set labelColor when labelBackgroundColor is provided. If labelBackgroundColor is light (e.g., '#E3F2FD', '#F3E5F5'), use dark text (#000000). If labelBackgroundColor is dark (e.g., '#1a1a1a'), use light text (#ffffff). NEVER leave labelColor empty when labelBackgroundColor is set - this causes poor contrast. Leave empty ONLY when labelBackgroundColor is also empty (using default theme).\n"
+    "     * Only add edge labels when they add meaningful information about the relationship\n"
+    "\n"
+    "10. LAYOUT CALCULATION (SPACIOUS POSITIONING):\n"
+    "   - Center node: position (0, 0) or near center\n"
+    "   - Layout style: You can use radial, free-form, or hybrid - choose what creates the most spacious layout\n"
+    "   - For radial layout with N main branches:\n"
+    "     * Distribute at angles: 360°/N intervals\n"
+    "     * Use LARGE distances: 500-800 pixels from center (NOT 250-400)\n"
+    "     * Calculate: x = distance * cos(angle), y = distance * sin(angle)\n"
+    "   - For free-form layout:\n"
+    "     * Spread nodes widely across the canvas\n"
+    "     * Use horizontal spacing: minimum 500-600 pixels between nodes on same level\n"
+    "     * Use vertical spacing: minimum 400-500 pixels between levels\n"
+    "     * Position nodes at coordinates like: (-800, 0), (-400, 0), (400, 0), (800, 0) for horizontal spread\n"
+    "     * Or: (0, -600), (0, -200), (0, 200), (0, 600) for vertical spread\n"
+    "   - Sub-branches: Position 400-600 pixels from parent (NOT 200-300)\n"
+    "   - Sub-sub-branches: Position 400-600 pixels from parent\n"
+    "   - IMPORTANT: When calculating positions, always ensure minimum 400 pixels distance between ANY two nodes\n"
+    "   - Use the full canvas space - spread nodes from -1000 to +1000 on both axes if needed\n"
+    "   - Better to have nodes too far apart than too close together\n"
+    "\n"
+    "11. EXISTING DATA HANDLING:\n"
+    "    - If user provided existing mindmap data, analyze and extend it logically\n"
+    "    - Preserve existing structure when appropriate\n"
+    "    - Add new branches or nodes based on new content\n"
+    "    - Maintain consistency in styling and layout\n"
+    "\n"
+    "12. SIZE OPTIMIZATION (MANDATORY):\n"
+    "    - ABSOLUTE MAXIMUM: 40 nodes, 45 edges\n"
+    "    - TARGET: 20-30 nodes for optimal readability\n"
+    "    - If document is very large (200+ pages), use only 2 hierarchy levels (center + main branches)\n"
+    "    - If document is extremely large (400+ pages), focus on chapter/section titles only\n"
+    "    - Quality over quantity: Better to have fewer, well-chosen nodes than many confusing ones\n"
+    "    - When in doubt, choose the most important concepts and skip the rest\n"
+    "\n"
+    "13. CONTENT SELECTION STRATEGY:\n"
+    "    - For large documents, create mindmap based on TABLE OF CONTENTS or SECTION STRUCTURE\n"
+    "    - Focus on organizational structure rather than detailed content\n"
+    "    - Group related concepts together rather than listing everything\n"
+    "    - Use main branches for major sections/chapters\n"
+    "    - Use sub-branches for key topics within each section (not all topics)\n"
+    "    - Skip examples, case studies, detailed explanations, footnotes\n"
+    "    - Think: 'What would be in a book's table of contents?'\n"
+    "\n"
+    "User request:\n"
+    "{request}\n"
+    "\n"
+    "Documents context:\n"
+    "{context}\n"
+    "\n"
+    "IMPORTANT: The document context may be very long. You MUST:\n"
+    "1. First, identify the high-level structure (chapters, main sections, major topics)\n"
+    "2. Extract ONLY the most important concepts at each level\n"
+    "3. Create a mindmap with MAXIMUM 30-40 nodes total\n"
+    "4. Focus on the BIG PICTURE, not details\n"
+    "5. If the document has many pages, prioritize organizational structure over content details\n"
+    "\n"
+    "CRITICAL SPACING REQUIREMENTS:\n"
+    "- MINIMUM distance between ANY two nodes: 400 pixels (preferably 500-600 pixels)\n"
+    "- Use the full canvas space - spread nodes widely from -1000 to +1000 on both x and y axes\n"
+    "- Do NOT cluster nodes together - distribute them with generous spacing\n"
+    "- Each node needs 'breathing room' - ensure ample space around every node\n"
+    "- Layout can be radial, free-form, horizontal, vertical, or hybrid - choose what creates the most spacious arrangement\n"
+    "- Better to have nodes too far apart than too close together\n"
+    "- Think of the mindmap as needing to look spacious and uncluttered, like a well-designed infographic\n"
+    "\n"
+    "Existing mindmap data (if any):\n"
+    "{data}\n"
+    "\n"
+    "Generate a mindmap that follows ALL the principles above, creating a clear, hierarchical, visually organized representation of the document content.\n"
+    "REMEMBER: Less is more. A simple, clear mindmap with key concepts is better than a cluttered one with everything.\n"
+)
+
+
+SUMMARIZE_PROMPT = (
+    "You are a summarizer summarizing a list of documents. \n"
+    "Here is the list of documents: \n\n {documents} \n\n"
+    "Summarize the documents by breaking them into their main sections, from top to bottom, and provide a concise summary for each section. \n"
+    "Focus on the main ideas and key points of the documents, and provide a concise summary for each section. \n"
+    "The summary should be in the same language as the documents but can be translated to the user's language if user asked to do so. \n"
+)
+
+
+class SummarizeDocuments(BaseModel):
+    """Summarize the documents."""
+
+    summary: str = Field(default="", description="The summary of the documents")
+
+
+async def summarize_documents(
+    state: State,
+):
+    """Summarize the documents."""
+
+    writer = get_stream_writer()
+    writer({"current_status": "Summarizing documents..."})
+
+    documents = "\n".join([doc.page_content for doc in state["context"]])
+    prompt = SUMMARIZE_PROMPT.format(documents=documents)
+    response = await model.with_structured_output(SummarizeDocuments).ainvoke(
+        [{"role": "user", "content": prompt}]
+    )
+
+    # Create a Document from the summary and update context
+    summary_document = Document(
+        page_content=response.summary,
+        metadata={"type": "summary", "source": "summarize_documents"},
+    )
+
+    return {
+        "context": [summary_document],
+    }
+
+
+async def route_workflow(
+    state: State,
+) -> Literal["load_file", "retrieve_documents"]:
+    """
+    Decide workflow branch based on need_initialize_data.
+    - need_initialize_data = True -> load_file (reload from file)
+    - need_initialize_data = False -> retrieve_documents (normal chat)
+    """
+
+    writer = get_stream_writer()
+    writer({"current_status": "Calculating how the workflow should proceed..."})
+
+    need_initialize_data = state["need_initialize_data"]
+
+    if need_initialize_data:
+        return "load_file"
+    return "retrieve_documents"
