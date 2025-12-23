@@ -32,6 +32,7 @@ import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { Box } from "lucide-react";
+import { computeHiddenNodeIds } from "./utils/collapse-utils";
 
 type LayoutDirection = "TB" | "LR";
 
@@ -165,6 +166,12 @@ export function DiagramCanvas() {
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
     useDiagramSync();
 
+  // Expand/Collapse: hide descendants of collapsed nodes (default is expanded)
+  const hiddenNodeIds = useMemo(
+    () => computeHiddenNodeIds(nodes, edges),
+    [nodes, edges]
+  );
+
   // Local state for nodes during drag (preview only)
   const [localNodes, setLocalNodes] = useState<Node[]>(nodes);
   const [isDragging, setIsDragging] = useState(false);
@@ -181,6 +188,19 @@ export function DiagramCanvas() {
 
   // Track if any drag is active (node drag or selection box drag)
   const isAnyDragging = isDragging || isDraggingSelectionBox;
+
+  const visibleNodes = useMemo(
+    () => localNodes.filter((n) => !hiddenNodeIds.has(n.id)),
+    [localNodes, hiddenNodeIds]
+  );
+
+  const visibleEdges = useMemo(
+    () =>
+      edges.filter(
+        (e) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
+      ),
+    [edges, hiddenNodeIds]
+  );
 
   // Sync local nodes with Liveblocks nodes when not dragging
   // This ensures undo/redo works correctly by syncing with Liveblocks state
@@ -508,8 +528,8 @@ export function DiagramCanvas() {
           : "system"
       }
       proOptions={{ hideAttribution: true }}
-      nodes={localNodes}
-      edges={edges}
+      nodes={visibleNodes}
+      edges={visibleEdges}
       onNodesChange={onNodesChangeLocal}
       onEdgesChange={updateEdges}
       onNodeDragStart={onNodeDragStart}
@@ -548,7 +568,7 @@ export function DiagramCanvas() {
       <DiagramToolBar />
       <PropertiesPanel />
       <UpdateNodeInternalsOnSignal
-        nodeIds={allNodeIds}
+        nodeIds={allNodeIds.filter((id) => !hiddenNodeIds.has(id))}
         signal={internalsUpdateSignal}
       />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />

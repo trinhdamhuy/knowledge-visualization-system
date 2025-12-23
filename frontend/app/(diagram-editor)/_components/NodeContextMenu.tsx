@@ -8,6 +8,7 @@ import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { getDescendantNodeIds } from "./utils/collapse-utils";
 
 interface ContextMenuProps {
   nodeId: string; // Keep for backward compatibility
@@ -34,6 +35,7 @@ export function NodeContextMenu({
     copySelected,
     paste,
     batchUpdateEdgeData,
+    batchUpdateNodeData,
   } = useDiagramSync();
   const updateMyPresence = useUpdateMyPresence();
   const currentUser = useSelf();
@@ -51,6 +53,14 @@ export function NodeContextMenu({
 
   // Check if exactly one node is selected (for reference options)
   const canChangeReference = selectedNodes.length === 1;
+
+  // Expand/Collapse only for a single node
+  const canToggleCollapse = selectedNodes.length === 1;
+  const isCollapsed = useMemo(() => {
+    if (!canToggleCollapse) return false;
+    const data = selectedNodes[0]?.data as { collapsed?: boolean } | undefined;
+    return Boolean(data?.collapsed);
+  }, [canToggleCollapse, selectedNodes]);
 
   // Check if selected node has pageReference
   const hasPageReference = useMemo(() => {
@@ -162,6 +172,12 @@ export function NodeContextMenu({
     const parentNode = selectedNodes[0];
     if (!parentNode) return;
 
+    // If parent is collapsed, expand it so the new child is visible
+    const parentData = parentNode.data as { collapsed?: boolean } | undefined;
+    if (parentData?.collapsed) {
+      batchUpdateNodeData([parentNode.id], { collapsed: false });
+    }
+
     const childrenEdges = edges.filter((e) => e.source === parentNode.id);
     const childrenCount = childrenEdges.length;
 
@@ -242,7 +258,62 @@ export function NodeContextMenu({
     }
 
     onClose();
-  }, [canAddChild, selectedNodes, nodes, edges, addNodeWithEdge, onClose]);
+  }, [
+    canAddChild,
+    selectedNodes,
+    nodes,
+    edges,
+    addNodeWithEdge,
+    batchUpdateNodeData,
+    onClose,
+  ]);
+
+  const handleToggleCollapse = useCallback(() => {
+    if (!canToggleCollapse || selectedNodes.length !== 1) return;
+    const node = selectedNodes[0];
+    if (!node) return;
+
+    const nextCollapsed = !isCollapsed;
+    batchUpdateNodeData([node.id], { collapsed: nextCollapsed });
+
+    // If collapsing, ensure we don't keep hidden descendants selected
+    if (nextCollapsed) {
+      const descendants = getDescendantNodeIds(node.id, edges);
+
+      const nextNodeIds = currentSelection.nodeIds.filter(
+        (id) => !descendants.has(id)
+      );
+      const nextEdgeIds = currentSelection.edgeIds.filter((edgeId) => {
+        const edge = edges.find((e) => e.id === edgeId);
+        if (!edge) return true;
+        return !descendants.has(edge.source) && !descendants.has(edge.target);
+      });
+
+      if (
+        nextNodeIds.length !== currentSelection.nodeIds.length ||
+        nextEdgeIds.length !== currentSelection.edgeIds.length
+      ) {
+        updateMyPresence({
+          selectedObjectIds: {
+            nodeIds: nextNodeIds,
+            edgeIds: nextEdgeIds,
+          },
+        });
+      }
+    }
+
+    onClose();
+  }, [
+    canToggleCollapse,
+    selectedNodes,
+    isCollapsed,
+    batchUpdateNodeData,
+    edges,
+    currentSelection.nodeIds,
+    currentSelection.edgeIds,
+    updateMyPresence,
+    onClose,
+  ]);
 
   // Check if there's any selection - use currentSelection from Presence
   // Don't use effectiveNodeIds as it has fallback to nodeId which may not reflect actual selection
@@ -359,6 +430,16 @@ export function NodeContextMenu({
     onClick: () => void;
     variant?: "destructive";
   }> = [
+    // Expand / Collapse - only when exactly one node is selected
+    ...(canToggleCollapse
+      ? [
+          {
+            label: isCollapsed ? "Expand" : "Collapse",
+            kbd: null,
+            onClick: handleToggleCollapse,
+          },
+        ]
+      : []),
     // Change REFERENCE - only when exactly one node is selected
     ...(canChangeReference
       ? [
