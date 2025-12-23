@@ -39,4 +39,5 @@ export interface ChatRequest {
 
 export interface DeleteRequest {
   diagram_id: string;
+  user_id: string | null;
 }

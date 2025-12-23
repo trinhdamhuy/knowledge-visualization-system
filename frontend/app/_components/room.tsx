@@ -38,10 +38,10 @@ export const Room = ({ children, diagramId, fallback }: RoomProps) => {
   return (
     <LiveblocksProvider
       authEndpoint="/api/liveblocks-auth"
-      throttle={16}
+      throttle={24}
       preventUnsavedChanges
       lostConnectionTimeout={10000}
-      backgroundKeepAliveTimeout={15 * 60 * 1000}
+      backgroundKeepAliveTimeout={60 * 1000}
     >
       <RoomProvider
         id={diagramId}
@@ -55,7 +55,6 @@ export const Room = ({ children, diagramId, fallback }: RoomProps) => {
         initialStorage={{
           nodes: new LiveMap<string, LiveObject<LsonObject>>(),
           edges: new LiveMap<string, LiveObject<LsonObject>>(),
-          chatbotStatus: new LiveObject({ isBusy: false }),
         }}
       >
         {children}

@@ -9,12 +9,14 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
  * Get chat history for a diagram with pagination
  * Checks view permission for both authenticated and anonymous users
  * @param diagramId - Diagram ID
+ * @param userId - User ID (required for user-specific chat history)
  * @param limit - Number of messages to fetch (default: 10)
  * @param offset - Offset for pagination (default: 0)
  * @returns Chat history response or null if failed
  */
 async function getChatHistory(
   diagramId: string,
+  userId: string | null,
   limit: number = 10,
   offset: number = 0
 ): Promise<HistoryResponse | null> {
@@ -24,9 +26,14 @@ async function getChatHistory(
     return null;
   }
 
+  // If user is not logged in, don't fetch history
+  if (!userId) {
+    return null;
+  }
+
   try {
     const response = await fetch(
-      `${BACKEND_URL}/api/chat-history?diagram_id=${diagramId}&limit=${limit}&offset=${offset}`,
+      `${BACKEND_URL}/api/chat-history?diagram_id=${diagramId}&user_id=${userId}&limit=${limit}&offset=${offset}`,
       {
         method: "GET",
         headers: {

@@ -1,12 +1,13 @@
 """Main file for the chatbot API."""
 
 import os
-import asyncio
+import json
 from contextlib import asynccontextmanager
+from typing import Optional, AsyncGenerator
 from dotenv import load_dotenv
-import httpx
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from langchain_core.messages import HumanMessage
@@ -61,12 +62,6 @@ CONNECTION_STRING = (
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 if not FRONTEND_URL:
     raise ValueError("FRONTEND_URL environment variable not set")
-
-LIVEBLOCKS_SECRET_KEY = os.getenv("LIVEBLOCKS_SECRET_KEY")
-if not LIVEBLOCKS_SECRET_KEY:
-    raise ValueError("LIVEBLOCKS_SECRET_KEY environment variable not set")
-
-LIVEBLOCKS_API_URL = "https://api.liveblocks.io/v2"
 
 
 @asynccontextmanager
@@ -150,12 +145,17 @@ async def read_root() -> str:
 
 
 @app.get("/api/chat-history", response_model=HistoryResponse)
-async def diagram_history(diagram_id: str, limit: int = 10, offset: int = 0):
+async def diagram_history(
+    diagram_id: str, user_id: Optional[str] = None, limit: int = 10, offset: int = 0
+):
     """Get the history of the chatbot with pagination."""
+
+    # Use user-specific thread_id if user_id is provided
+    thread_id = f"{diagram_id}_{user_id}" if user_id else diagram_id
 
     config: RunnableConfig = {
         "configurable": {
-            "thread_id": diagram_id,
+            "thread_id": thread_id,
         }
     }
     graph_state = await app.state.graph.aget_state(config)
@@ -193,8 +193,16 @@ async def diagram_history(diagram_id: str, limit: int = 10, offset: int = 0):
 
 @app.delete("/api/delete-chat-history", response_model=BaseResponse)
 async def delete_chat_history(request: DeleteRequest):
-    """Delete the chat history for a given diagram_id."""
-    await app.state.checkpointer.adelete_thread(thread_id=request.diagram_id)
+    """Delete the chat history for a given diagram_id and user_id."""
+    # user_id is required for deleting chat history (each user has their own history)
+    if not request.user_id:
+        return BaseResponse(
+            status=400, message="user_id is required to delete chat history"
+        )
+
+    # Use user-specific thread_id
+    thread_id = f"{request.diagram_id}_{request.user_id}"
+    await app.state.checkpointer.adelete_thread(thread_id=thread_id)
     return BaseResponse(status=200, message="Chat history deleted successfully")
 
 
@@ -210,29 +218,77 @@ async def delete_diagram_store(request: DeleteRequest):
     )
 
 
-async def process_chat(
+@app.post("/api/chat", response_model=BaseResponse)
+async def chat(
     request: ChatRequest,
-    app_state,
-) -> None:
+):
     """
-    Process chat request and send broadcast events to Liveblocks.
-    Frontend only receives data via broadcast events, not SSE.
+    Legacy endpoint kept for compatibility; it now runs the flow without broadcasting.
     """
+    # Fallback: run the graph once (non-streaming) and ignore chunks
     diagram_id = request.diagram_id
+    user_id = request.user_id
+    app.state.cancel_flags[diagram_id] = False
 
-    # Reset cancel flag for this diagram_id
-    app_state.cancel_flags[diagram_id] = False
-
+    thread_id = f"{diagram_id}_{user_id}" if user_id else diagram_id
     config: RunnableConfig = {
         "configurable": {
-            "thread_id": diagram_id,
+            "thread_id": thread_id,
+        }
+    }
+    graph_state = await app.state.graph.aget_state(config)
+    state = graph_state.values
+
+    input_dict = State(
+        messages=[
+            HumanMessage(
+                content=request.messages[-1].content,
+                additional_kwargs={
+                    "user_id": request.user_id,
+                    "mindmap_data": request.mindmap_data,
+                },
+            ),
+        ],
+        diagram_id=diagram_id,
+        file_url=request.file_url,
+        context=state.get("context", []),
+        need_initialize_data=request.need_initialize_data,
+    )
+
+    async for _ in app.state.graph.astream(
+        input_dict,
+        config=config,
+        stream_mode="custom",
+    ):
+        if app.state.cancel_flags.get(diagram_id, False):
+            break
+
+    app.state.cancel_flags[diagram_id] = False
+    return BaseResponse(status=200, message="Chat request processed (no broadcast)")
+
+
+async def stream_chat_events(
+    request: ChatRequest,
+    app_state,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream chat chunks directly to the client (per-request stream, no Liveblocks).
+    Yields Server-Sent Events with JSON payloads.
+    """
+    diagram_id = request.diagram_id
+    user_id = request.user_id
+
+    app_state.cancel_flags[diagram_id] = False
+
+    thread_id = f"{diagram_id}_{user_id}" if user_id else diagram_id
+    config: RunnableConfig = {
+        "configurable": {
+            "thread_id": thread_id,
         }
     }
     graph_state = await app_state.graph.aget_state(config)
     state = graph_state.values
 
-    # If need_initialize_data, we'll rebuild context from file
-    # Otherwise, we keep existing context
     context = state.get("context", [])
 
     input_dict = State(
@@ -251,96 +307,34 @@ async def process_chat(
         need_initialize_data=request.need_initialize_data,
     )
 
-    room_id = diagram_id
-    broadcast_url = f"{LIVEBLOCKS_API_URL}/rooms/{room_id}/broadcast_event"
-
-    async with httpx.AsyncClient() as client:
+    async def event_stream():
         try:
-            async for chunk in app.state.graph.astream(
+            async for chunk in app_state.graph.astream(
                 input_dict,
                 config=config,
                 stream_mode="custom",
             ):
-                # Check if chat was cancelled
                 if app_state.cancel_flags.get(diagram_id, False):
                     print(f"Chat cancelled for diagram_id: {diagram_id}")
                     break
 
-                # Send broadcast event to Liveblocks for each chunk
-                if isinstance(chunk, dict):
-                    try:
-                        # Prepare broadcast event payload
-                        event_payload = {
-                            "type": "stream_chunk",
-                            "payload": chunk,
-                        }
-
-                        # Send broadcast event to Liveblocks
-                        response = await client.post(
-                            broadcast_url,
-                            headers={
-                                "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
-                                "Content-Type": "application/json",
-                            },
-                            json=event_payload,
-                            timeout=10.0,
-                        )
-                        response.raise_for_status()
-                    except httpx.HTTPError as e:
-                        # Log error but continue streaming
-                        print(f"Failed to send broadcast event to Liveblocks: {e}")
-                else:
-                    # For non-dict chunks, send as broadcast event too
-                    try:
-                        event_payload = {
-                            "type": "stream_chunk",
-                            "payload": {"chunk": str(chunk)},
-                        }
-                        response = await client.post(
-                            broadcast_url,
-                            headers={
-                                "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
-                                "Content-Type": "application/json",
-                            },
-                            json=event_payload,
-                            timeout=10.0,
-                        )
-                        response.raise_for_status()
-                    except httpx.HTTPError as e:
-                        print(f"Failed to send broadcast event to Liveblocks: {e}")
+                payload = chunk if isinstance(chunk, dict) else {"chunk": str(chunk)}
+                data = json.dumps(payload, ensure_ascii=False)
+                yield f"data: {data}\n\n"
         finally:
-            # Clear cancel flag
             app_state.cancel_flags[diagram_id] = False
+            yield "event: stream_complete\ndata: {}\n\n"
 
-            # Send stream_complete event to set chatbot status to idle
-            try:
-                complete_event = {
-                    "type": "stream_complete",
-                    "payload": {},
-                }
-                response = await client.post(
-                    broadcast_url,
-                    headers={
-                        "Authorization": f"Bearer {LIVEBLOCKS_SECRET_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json=complete_event,
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-            except httpx.HTTPError as e:
-                print(f"Failed to send stream_complete event to Liveblocks: {e}")
+    return event_stream()
 
 
-@app.post("/api/chat", response_model=BaseResponse)
-async def chat(
-    request: ChatRequest,
-):
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest):
     """
-    Process chat request and send broadcast events to Liveblocks.
+    Stream chat response per-request (no Liveblocks broadcast).
     """
-    asyncio.create_task(process_chat(request, app.state))
-    return BaseResponse(status=200, message="Chat request accepted")
+    event_generator = await stream_chat_events(request, app.state)
+    return StreamingResponse(event_generator, media_type="text/event-stream")
 
 
 @app.post("/api/chat/cancel", response_model=BaseResponse)

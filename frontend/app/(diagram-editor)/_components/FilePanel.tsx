@@ -6,15 +6,18 @@ import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useFile } from "@/hooks/use-file";
 import { useFileCardStore } from "../_stores/use-file-card-store";
 import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
+import { getSignedFileUrlAction } from "@/app/_actions/file";
 
 export function FilePanel() {
   const params = useParams();
@@ -25,6 +28,7 @@ export function FilePanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [currentFileUrl, setCurrentFileUrl] = useState<string | null>(null);
+  const [signedFileUrl, setSignedFileUrl] = useState<string | null>(null);
   const [currentFileType, setCurrentFileType] = useState<
     "pdf" | "txt" | "md" | null
   >(null);
@@ -44,6 +48,7 @@ export function FilePanel() {
     uploadAndCreateFile,
     deleteFile,
     deleteFileByUrlMutation,
+    uploadProgress,
   } = useFile();
 
   // Load file from database
@@ -51,6 +56,10 @@ export function FilePanel() {
     diagramId || "",
     !!diagramId && isOpen
   );
+
+  // Check edit permission
+  const { data: canEdit = false, isLoading: isLoadingPermission } =
+    useCanEditDiagram(diagramId);
 
   // Sync file from query to store - support PDF, TXT, MD
   useEffect(() => {
@@ -60,20 +69,45 @@ export function FilePanel() {
       setCurrentFileType(latestFile.fileType as "pdf" | "txt" | "md");
       setFileError(null);
 
-      // Load text content for TXT and MD files
-      if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
-        fetch(latestFile.fileUrl)
-          .then((res) => res.text())
-          .then((text) => setFileContent(text))
-          .catch(() => {
-            setFileError("Failed to load file content");
+      // Generate signed URL for all file types
+      getSignedFileUrlAction(latestFile.fileUrl)
+        .then((signedUrl) => {
+          if (!signedUrl) {
+            throw new Error("Failed to generate signed URL");
+          }
+          setSignedFileUrl(signedUrl);
+
+          // Load text content for TXT and MD files
+          if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
+            return fetch(signedUrl);
+          }
+          return null;
+        })
+        .then((res) => {
+          if (res) {
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}`);
+            }
+            return res.text();
+          }
+          return null;
+        })
+        .then((text) => {
+          if (text !== null) {
+            setFileContent(text);
+          } else {
             setFileContent(null);
-          });
-      } else {
-        setFileContent(null);
-      }
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load file:", err);
+          setFileError("Failed to load file content");
+          setFileContent(null);
+          setSignedFileUrl(null);
+        });
     } else {
       setCurrentFileUrl(null);
+      setSignedFileUrl(null);
       setCurrentFileType(null);
       setFileContent(null);
       setFileError(null);
@@ -92,7 +126,15 @@ export function FilePanel() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !diagramId) return;
+    if (!file || !diagramId || !canEdit) {
+      if (file && !canEdit) {
+        toast.error("You don't have permission to upload files");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+      return;
+    }
 
     const fileExtension = file.name.split(".").pop()?.toLowerCase();
     const allowedExtensions = ["pdf", "txt", "md"];
@@ -124,7 +166,12 @@ export function FilePanel() {
   };
 
   const handleRemoveFile = async () => {
-    if (!currentFileUrl || !diagramId) return;
+    if (!currentFileUrl || !diagramId || !canEdit) {
+      if (!canEdit) {
+        toast.error("You don't have permission to delete files");
+      }
+      return;
+    }
 
     try {
       const deleted = await deleteFile(currentFileUrl, diagramId);
@@ -195,7 +242,31 @@ export function FilePanel() {
           </Button>
         )}
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden p-0">
+      <CardContent className="relative flex-1 flex flex-col gap-3 min-h-0 overflow-hidden p-0">
+        {/* Overlay when file error occurs (e.g., signed URL expired) */}
+        {fileError && currentFileUrl && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3 p-6 bg-card border rounded-lg shadow-lg max-w-sm text-center">
+              <FileText className="size-8 mx-auto mb-1 opacity-70" />
+              <p className="text-sm font-medium">Failed to load file</p>
+              <p className="text-xs text-muted-foreground">
+                The file link may have expired or become temporarily
+                unavailable. Click the button below to try reloading the file.
+              </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-1"
+                onClick={() => {
+                  setFileError(null);
+                  refetchFile();
+                }}
+              >
+                Reload file
+              </Button>
+            </div>
+          </div>
+        )}
         {currentFileUrl && fileName ? (
           <>
             <div className="shrink-0 flex items-center gap-2">
@@ -209,8 +280,13 @@ export function FilePanel() {
                   size="icon"
                   className="h-auto w-auto p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10"
                   onClick={handleRemoveFile}
-                  disabled={deleteFileByUrlMutation.isPending}
+                  disabled={deleteFileByUrlMutation.isPending || !canEdit}
                   aria-label="Remove file"
+                  title={
+                    !canEdit
+                      ? "You don't have permission to delete files"
+                      : "Remove file"
+                  }
                 >
                   <X className="size-3 h-3" />
                 </Button>
@@ -236,12 +312,12 @@ export function FilePanel() {
                     </Button>
                   </div>
                 </div>
-              ) : currentFileUrl && currentFileType === "pdf" ? (
+              ) : signedFileUrl && currentFileType === "pdf" ? (
                 <iframe
                   src={
                     pdfPage && pdfPage > 0
-                      ? `${currentFileUrl}#page=${pdfPage}`
-                      : currentFileUrl
+                      ? `${signedFileUrl}#page=${pdfPage}`
+                      : signedFileUrl
                   }
                   className="w-full h-full border-0 p-0"
                   onError={handleFileError}
@@ -285,18 +361,46 @@ export function FilePanel() {
               className="hidden"
               accept=".pdf,.txt,.md"
               onChange={handleFileChange}
-              disabled={deleteFileByUrlMutation.isPending}
+              disabled={deleteFileByUrlMutation.isPending || !canEdit}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-full border-dashed flex flex-col items-center justify-center gap-2"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={deleteFileByUrlMutation.isPending}
-            >
-              <Upload className="size-5" />
-              <span className="text-xs">Upload File</span>
-            </Button>
+            {uploadProgress > 0 && (!currentFileUrl || !signedFileUrl) ? (
+              <div className="h-full flex flex-col items-center justify-center gap-3 px-6">
+                <p className="text-xs text-muted-foreground">
+                  Uploading file... {uploadProgress}%
+                </p>
+                <Progress
+                  value={uploadProgress}
+                  className="w-48 bg-emerald-100"
+                  indicatorClassName="bg-emerald-500"
+                />
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-full border-dashed flex flex-col items-center justify-center gap-2"
+                onClick={() => {
+                  if (!canEdit) {
+                    toast.error("You don't have permission to upload files");
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
+                disabled={
+                  deleteFileByUrlMutation.isPending ||
+                  !canEdit ||
+                  isLoadingPermission
+                }
+                title={
+                  !canEdit
+                    ? "You don't have permission to upload files"
+                    : "Upload File"
+                }
+              >
+                <Upload className="size-5" />
+                <span className="text-xs">Upload File</span>
+              </Button>
+            )}
           </>
         )}
       </CardContent>

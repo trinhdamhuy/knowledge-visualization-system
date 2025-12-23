@@ -7,9 +7,11 @@ import {
   RefreshCw,
   Trash2,
   GripVertical,
+  Square,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea";
@@ -29,20 +31,18 @@ import {
 import { toast } from "sonner";
 import { useFile } from "@/hooks/use-file";
 import { useChat } from "@/hooks/use-chat";
-import { useChatbotStatus } from "@/hooks/use-chatbot-status";
-import { useBroadcastEventListener } from "@/hooks/use-broadcast-event";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useSession } from "next-auth/react";
-import { useSelf } from "@liveblocks/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
-import type { BaseMessage, MindmapData } from "@/types/chat";
+import type { BaseMessage, MindmapData, ChatRequest } from "@/types/chat";
 import { ImportMindmapDialog } from "./ImportMindmapDialog";
 import { DeleteChatDialog } from "./DeleteChatDialog";
 import { getUserById } from "@/app/_actions/user";
 import { useChatSettingsStore } from "@/stores/chat-settings-store";
+import { getSignedFileUrlAction } from "@/app/_actions/file";
 import { useChatUIStore } from "@/stores/chat-ui-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatKeys } from "@/hooks/use-chat";
@@ -50,14 +50,15 @@ import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 import { ReferenceLink } from "./ReferenceLink";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+
 export function ChatPanel() {
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
   const { data: session } = useSession();
-  const currentUser = useSelf();
-  // Use Liveblocks user ID (works for both authenticated and anonymous users)
-  // Fallback to session user ID for authenticated users
-  const userId = currentUser?.id || session?.user?.id;
+  // Only use authenticated user ID (not anonymous Liveblocks ID)
+  const userId = session?.user?.id || null;
 
   const [value, setValue] = useState("");
   const [deleteChatDialogOpen, setDeleteChatDialogOpen] = useState(false);
@@ -69,6 +70,7 @@ export function ChatPanel() {
   const [isResizing, setIsResizing] = useState(false);
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   const hasRestoredFromCacheRef = useRef(false);
+  const streamControllerRef = useRef<AbortController | null>(null);
 
   // Default prompt suggestions (detailed prompts)
   const defaultPrompts = [
@@ -105,20 +107,17 @@ export function ChatPanel() {
     !!diagramId && !!fileUrl
   );
 
-  const {
-    useChatHistory,
-    sendChatRequestMutation,
-    deleteChatHistory,
-    cancelChatRequest,
-  } = useChat();
-  const { isBusy, setChatbotBusy, setChatbotIdle } = useChatbotStatus();
+  const { useChatHistory, deleteChatHistory, cancelChatRequest } = useChat();
+  const [isBusy, setIsBusy] = useState(false);
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
 
   // Use TanStack Query for chat history with pagination
+  // Only fetch history if user is authenticated
   const { data: historyData, refetch: refetchHistory } = useChatHistory(
     diagramId || "",
-    !!diagramId,
+    userId,
+    !!diagramId && !!userId,
     10, // limit
     messagesOffset
   );
@@ -133,7 +132,7 @@ export function ChatPanel() {
 
     // Try to get cached data for offset 0 (latest messages)
     const cachedData = queryClient.getQueryData<typeof historyData>([
-      ...chatKeys.history(diagramId),
+      ...chatKeys.history(diagramId, userId),
       10,
       0,
     ]);
@@ -144,7 +143,7 @@ export function ChatPanel() {
       setHasMoreMessages(cachedData.has_more || false);
       hasRestoredFromCacheRef.current = true;
     }
-  }, [diagramId, queryClient]);
+  }, [diagramId, queryClient, userId]);
 
   // Reset restore flag when diagramId changes
   useEffect(() => {
@@ -187,7 +186,14 @@ export function ChatPanel() {
       // Only load from text files (txt, md)
       if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
         try {
-          const response = await fetch(fileUrl);
+          const signedUrl = await getSignedFileUrlAction(fileUrl);
+          if (!signedUrl) {
+            throw new Error("Failed to generate signed URL");
+          }
+          const response = await fetch(signedUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
           const text = await response.text();
 
           // Try to parse as JSON first (array of prompts)
@@ -262,37 +268,6 @@ export function ChatPanel() {
   // Load file from database using React Query (read-only for chat)
   // File is managed in FilePanel, we just read it here for chat context
   useFilesByDiagram(diagramId || "", !!diagramId);
-
-  // Listen to broadcast events for stream chunks
-  useBroadcastEventListener("stream_chunk", (payload) => {
-    if (payload && typeof payload === "object" && "current_status" in payload) {
-      setCurrentStatus(payload.current_status as "busy" | "idle");
-    } else {
-      setCurrentStatus(null);
-    }
-    if (payload && typeof payload === "object" && "current_status" in payload) {
-      setCurrentStatus(payload.current_status as "busy" | "idle");
-    }
-  });
-
-  // Listen to stream_complete event to set chatbot idle
-  useBroadcastEventListener("stream_complete", () => {
-    setChatbotIdle();
-    setCurrentStatus(null);
-    // Refetch chat history to get updated messages from AI
-    if (diagramId) {
-      // Small delay to ensure backend has saved the message
-      setTimeout(() => {
-        // Reset pagination and refetch to get the latest messages
-        setMessagesOffset(0);
-        queryClient.invalidateQueries({
-          queryKey: chatKeys.history(diagramId),
-        });
-        // Also explicitly refetch to ensure we get the latest data
-        refetchHistory();
-      }, 500);
-    }
-  });
 
   // Handle resize for sidebar and docked mode
   useEffect(() => {
@@ -457,6 +432,78 @@ export function ChatPanel() {
     }
   };
 
+  const streamChat = async (payload: ChatRequest) => {
+    const controller = new AbortController();
+    streamControllerRef.current = controller;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Stream failed: ${response.statusText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line) continue;
+
+          if (line.startsWith("event: stream_complete")) {
+            setIsBusy(false);
+            setCurrentStatus(null);
+            if (diagramId) {
+              setMessagesOffset(0);
+              queryClient.invalidateQueries({
+                queryKey: chatKeys.history(diagramId, userId),
+              });
+              refetchHistory();
+            }
+            continue;
+          }
+
+          if (line.startsWith("data:")) {
+            const jsonStr = line.slice(5).trim();
+            if (!jsonStr) continue;
+            try {
+              const payloadObj = JSON.parse(jsonStr) as Record<string, unknown>;
+              if ("current_status" in payloadObj) {
+                setCurrentStatus(
+                  payloadObj.current_status as "busy" | "idle" | null
+                );
+              }
+            } catch (err) {
+              console.error("Failed to parse stream chunk", err);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        console.error("Stream error:", error);
+        toast.error("Failed to stream response");
+        setIsBusy(false);
+      }
+    } finally {
+      streamControllerRef.current = null;
+    }
+  };
+
   const handleSend = async () => {
     if (!value.trim() || !diagramId || !userId) return;
     if (isBusy) {
@@ -469,7 +516,7 @@ export function ChatPanel() {
     adjustHeight(true);
 
     // Set chatbot as busy
-    setChatbotBusy();
+    setIsBusy(true);
 
     // Always send mindmap_data if we have nodes
     const mindmapData: MindmapData | null =
@@ -480,29 +527,41 @@ export function ChatPanel() {
           }
         : null;
 
-    try {
-      // Wait for API to return success (message saved to database)
-      await sendChatRequestMutation.mutateAsync({
-        user_id: userId,
-        diagram_id: diagramId,
-        file_url: fileUrl || null,
-        messages: [
-          {
-            type: "human",
-            content: messageContent,
-            additional_kwargs: {
-              user_id: userId,
-            },
+    // Optimistically show user message
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: BaseMessage = {
+      id: tempId,
+      type: "human",
+      content: messageContent,
+      additional_kwargs: { user_id: userId },
+    };
+    setAllMessages((prev) => [...prev, optimisticMessage]);
+
+    const payload: ChatRequest = {
+      user_id: userId,
+      diagram_id: diagramId,
+      file_url: fileUrl || null,
+      messages: [
+        {
+          type: "human",
+          content: messageContent,
+          additional_kwargs: {
+            user_id: userId,
           },
-        ],
-        mindmap_data: mindmapData,
-        need_initialize_data: needInitializeData,
-      });
-      // Query will be invalidated in onSuccess callback after API returns success
+        },
+      ],
+      mindmap_data: mindmapData,
+      need_initialize_data: needInitializeData,
+    };
+
+    try {
+      await streamChat(payload);
     } catch (error) {
       console.error("Failed to send message:", error);
       toast.error("Failed to send message");
-      setChatbotIdle();
+      // revert optimistic message
+      setAllMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setIsBusy(false);
     }
   };
 
@@ -525,11 +584,16 @@ export function ChatPanel() {
   const handleCancelChat = async () => {
     if (!diagramId) return;
 
+    if (streamControllerRef.current) {
+      streamControllerRef.current.abort();
+      streamControllerRef.current = null;
+    }
+
     try {
       const result = await cancelChatRequest({ diagramId });
       if (result) {
         toast.success("Chat request cancelled");
-        setChatbotIdle();
+        setIsBusy(false);
       } else {
         toast.error("Failed to cancel chat request");
       }
@@ -725,8 +789,41 @@ export function ChatPanel() {
   };
 
   const chatContent = (
-    <>
-      <CardHeader className="flex flex-col gap-3 shrink-0 p-0">
+    <div className="relative h-full flex flex-col">
+      {/* Blur overlay when not authenticated */}
+      {!userId && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+          <div className="flex flex-col items-center gap-4 p-6 bg-card border rounded-lg shadow-lg max-w-sm">
+            <Bot className="size-12 text-primary" />
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Please log in to chat</h3>
+              <p className="text-sm text-muted-foreground">
+                You need to be logged in to use the chat feature. Each user has
+                their own chat history.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 w-full">
+              <Link href="/login" className="w-full">
+                <Button className="w-full" size="lg">
+                  Log in
+                </Button>
+              </Link>
+              <Link href="/sign-up" className="w-full">
+                <Button variant="outline" className="w-full" size="lg">
+                  Sign up
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CardHeader
+        className={cn(
+          "flex flex-col gap-3 shrink-0 p-0 pb-3",
+          !userId && "blur-sm pointer-events-none"
+        )}
+      >
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
             <Bot animate="blink" loop loopDelay={5000} animateOnHover />
@@ -737,7 +834,7 @@ export function ChatPanel() {
               variant="ghost"
               size="icon"
               onClick={() => setDeleteChatDialogOpen(true)}
-              disabled={isBusy}
+              disabled={isBusy || !userId}
               title="Delete chat history"
             >
               <Trash2 />
@@ -763,7 +860,7 @@ export function ChatPanel() {
                 onCheckedChange={(checked) =>
                   setNeedInitializeData(checked === true)
                 }
-                disabled={isBusy}
+                disabled={isBusy || !userId}
               />
               <Label
                 htmlFor="reload-data"
@@ -782,7 +879,12 @@ export function ChatPanel() {
           )}
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col flex-1 min-h-0 gap-2 p-0">
+      <CardContent
+        className={cn(
+          "flex flex-col flex-1 min-h-0 gap-2 p-0",
+          !userId && "blur-sm pointer-events-none"
+        )}
+      >
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
@@ -883,7 +985,9 @@ export function ChatPanel() {
             <div className="relative">
               <Textarea
                 value={value}
-                placeholder="What can I do for you?"
+                placeholder={
+                  userId ? "What can I do for you?" : "Please log in to chat"
+                }
                 className={cn(
                   "w-full px-4 py-3 border-none shadow-none bg-secondary dark:bg-secondary rounded-b-none resize-none focus-visible:ring-0 focus-visible:ring-offset-0",
                   "min-h-[72px]"
@@ -894,7 +998,7 @@ export function ChatPanel() {
                   setValue(e.target.value);
                   adjustHeight();
                 }}
-                disabled={isBusy}
+                disabled={isBusy || !userId}
               />
               {isBusy && (
                 <div className="absolute bottom-3 right-3 pointer-events-none">
@@ -921,7 +1025,7 @@ export function ChatPanel() {
                     onClick={handleCancelChat}
                     aria-label="Cancel chat"
                   >
-                    <X />
+                    <Square className="text-red-500" />
                   </Button>
                 ) : (
                   <Button
@@ -929,7 +1033,7 @@ export function ChatPanel() {
                     size="icon"
                     className="hover:bg-black/5 dark:hover:bg-white/10 ml-auto"
                     onClick={handleSend}
-                    disabled={!value.trim()}
+                    disabled={!value.trim() || !userId}
                     aria-label="Send message"
                   >
                     <ArrowRight />
@@ -940,7 +1044,7 @@ export function ChatPanel() {
           </div>
         </div>
       </CardContent>
-    </>
+    </div>
   );
 
   if (!isOpen) return null;

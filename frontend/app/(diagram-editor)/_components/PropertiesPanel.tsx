@@ -498,7 +498,7 @@ export function PropertiesPanel() {
   const unifiedEdgeStyle: EdgeStyle = useMemo(() => {
     if (selectedEdges.length === 0) {
       return {
-        type: "smoothstep",
+        type: "default",
         stroke: "#b1b1b7",
         strokeWidth: "1",
         animated: true,
@@ -561,7 +561,7 @@ export function PropertiesPanel() {
     };
 
     return {
-      type: getValue("type", "smoothstep"),
+      type: getValue("type", "default"),
       stroke: getValue("stroke", "#b1b1b7"),
       strokeWidth: getValue("strokeWidth", "1"),
       animated: getValue("animated", false),

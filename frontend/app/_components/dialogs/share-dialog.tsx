@@ -27,6 +27,8 @@ import { Permission } from "@/generated/prisma/enums";
 import { useQueryClient } from "@tanstack/react-query";
 import { diagramKeys } from "@/hooks/use-diagram";
 import { itemsKeys } from "@/hooks/use-items";
+import { useCanEditDiagram } from "@/hooks/use-diagram-permission";
+import { useState, useCallback, useEffect, Activity } from "react";
 
 interface ShareDialogProps {
   open: boolean;
@@ -42,19 +44,20 @@ export function ShareDialog({
   diagramId,
 }: ShareDialogProps) {
   const queryClient = useQueryClient();
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [shareData, setShareData] = React.useState<Awaited<
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [shareData, setShareData] = useState<Awaited<
     ReturnType<typeof getShareData>
   > | null>(null);
 
+  // Check edit permission
+  const { data: canEdit = false, isLoading: isLoadingPermission } =
+    useCanEditDiagram(diagramId);
+
   // Form state
-  const [privacyType, setPrivacyType] =
-    React.useState<PrivacyType>("restricted");
-  const [teamPermission, setTeamPermission] = React.useState<Permission | null>(
-    null
-  );
-  const [userShares, setUserShares] = React.useState<
+  const [privacyType, setPrivacyType] = useState<PrivacyType>("restricted");
+  const [teamPermission, setTeamPermission] = useState<Permission | null>(null);
+  const [userShares, setUserShares] = useState<
     Array<{
       userId: string;
       userName: string | null;
@@ -63,9 +66,18 @@ export function ShareDialog({
       permission: Permission;
     }>
   >([]);
-  const [emailInput, setEmailInput] = React.useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [invitePermission, setInvitePermission] = useState<Permission>(
+    Permission.VIEWER
+  );
 
-  const loadShareData = React.useCallback(async () => {
+  // Validate email format
+  const isValidEmail = React.useMemo(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailInput.trim() !== "" && emailRegex.test(emailInput.trim());
+  }, [emailInput]);
+
+  const loadShareData = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getShareData(diagramId);
@@ -85,7 +97,7 @@ export function ShareDialog({
   }, [diagramId]);
 
   // Load share data when dialog opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && diagramId) {
       loadShareData();
     }
@@ -98,13 +110,25 @@ export function ShareDialog({
   };
 
   const handleInviteByEmail = () => {
-    // TODO: Implement email invitation
+    if (!canEdit) {
+      toast.error("You don't have permission to invite users");
+      return;
+    }
+
     if (!emailInput.trim()) {
       toast.error("Please enter an email address");
       return;
     }
+
+    if (!isValidEmail) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    // TODO: Implement email invitation
     toast.info("Email invitation feature coming soon");
     setEmailInput("");
+    setInvitePermission(Permission.VIEWER);
   };
 
   const handleUpdateUserPermission = (
@@ -187,8 +211,9 @@ export function ShareDialog({
               <Select
                 value={privacyType}
                 onValueChange={(value) => setPrivacyType(value as PrivacyType)}
+                disabled={!canEdit || isLoadingPermission}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={!canEdit || isLoadingPermission}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="start">
@@ -197,6 +222,11 @@ export function ShareDialog({
                   <SelectItem value="edit">Edit</SelectItem>
                 </SelectContent>
               </Select>
+              <Activity mode={!canEdit ? "visible" : "hidden"}>
+                <p className="text-xs text-muted-foreground">
+                  You don&apos;t have permission to change privacy settings
+                </p>
+              </Activity>
             </div>
 
             {/* Team Permission (if diagram belongs to a team) */}
@@ -229,26 +259,64 @@ export function ShareDialog({
             <div className="space-y-2">
               <FieldLabel>Invite people</FieldLabel>
               <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Enter email address"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleInviteByEmail();
-                    }
-                  }}
-                />
+                <div className="flex-1 relative">
+                  <Input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleInviteByEmail();
+                      }
+                    }}
+                    disabled={!canEdit || isLoadingPermission}
+                    className={isValidEmail ? "pr-32" : ""}
+                  />
+                  {isValidEmail && canEdit && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Select
+                        value={invitePermission}
+                        onValueChange={(value) =>
+                          setInvitePermission(value as Permission)
+                        }
+                      >
+                        <SelectTrigger size="sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          <SelectItem
+                            value={Permission.VIEWER}
+                            className="py-1 px-2 text-sm"
+                          >
+                            View
+                          </SelectItem>
+                          <SelectItem
+                            value={Permission.EDITOR}
+                            className="py-1 px-2 text-sm"
+                          >
+                            Edit
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleInviteByEmail}
+                  disabled={!canEdit || isLoadingPermission || !isValidEmail}
                 >
                   <Mail className="h-4 w-4 mr-2" />
                   Invite
                 </Button>
               </div>
+              {!canEdit && (
+                <p className="text-xs text-muted-foreground">
+                  You don&apos;t have permission to invite users
+                </p>
+              )}
             </div>
 
             {/* Shared Users List */}
@@ -321,7 +389,7 @@ export function ShareDialog({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={isSaving || isLoading}
+            disabled={isSaving || isLoading || !canEdit || isLoadingPermission}
           >
             {isSaving ? "Saving..." : "Done"}
           </Button>

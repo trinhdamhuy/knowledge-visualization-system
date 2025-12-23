@@ -219,11 +219,11 @@ function CustomEdge({
   // Ring style for current user (middle ring) - smaller strokeWidth
   const currentUserRingStyle = {
     stroke: currentUserRingColor,
-    strokeWidth: String(baseStrokeWidth + 2), // +2px for middle ring
+    strokeWidth: "2",
     fill: "none",
-    opacity: isSelectedByCurrentUser ? 0.5 : 0,
-    transition: "opacity 0.2s",
+    opacity: isSelectedByCurrentUser ? 1 : 0,
     pointerEvents: "none" as const,
+    zIndex: 1,
   };
 
   // Inner edge style (original) - render on top
@@ -255,17 +255,17 @@ function CustomEdge({
         markerEnd={undefined} // No marker on rings
       />
       {/* Rings for other users' selections - outside rings (render last, on top) */}
-      {selectingUsers.map((user, index) => (
+      {selectingUsers.map((user) => (
         <BaseEdge
           key={user.connectionId}
           path={edgePath}
           style={{
             stroke: user.color,
-            strokeWidth: String(baseStrokeWidth + 4 + index * 2), // +4px for outside ring, offset each additional ring
+            strokeWidth: "2",
             fill: "none",
             opacity: 0.5,
-            transition: "opacity 0.2s",
             pointerEvents: "none" as const,
+            zIndex: 0,
           }}
           markerEnd={undefined} // No marker on rings
         />

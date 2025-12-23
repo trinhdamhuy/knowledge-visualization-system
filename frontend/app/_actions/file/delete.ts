@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { canEditDiagram } from "../diagram/permission";
+import { deleteDiagramStore } from "../chat/delete-store";
 
 /**
  * Delete a file
@@ -30,6 +31,15 @@ async function deleteFile(fileId: string): Promise<boolean> {
     // Check edit permission
     const hasPermission = await canEditDiagram(file.diagram.id);
     if (!hasPermission) {
+      return false;
+    }
+
+    // Clear chatbot vector store for this diagram to avoid stale context
+    const storeDeleted = await deleteDiagramStore(file.diagram.id);
+    if (!storeDeleted || storeDeleted.status !== 200) {
+      console.error(
+        `Failed to delete diagram store for diagram ${file.diagram.id} when deleting file ${fileId}`
+      );
       return false;
     }
 
@@ -71,6 +81,15 @@ async function deleteFileByUrl(fileUrl: string): Promise<boolean> {
     // Check edit permission
     const hasPermission = await canEditDiagram(file.diagram.id);
     if (!hasPermission) {
+      return false;
+    }
+
+    // Clear chatbot vector store for this diagram to avoid stale context
+    const storeDeleted = await deleteDiagramStore(file.diagram.id);
+    if (!storeDeleted || storeDeleted.status !== 200) {
+      console.error(
+        `Failed to delete diagram store for diagram ${file.diagram.id} when deleting file by URL ${fileUrl}`
+      );
       return false;
     }
 

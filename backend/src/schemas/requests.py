@@ -27,3 +27,4 @@ class DeleteRequest(BaseModel):
     """Request schema for deleting chat history or diagram store."""
 
     diagram_id: str
+    user_id: Optional[str] = None

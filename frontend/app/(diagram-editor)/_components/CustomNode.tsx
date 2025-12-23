@@ -11,25 +11,26 @@ import { DiagramMode } from "@/enums/modes";
 import { useSelf, useOthers } from "@liveblocks/react";
 import { getUserColor } from "./utils/user-colors";
 
+type HandleSide = "top" | "bottom" | "left" | "right";
+
+interface CustomNodeData {
+  label: string;
+  color?: string;
+  shape?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fontStyle?: string;
+  textDecoration?: string;
+  textAlign?: string;
+  textColor?: string;
+  pageReference?: number;
+  sourceHandlePosition?: HandleSide;
+  targetHandlePosition?: HandleSide;
+}
+
 const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
-  const nodeData = data as {
-    label: string;
-    color?: string;
-    shape?: string;
-    fontFamily?: string;
-    fontSize?: number;
-    fontWeight?: string;
-    fontStyle?: string;
-    textDecoration?: string;
-    textAlign?: string;
-    textColor?: string;
-    pageReference?: number;
-    handleType?:
-      | "top-source"
-      | "bottom-source"
-      | "right-source"
-      | "left-source";
-  };
+  const nodeData = data as unknown as CustomNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(nodeData.label);
   const { updateNodeData } = useReactFlow();
@@ -118,8 +119,8 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     // Shift+Enter will naturally create a new line
   };
 
-  const nodeWidth = width || 150;
-  const nodeHeight = height || 50;
+  const nodeWidth = width ?? 150;
+  const nodeHeight = height ?? 50;
   const shape = nodeData.shape || "rectangle";
   const nodeColor = nodeData.color || "var(--card)";
 
@@ -150,9 +151,6 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
         return "3px";
     }
   };
-
-  // Get ring color for current user selection
-  const currentUserRingColor = "#3b82f6"; // blue color for current user
 
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
@@ -192,6 +190,52 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
 
   const shapeStyle = getShapeStyle();
 
+  // --- Handle configuration (exactly one source + one target, never same side) ---
+  const toPosition = (pos: HandleSide): Position => {
+    switch (pos) {
+      case "top":
+        return Position.Top;
+      case "bottom":
+        return Position.Bottom;
+      case "left":
+        return Position.Left;
+      case "right":
+      default:
+        return Position.Right;
+    }
+  };
+
+  // Derive source/target positions: use explicit fields with safe defaults
+  const rawSourceSide: HandleSide = nodeData.sourceHandlePosition ?? "right";
+  const rawTargetSide: HandleSide = nodeData.targetHandlePosition ?? "left";
+
+  // Ensure source and target are never the same side
+  const normalizeTargetSide = (
+    sourceSide: HandleSide,
+    targetSide: HandleSide
+  ): HandleSide => {
+    if (targetSide !== sourceSide) return targetSide;
+
+    // Simple, deterministic fallback when they match
+    switch (sourceSide) {
+      case "right":
+        return "left";
+      case "left":
+        return "right";
+      case "top":
+        return "bottom";
+      case "bottom":
+      default:
+        return "top";
+    }
+  };
+
+  const sourceSide = rawSourceSide;
+  const targetSide = normalizeTargetSide(rawSourceSide, rawTargetSide);
+
+  const sourcePosition = toPosition(sourceSide);
+  const targetPosition = toPosition(targetSide);
+
   // Render diamond shape with SVG background
   const renderDiamondBackground = () => {
     if (shape !== "diamond") return null;
@@ -215,28 +259,15 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
             points="50,2 98,50 50,98 2,50"
             fill={nodeColor}
             stroke="var(--border)"
-            strokeWidth="1.5"
           />
-          {/* Ring for current user selection - middle ring */}
-          {isSelectedByCurrentUser && (
-            <polygon
-              points="50,2 98,50 50,98 2,50"
-              fill="none"
-              stroke={currentUserRingColor}
-              strokeWidth="4"
-              opacity="0.5"
-            />
-          )}
           {/* Rings for other users' selections - outside rings */}
-          {selectingUsers.map((user, index) => (
+          {selectingUsers.map((user) => (
             <polygon
               key={user.connectionId}
               points="50,2 98,50 50,98 2,50"
               fill="none"
               stroke={user.color}
-              strokeWidth="6"
-              opacity="0.5"
-              transform={`translate(${index * 2}, ${index * 2})`}
+              strokeWidth="2"
             />
           ))}
         </svg>
@@ -249,32 +280,19 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
       {/* Ring for selection - similar to edge */}
       {renderDiamondBackground()}
       {/* Ring for current user selection (for non-diamond shapes) - middle ring */}
-      {shape !== "diamond" && isSelectedByCurrentUser && (
-        <div
-          style={{
-            position: "absolute",
-            inset: "-2px",
-            border: `2px solid ${currentUserRingColor}`,
-            borderRadius: shapeStyle.borderRadius,
-            opacity: 0.5,
-            pointerEvents: "none",
-            zIndex: -1,
-          }}
-        />
-      )}
       {/* Rings for other users' selections (for non-diamond shapes) - outside rings */}
       {shape !== "diamond" &&
-        selectingUsers.map((user, index) => (
+        selectingUsers.map((user) => (
           <div
             key={user.connectionId}
             style={{
               position: "absolute",
-              inset: `${-4 - index * 2}px`,
-              border: `3px solid ${user.color}`,
+              inset: "-1px",
+              border: `2px solid ${user.color}`,
               borderRadius: shapeStyle.borderRadius,
               opacity: 0.5,
               pointerEvents: "none",
-              zIndex: -2,
+              zIndex: 0,
             }}
           />
         ))}
@@ -286,57 +304,9 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
           keepAspectRatio={isSquareShape}
         />
       )}
-      {/* Render handles based on handleType */}
-      {(() => {
-        const handleType = nodeData.handleType || "right-source";
-        switch (handleType) {
-          case "top-source":
-            return (
-              <>
-                <Handle type="source" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          case "bottom-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="source" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          case "right-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="source" position={Position.Right} />
-              </>
-            );
-          case "left-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="source" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          default:
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="source" position={Position.Right} />
-              </>
-            );
-        }
-      })()}
+      {/* Render exactly one source and one target handle (never same side) */}
+      <Handle type="source" position={sourcePosition} />
+      <Handle type="target" position={targetPosition} />
 
       {isEditing ? (
         <textarea

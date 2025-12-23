@@ -13,9 +13,6 @@ declare global {
     Storage: {
       nodes: LiveMap<string, LiveObject<LsonObject>>;
       edges: LiveMap<string, LiveObject<LsonObject>>;
-      chatbotStatus: LiveObject<{
-        isBusy: boolean;
-      }>;
     };
 
     UserMeta: {
