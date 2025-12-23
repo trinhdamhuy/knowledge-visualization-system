@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -14,11 +14,13 @@ import {
   BackgroundVariant,
   NodeChange,
   applyNodeChanges,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
+import dagre from "@dagrejs/dagre";
 import "../style.css";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
-import CustomEdge from "./CustomEdge";
+import SimpleFloatingEdge from "./SimpleFloatingEdge";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
 import { SelectionBox } from "./SelectionBox";
@@ -26,6 +28,80 @@ import { useSelectedNodesBox } from "./hooks/use-selected-nodes-box";
 import { useHashNavigation } from "./hooks/use-hash-navigation";
 import { usePdfPageParams } from "./hooks/use-pdf-page-params";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
+import { useTheme } from "next-themes";
+import { DiagramMode } from "@/enums/modes";
+import { useDiagramSync } from "@/hooks/use-diagram-sync";
+import { Box } from "lucide-react";
+
+type LayoutDirection = "TB" | "LR";
+
+const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+
+function UpdateNodeInternalsOnSignal({
+  nodeIds,
+  signal,
+}: {
+  nodeIds: string[];
+  signal: number;
+}) {
+  // IMPORTANT: This hook must be used inside the ReactFlow provider tree.
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    if (!signal) return;
+    nodeIds.forEach((id) => updateNodeInternals(id));
+  }, [signal, nodeIds, updateNodeInternals]);
+
+  return null;
+}
+
+function getLayoutedElements(
+  nodes: Node[],
+  edges: Edge[],
+  direction: LayoutDirection = "TB"
+) {
+  // generous spacing (tune as needed)
+  dagreGraph.setGraph({
+    rankdir: direction,
+    ranksep: 220,
+    nodesep: 180,
+    edgesep: 40,
+  });
+
+  nodes.forEach((node) => {
+    const w = (node.width as number) ?? (node.measured?.width as number) ?? 150;
+    const h =
+      (node.height as number) ?? (node.measured?.height as number) ?? 50;
+    dagreGraph.setNode(node.id, { width: w, height: h });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const newNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id) as {
+      x: number;
+      y: number;
+    };
+    const w = (node.width as number) ?? (node.measured?.width as number) ?? 150;
+    const h =
+      (node.height as number) ?? (node.measured?.height as number) ?? 50;
+
+    return {
+      ...node,
+      // shift dagre (center-anchored) -> reactflow (top-left anchored)
+      position: {
+        x: nodeWithPosition.x - w / 2,
+        y: nodeWithPosition.y - h / 2,
+      },
+    };
+  });
+
+  return { nodes: newNodes, edges };
+}
 
 // Component wrapper to use hook inside ReactFlow context
 function SelectedNodesBoxWrapper({
@@ -57,10 +133,6 @@ function SelectedNodesBoxWrapper({
     />
   );
 }
-import { useTheme } from "next-themes";
-import { DiagramMode } from "@/enums/modes";
-import { useDiagramSync } from "@/hooks/use-diagram-sync";
-import { Box } from "lucide-react";
 
 export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
@@ -97,6 +169,9 @@ export function DiagramCanvas() {
   const [localNodes, setLocalNodes] = useState<Node[]>(nodes);
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingSelectionBox, setIsDraggingSelectionBox] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("TB");
+  const layoutDirectionRef = useRef<LayoutDirection>("TB");
+  const [internalsUpdateSignal, setInternalsUpdateSignal] = useState(0);
   const nodesFromLiveblocksRef = useRef<Node[]>(nodes);
 
   // Update ref when nodes change (for comparison)
@@ -264,6 +339,7 @@ export function DiagramCanvas() {
       });
 
       const newNodeId = `node-${Date.now()}`;
+      const isHorizontal = layoutDirection === "LR";
       const newNode: Node = {
         id: newNodeId,
         type: "custom",
@@ -272,12 +348,15 @@ export function DiagramCanvas() {
         height: 50,
         data: {
           label: "New Node",
+          // Only 2 handle modes supported
+          targetHandlePosition: isHorizontal ? "left" : "top",
+          sourceHandlePosition: isHorizontal ? "right" : "bottom",
         },
       };
 
       addNode(newNode);
     },
-    [activeMode, addNode, updateMyPresence, handlers]
+    [activeMode, addNode, updateMyPresence, handlers, layoutDirection]
   );
 
   // Note: onSelectionChange is disabled since we use Presence for selection
@@ -355,6 +434,70 @@ export function DiagramCanvas() {
   const minZoom = 0.1; // Minimum zoom level (10%)
   const maxZoom = 2; // Maximum zoom level (200%)
 
+  const allNodeIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+
+  const applyLayout = useCallback(
+    (direction: LayoutDirection) => {
+      if (isAnyDragging) return;
+      if (nodes.length === 0) return;
+
+      const { nodes: layoutedNodes } = getLayoutedElements(
+        nodes,
+        edges,
+        direction
+      );
+
+      // update local immediately for responsiveness
+      setLocalNodes(layoutedNodes);
+
+      // persist positions
+      const positionChanges: NodeChange[] = layoutedNodes.map((node) => ({
+        id: node.id,
+        type: "position" as const,
+        position: node.position,
+      }));
+      updateNodes(positionChanges);
+
+      // IMPORTANT: notify React Flow (inside provider) to recalc internals & reposition handles/edges
+      setTimeout(() => {
+        setInternalsUpdateSignal((s) => s + 1);
+      }, 50);
+
+      setLayoutDirection(direction);
+      layoutDirectionRef.current = direction;
+
+      // Notify UI (PropertiesPanel) that layout mode changed
+      window.dispatchEvent(
+        new CustomEvent("diagram-layout-changed", { detail: { direction } })
+      );
+    },
+    [isAnyDragging, nodes, edges, updateNodes, setLocalNodes]
+  );
+
+  // Allow UI (PropertiesPanel) to trigger dagre layout
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ direction?: LayoutDirection | "TOGGLE" }>;
+      const dir = ev.detail?.direction;
+      if (!dir) return;
+      const next =
+        dir === "TOGGLE"
+          ? layoutDirectionRef.current === "TB"
+            ? "LR"
+            : "TB"
+          : dir;
+      applyLayout(next);
+    };
+
+    window.addEventListener("diagram-apply-layout", handler as EventListener);
+    return () => {
+      window.removeEventListener(
+        "diagram-apply-layout",
+        handler as EventListener
+      );
+    };
+  }, [applyLayout]);
+
   return (
     <ReactFlow
       colorMode={
@@ -385,12 +528,12 @@ export function DiagramCanvas() {
       selectionOnDrag={false}
       nodeTypes={{ custom: CustomNode }}
       edgeTypes={{
-        default: CustomEdge,
-        straight: CustomEdge,
-        step: CustomEdge,
-        smoothstep: CustomEdge,
-        simplebezier: CustomEdge,
-        custom: CustomEdge,
+        default: SimpleFloatingEdge,
+        straight: SimpleFloatingEdge,
+        step: SimpleFloatingEdge,
+        smoothstep: SimpleFloatingEdge,
+        simplebezier: SimpleFloatingEdge,
+        custom: SimpleFloatingEdge,
       }}
       onNodeContextMenu={onNodeContextMenu}
       onInit={(instance) => (reactFlowInstance.current = instance)}
@@ -404,6 +547,10 @@ export function DiagramCanvas() {
       <DiagramHeader />
       <DiagramToolBar />
       <PropertiesPanel />
+      <UpdateNodeInternalsOnSignal
+        nodeIds={allNodeIds}
+        signal={internalsUpdateSignal}
+      />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <CombinedInteractionHandler onHandlersReady={(h) => setHandlers(h)} />

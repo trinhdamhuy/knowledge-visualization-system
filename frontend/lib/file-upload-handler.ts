@@ -17,8 +17,7 @@ const s3Client = new S3Client({
 });
 
 type SignedURLResponse = Promise<
-  | { failure?: undefined; url: string; checksum?: string }
-  | { failure: string; url?: undefined; checksum?: undefined }
+  { failure?: undefined; url: string } | { failure: string; url?: undefined }
 >;
 
 const generateFileName = (fileName: string) => {
@@ -49,19 +48,6 @@ const generateFileName = (fileName: string) => {
     : `${sanitizedBaseName}_${timestamp}`;
 };
 
-const computeSHA256 = async (file: File) => {
-  const fileBuffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
-  // AWS S3 requires base64 encoded checksum, not hex
-  const hashArray = new Uint8Array(hashBuffer);
-  // Convert Uint8Array to base64
-  const binaryString = Array.from(hashArray)
-    .map((byte) => String.fromCharCode(byte))
-    .join("");
-  const hashBase64 = btoa(binaryString);
-  return hashBase64;
-};
-
 async function uploadFileToS3(
   file: File,
   folder?: string
@@ -69,14 +55,11 @@ async function uploadFileToS3(
   const fileName = generateFileName(file.name);
   const key = folder ? `${folder}/${fileName}` : fileName;
 
-  const checksum = await computeSHA256(file);
-
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_BUCKET!,
     Key: key,
     ContentType: file.type,
     ContentLength: file.size,
-    ChecksumSHA256: checksum,
   });
 
   // get signed url for 1 hour
@@ -84,7 +67,7 @@ async function uploadFileToS3(
     expiresIn: 3600,
   });
 
-  return { url, checksum };
+  return { url };
 }
 
 async function deleteFileFromS3(fileName: string): Promise<boolean> {

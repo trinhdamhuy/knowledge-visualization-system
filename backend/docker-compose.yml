@@ -35,7 +35,6 @@ services:
       
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
 
-      LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
     ports:
       - "8000:8000"
     depends_on:

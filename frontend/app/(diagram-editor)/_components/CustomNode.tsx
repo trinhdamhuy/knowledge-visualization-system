@@ -11,8 +11,6 @@ import { DiagramMode } from "@/enums/modes";
 import { useSelf, useOthers } from "@liveblocks/react";
 import { getUserColor } from "./utils/user-colors";
 
-type HandleSide = "top" | "bottom" | "left" | "right";
-
 interface CustomNodeData {
   label: string;
   color?: string;
@@ -25,8 +23,6 @@ interface CustomNodeData {
   textAlign?: string;
   textColor?: string;
   pageReference?: number;
-  sourceHandlePosition?: HandleSide;
-  targetHandlePosition?: HandleSide;
 }
 
 const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
@@ -190,51 +186,23 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
 
   const shapeStyle = getShapeStyle();
 
-  // --- Handle configuration (exactly one source + one target, never same side) ---
-  const toPosition = (pos: HandleSide): Position => {
-    switch (pos) {
-      case "top":
-        return Position.Top;
-      case "bottom":
-        return Position.Bottom;
-      case "left":
-        return Position.Left;
-      case "right":
+  // --- Static handles (no per-node handle configuration) ---
+  // Render handles on all sides so floating edges can choose the best side dynamically.
+  const HANDLE_OFFSET = 6; // px: distance from node border (acts like padding)
+  const handleStyleByPosition = (position: Position): React.CSSProperties => {
+    switch (position) {
+      case Position.Top:
+        return { top: -HANDLE_OFFSET };
+      case Position.Bottom:
+        return { bottom: -HANDLE_OFFSET };
+      case Position.Left:
+        return { left: -HANDLE_OFFSET };
+      case Position.Right:
+        return { right: -HANDLE_OFFSET };
       default:
-        return Position.Right;
+        return {};
     }
   };
-
-  // Derive source/target positions: use explicit fields with safe defaults
-  const rawSourceSide: HandleSide = nodeData.sourceHandlePosition ?? "right";
-  const rawTargetSide: HandleSide = nodeData.targetHandlePosition ?? "left";
-
-  // Ensure source and target are never the same side
-  const normalizeTargetSide = (
-    sourceSide: HandleSide,
-    targetSide: HandleSide
-  ): HandleSide => {
-    if (targetSide !== sourceSide) return targetSide;
-
-    // Simple, deterministic fallback when they match
-    switch (sourceSide) {
-      case "right":
-        return "left";
-      case "left":
-        return "right";
-      case "top":
-        return "bottom";
-      case "bottom":
-      default:
-        return "top";
-    }
-  };
-
-  const sourceSide = rawSourceSide;
-  const targetSide = normalizeTargetSide(rawSourceSide, rawTargetSide);
-
-  const sourcePosition = toPosition(sourceSide);
-  const targetPosition = toPosition(targetSide);
 
   // Render diamond shape with SVG background
   const renderDiamondBackground = () => {
@@ -276,7 +244,12 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
   };
 
   return (
-    <div data-node-id={id} data-node-label={label} style={shapeStyle}>
+    <div
+      data-node-id={id}
+      data-node-label={label}
+      style={shapeStyle}
+      className="group"
+    >
       {/* Ring for selection - similar to edge */}
       {renderDiamondBackground()}
       {/* Ring for current user selection (for non-diamond shapes) - middle ring */}
@@ -304,9 +277,65 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
           keepAspectRatio={isSquareShape}
         />
       )}
-      {/* Render exactly one source and one target handle (never same side) */}
-      <Handle type="source" position={sourcePosition} />
-      <Handle type="target" position={targetPosition} />
+      {/* Source handles (visible) */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="s-top"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Top)}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="s-right"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Right)}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="s-bottom"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Bottom)}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="s-left"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Left)}
+      />
+
+      {/* Target handles (show on hover to keep UI clean) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="t-top"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Top)}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="t-right"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Right)}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="t-bottom"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Bottom)}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="t-left"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Left)}
+      />
 
       {isEditing ? (
         <textarea

@@ -77,7 +77,6 @@ export function useUploadFile(): UseUploadFileResult {
       console.error("Status:", status);
       console.error("Status Text:", statusText);
       console.error("Response Body:", errorText);
-      console.error("Checksum:", fileUrl.checksum);
       console.error("File Name:", file.name);
       console.error("File Size:", file.size);
       console.error("File Type:", file.type);

@@ -271,7 +271,7 @@ export function NodeContextMenu({
   const handleAddLabel = useCallback(() => {
     if (currentSelection.edgeIds.length === 0) return;
 
-    // Add default label "newlabel" to all selected edges
+    // Add default label "new label" to all selected edges
     currentSelection.edgeIds.forEach((edgeId) => {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
@@ -279,7 +279,7 @@ export function NodeContextMenu({
       batchUpdateEdgeData([edgeId], {
         data: {
           ...(edge.data || {}),
-          label: "newlabel",
+          label: "new label",
         },
       });
     });
