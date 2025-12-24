@@ -3,7 +3,7 @@
 import { canViewDiagram } from "../diagram/permission";
 import type { ChatRequest } from "@/types/chat";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 /**
  * Send chat request to backend

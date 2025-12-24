@@ -50,8 +50,7 @@ import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 import { ReferenceLink } from "./ReferenceLink";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export function ChatPanel() {
   const params = useParams();
