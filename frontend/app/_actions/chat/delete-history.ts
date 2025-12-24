@@ -3,7 +3,7 @@
 import { getCurrentUser } from "../user";
 import type { BaseResponse, DeleteRequest } from "@/types/chat";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 /**
  * Delete chat history for a diagram

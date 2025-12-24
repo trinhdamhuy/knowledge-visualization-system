@@ -3,7 +3,7 @@
 import { canViewDiagram } from "../diagram/permission";
 import type { HistoryResponse } from "@/types/chat";
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 /**
  * Get chat history for a diagram with pagination

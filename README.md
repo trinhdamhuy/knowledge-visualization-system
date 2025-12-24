@@ -169,7 +169,7 @@ cp .env.example .env
 3. Configure environment variables:
 
 ```env
-BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 AUTH_SECRET=your_auth_secret
 AUTH_GOOGLE_ID=your_google_oauth_client_id
