@@ -199,7 +199,6 @@ export type FolderScalarFieldEnum = (typeof FolderScalarFieldEnum)[keyof typeof 
 export const DiagramScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  imageUrl: 'imageUrl',
   folderId: 'folderId',
   ownerId: 'ownerId',
   teamId: 'teamId',

@@ -58,10 +58,9 @@ export function CreateDiagramDialog({
     try {
       const name = values.name.trim() || "Untitled Diagram";
       const diagram = await createDiagram({
-        name: name,
+        name,
         teamId: activeTeam?.id || null,
         folderId: null,
-        imageUrl: null,
       });
 
       if (diagram) {

@@ -7,12 +7,12 @@ import { Diagram } from "@/generated/prisma/client";
 /**
  * Update a diagram
  * @param diagramId - Diagram ID to update
- * @param data - Update data (name, imageUrl, folderId)
+ * @param data - Update data (name, folderId)
  * @returns true if successful, false otherwise
  */
 async function updateDiagram(
   diagramId: string,
-  data: Partial<Pick<Diagram, "name" | "imageUrl" | "folderId">>
+  data: Partial<Pick<Diagram, "name" | "folderId">>
 ): Promise<boolean> {
   // Check edit permission
   const hasPermission = await canEditDiagram(diagramId);

@@ -33,7 +33,6 @@ async function pasteDiagrams(diagramIds: string[]): Promise<Diagram[]> {
         where: { id: diagramId },
         select: {
           name: true,
-          imageUrl: true,
           folderId: true,
           teamId: true,
         },
@@ -62,7 +61,6 @@ async function pasteDiagrams(diagramIds: string[]): Promise<Diagram[]> {
           ownerId: user.id,
           folderId: originalDiagram.folderId || null,
           teamId: originalDiagram.teamId || null,
-          imageUrl: originalDiagram.imageUrl || null,
         },
       });
 

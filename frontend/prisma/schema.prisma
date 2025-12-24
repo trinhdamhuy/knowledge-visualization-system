@@ -170,7 +170,6 @@ model Folder {
 model Diagram {
     id               String    @id @default(cuid())
     name             String
-    imageUrl         String?
     folderId         String?
     ownerId          String?
     teamId           String?

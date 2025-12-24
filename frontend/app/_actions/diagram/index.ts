@@ -9,3 +9,4 @@ export * from "./copy";
 export * from "./paste";
 export { getShareData } from "./share/get-share-data";
 export { saveShareSettings } from "./share/save-share-settings";
+export { getSharedDiagrams } from "./shared";

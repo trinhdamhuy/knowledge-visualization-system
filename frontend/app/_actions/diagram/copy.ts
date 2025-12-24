@@ -30,7 +30,6 @@ async function copyDiagram(diagramId: string): Promise<Diagram | null> {
       where: { id: diagramId },
       select: {
         name: true,
-        imageUrl: true,
         folderId: true,
         teamId: true,
       },
@@ -59,7 +58,6 @@ async function copyDiagram(diagramId: string): Promise<Diagram | null> {
         ownerId: user.id,
         folderId: originalDiagram.folderId || null,
         teamId: originalDiagram.teamId || null,
-        imageUrl: originalDiagram.imageUrl || null,
       },
     });
 
