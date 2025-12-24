@@ -168,14 +168,16 @@ model Folder {
 }
 
 model Diagram {
-    id        String   @id @default(cuid())
-    name      String
-    imageUrl  String?
-    folderId  String?
-    ownerId   String?
-    teamId    String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+    id               String    @id @default(cuid())
+    name             String
+    imageUrl         String?
+    folderId         String?
+    ownerId          String?
+    teamId           String?
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+    preview          Json?
+    previewUpdatedAt DateTime?
 
     folder   Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
     owner    User?     @relation("DiagramOwner", fields: [ownerId], references: [id], onDelete: Cascade)

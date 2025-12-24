@@ -1,5 +1,6 @@
 export * from "./create";
 export * from "./update";
+export * from "./update-preview";
 export * from "./delete";
 export * from "./get";
 export * from "./get-by-id";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -33,6 +34,8 @@ import { DiagramMode } from "@/enums/modes";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { Box } from "lucide-react";
 import { computeHiddenNodeIds } from "./utils/collapse-utils";
+import { updateDiagramPreview } from "@/app/_actions/diagram/update-preview";
+import { toPreviewPayload } from "./utils/preview-utils";
 
 type LayoutDirection = "TB" | "LR";
 
@@ -139,6 +142,8 @@ export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
   const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const params = useParams();
+  const diagramId = params?.diagramId as string | undefined;
 
   // Handle hash-based navigation for reference links
   useHashNavigation();
@@ -225,6 +230,52 @@ export function DiagramCanvas() {
   useEffect(() => {
     setActiveMode(DiagramMode.Select);
   }, [setActiveMode]);
+
+  // Save preview snapshot one-shot when opening editor
+  const hasSavedPreviewRef = useRef(false);
+  useEffect(() => {
+    if (!diagramId || hasSavedPreviewRef.current) return;
+    if (nodes.length === 0 && edges.length === 0) return;
+
+    // Debounce to wait for layout/measurement to stabilize
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Prefer ReactFlow instance (has measured sizes), fallback to useDiagramSync nodes/edges
+        let previewNodes: Node[] = [];
+        let previewEdges: Edge[] = [];
+
+        if (reactFlowInstance.current) {
+          const rfNodes = reactFlowInstance.current.getNodes();
+          const rfEdges = reactFlowInstance.current.getEdges();
+          if (rfNodes.length > 0 || rfEdges.length > 0) {
+            previewNodes = rfNodes;
+            previewEdges = rfEdges;
+          } else {
+            // Fallback to Liveblocks data
+            previewNodes = nodes;
+            previewEdges = edges;
+          }
+        } else {
+          // Fallback to Liveblocks data
+          previewNodes = nodes;
+          previewEdges = edges;
+        }
+
+        if (previewNodes.length === 0 && previewEdges.length === 0) return;
+
+        const payload = toPreviewPayload(previewNodes, previewEdges);
+        const success = await updateDiagramPreview(diagramId, payload);
+
+        if (success) {
+          hasSavedPreviewRef.current = true;
+        }
+      } catch (error) {
+        console.error("Failed to save diagram preview:", error);
+      }
+    }, 2000); // 2s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [diagramId, nodes, edges]);
 
   // Listen for focus-node events from ReferenceLink
   useEffect(() => {

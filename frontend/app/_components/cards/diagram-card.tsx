@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
 import { useLocale } from "next-intl";
 import { FullDiagram } from "@/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -10,10 +9,11 @@ import { Star } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { forwardRef, useState } from "react";
-import { starDiagram, unstarDiagram } from "@/app/_actions";
+import { DiagramPreview, starDiagram, unstarDiagram } from "@/app/_actions";
 import { useQueryClient } from "@tanstack/react-query";
 import { starredKeys } from "@/hooks/use-starred";
 import { itemsKeys } from "@/hooks/use-items";
+import { DiagramStructurePreview } from "./diagram-preview-svg";
 
 interface DiagramCardProps {
   variant: "list" | "grid";
@@ -102,11 +102,8 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
             >
               <div className="flex items-center gap-4">
                 <div className="relative w-16 aspect-square">
-                  <Image
-                    src={diagram.imageUrl ?? "https://placehold.co/600x600"}
-                    alt={diagram.name}
-                    fill
-                    className="object-cover rounded-md select-none pointer-events-none"
+                  <DiagramStructurePreview
+                    preview={diagram.preview as DiagramPreview | null}
                   />
                 </div>
 
@@ -176,11 +173,8 @@ export const DiagramCard = forwardRef<HTMLDivElement, DiagramCardProps>(
               </CardHeader>
               <CardContent className="flex-1 p-0 relative">
                 <div className="relative w-full aspect-6/4">
-                  <Image
-                    src={diagram.imageUrl ?? "https://placehold.co/600x400"}
-                    alt={diagram.name}
-                    fill
-                    className="object-cover rounded-md select-none pointer-events-none"
+                  <DiagramStructurePreview
+                    preview={diagram.preview as DiagramPreview | null}
                   />
 
                   <Avatar className="rounded-full absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 top-2 right-2">
