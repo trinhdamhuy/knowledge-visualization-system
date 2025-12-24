@@ -17,18 +17,14 @@ import { useDiagramStore } from "@/app/(diagram-editor)/_stores/use-diagram-stor
  * Helper function to remove selected prop from node (we use Presence for selection)
  */
 function removeSelectedFromNode<T extends Node>(node: T): Omit<T, "selected"> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { selected, ...nodeWithoutSelected } = node;
-  return nodeWithoutSelected as Omit<T, "selected">;
+  return node as Omit<T, "selected">;
 }
 
 /**
  * Helper function to remove selected prop from edge (we use Presence for selection)
  */
 function removeSelectedFromEdge<T extends Edge>(edge: T): Omit<T, "selected"> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { selected, ...edgeWithoutSelected } = edge;
-  return edgeWithoutSelected as Omit<T, "selected">;
+  return edge as Omit<T, "selected">;
 }
 
 /**

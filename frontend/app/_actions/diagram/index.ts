@@ -1,5 +1,6 @@
 export * from "./create";
 export * from "./update";
+export * from "./update-preview";
 export * from "./delete";
 export * from "./get";
 export * from "./get-by-id";
@@ -8,3 +9,4 @@ export * from "./copy";
 export * from "./paste";
 export { getShareData } from "./share/get-share-data";
 export { saveShareSettings } from "./share/save-share-settings";
+export { getSharedDiagrams } from "./shared";

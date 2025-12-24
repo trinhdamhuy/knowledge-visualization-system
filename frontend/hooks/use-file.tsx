@@ -31,7 +31,8 @@ interface DeleteFileByUrlParams {
 export const useFile = () => {
   const queryClient = useQueryClient();
   const { fileName, fileUrl, setFile, clearFile } = useFileStore();
-  const { uploadFileHandler, deleteFileHandler } = useUploadFile();
+  const { uploadFileHandler, deleteFileHandler, uploadProgress } =
+    useUploadFile();
 
   // Query: Get files by diagram ID
   const useFilesByDiagram = (diagramId: string, enabled: boolean = true) => {
@@ -82,7 +83,7 @@ export const useFile = () => {
       // Then delete from database
       return await deleteFileByUrl(params.fileUrl);
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       if (data) {
         // Invalidate files query for all diagrams (since we don't have diagramId here)
         queryClient.invalidateQueries({
@@ -151,6 +152,7 @@ export const useFile = () => {
     fileUrl,
     setFile,
     clearFile,
+    uploadProgress,
 
     // Queries
     useFilesByDiagram,

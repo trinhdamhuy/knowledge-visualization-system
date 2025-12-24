@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { DiagramHeader } from "./DiagramHeader";
 import { DiagramToolBar } from "./DiagramToolBar";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -14,11 +15,13 @@ import {
   BackgroundVariant,
   NodeChange,
   applyNodeChanges,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
+import dagre from "@dagrejs/dagre";
 import "../style.css";
 import { useDiagramStore } from "../_stores/use-diagram-store";
 import CustomNode from "./CustomNode";
-import CustomEdge from "./CustomEdge";
+import SimpleFloatingEdge from "./SimpleFloatingEdge";
 import { CollaboratorCursors } from "./CollaboratorCursors";
 import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
 import { SelectionBox } from "./SelectionBox";
@@ -26,6 +29,83 @@ import { useSelectedNodesBox } from "./hooks/use-selected-nodes-box";
 import { useHashNavigation } from "./hooks/use-hash-navigation";
 import { usePdfPageParams } from "./hooks/use-pdf-page-params";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
+import { useTheme } from "next-themes";
+import { DiagramMode } from "@/enums/modes";
+import { useDiagramSync } from "@/hooks/use-diagram-sync";
+import { Box } from "lucide-react";
+import { computeHiddenNodeIds } from "./utils/collapse-utils";
+import { updateDiagramPreview } from "@/app/_actions/diagram/update-preview";
+import { toPreviewPayload } from "./utils/preview-utils";
+
+type LayoutDirection = "TB" | "LR";
+
+const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+
+function UpdateNodeInternalsOnSignal({
+  nodeIds,
+  signal,
+}: {
+  nodeIds: string[];
+  signal: number;
+}) {
+  // IMPORTANT: This hook must be used inside the ReactFlow provider tree.
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    if (!signal) return;
+    nodeIds.forEach((id) => updateNodeInternals(id));
+  }, [signal, nodeIds, updateNodeInternals]);
+
+  return null;
+}
+
+function getLayoutedElements(
+  nodes: Node[],
+  edges: Edge[],
+  direction: LayoutDirection = "TB"
+) {
+  // generous spacing (tune as needed)
+  dagreGraph.setGraph({
+    rankdir: direction,
+    ranksep: 220,
+    nodesep: 180,
+    edgesep: 40,
+  });
+
+  nodes.forEach((node) => {
+    const w = (node.width as number) ?? (node.measured?.width as number) ?? 150;
+    const h =
+      (node.height as number) ?? (node.measured?.height as number) ?? 50;
+    dagreGraph.setNode(node.id, { width: w, height: h });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const newNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id) as {
+      x: number;
+      y: number;
+    };
+    const w = (node.width as number) ?? (node.measured?.width as number) ?? 150;
+    const h =
+      (node.height as number) ?? (node.measured?.height as number) ?? 50;
+
+    return {
+      ...node,
+      // shift dagre (center-anchored) -> reactflow (top-left anchored)
+      position: {
+        x: nodeWithPosition.x - w / 2,
+        y: nodeWithPosition.y - h / 2,
+      },
+    };
+  });
+
+  return { nodes: newNodes, edges };
+}
 
 // Component wrapper to use hook inside ReactFlow context
 function SelectedNodesBoxWrapper({
@@ -57,15 +137,13 @@ function SelectedNodesBoxWrapper({
     />
   );
 }
-import { useTheme } from "next-themes";
-import { DiagramMode } from "@/enums/modes";
-import { useDiagramSync } from "@/hooks/use-diagram-sync";
-import { Box } from "lucide-react";
 
 export function DiagramCanvas() {
   const updateMyPresence = useUpdateMyPresence();
   const theme = useTheme();
   const reactFlowInstance = useRef<ReactFlowInstance | null>(null);
+  const params = useParams();
+  const diagramId = params?.diagramId as string | undefined;
 
   // Handle hash-based navigation for reference links
   useHashNavigation();
@@ -93,10 +171,19 @@ export function DiagramCanvas() {
   const { nodes, edges, updateNodes, updateEdges, addNewEdge, addNode } =
     useDiagramSync();
 
+  // Expand/Collapse: hide descendants of collapsed nodes (default is expanded)
+  const hiddenNodeIds = useMemo(
+    () => computeHiddenNodeIds(nodes, edges),
+    [nodes, edges]
+  );
+
   // Local state for nodes during drag (preview only)
   const [localNodes, setLocalNodes] = useState<Node[]>(nodes);
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingSelectionBox, setIsDraggingSelectionBox] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>("TB");
+  const layoutDirectionRef = useRef<LayoutDirection>("TB");
+  const [internalsUpdateSignal, setInternalsUpdateSignal] = useState(0);
   const nodesFromLiveblocksRef = useRef<Node[]>(nodes);
 
   // Update ref when nodes change (for comparison)
@@ -106,6 +193,19 @@ export function DiagramCanvas() {
 
   // Track if any drag is active (node drag or selection box drag)
   const isAnyDragging = isDragging || isDraggingSelectionBox;
+
+  const visibleNodes = useMemo(
+    () => localNodes.filter((n) => !hiddenNodeIds.has(n.id)),
+    [localNodes, hiddenNodeIds]
+  );
+
+  const visibleEdges = useMemo(
+    () =>
+      edges.filter(
+        (e) => !hiddenNodeIds.has(e.source) && !hiddenNodeIds.has(e.target)
+      ),
+    [edges, hiddenNodeIds]
+  );
 
   // Sync local nodes with Liveblocks nodes when not dragging
   // This ensures undo/redo works correctly by syncing with Liveblocks state
@@ -130,6 +230,52 @@ export function DiagramCanvas() {
   useEffect(() => {
     setActiveMode(DiagramMode.Select);
   }, [setActiveMode]);
+
+  // Save preview snapshot one-shot when opening editor
+  const hasSavedPreviewRef = useRef(false);
+  useEffect(() => {
+    if (!diagramId || hasSavedPreviewRef.current) return;
+    if (nodes.length === 0 && edges.length === 0) return;
+
+    // Debounce to wait for layout/measurement to stabilize
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Prefer ReactFlow instance (has measured sizes), fallback to useDiagramSync nodes/edges
+        let previewNodes: Node[] = [];
+        let previewEdges: Edge[] = [];
+
+        if (reactFlowInstance.current) {
+          const rfNodes = reactFlowInstance.current.getNodes();
+          const rfEdges = reactFlowInstance.current.getEdges();
+          if (rfNodes.length > 0 || rfEdges.length > 0) {
+            previewNodes = rfNodes;
+            previewEdges = rfEdges;
+          } else {
+            // Fallback to Liveblocks data
+            previewNodes = nodes;
+            previewEdges = edges;
+          }
+        } else {
+          // Fallback to Liveblocks data
+          previewNodes = nodes;
+          previewEdges = edges;
+        }
+
+        if (previewNodes.length === 0 && previewEdges.length === 0) return;
+
+        const payload = toPreviewPayload(previewNodes, previewEdges);
+        const success = await updateDiagramPreview(diagramId, payload);
+
+        if (success) {
+          hasSavedPreviewRef.current = true;
+        }
+      } catch (error) {
+        console.error("Failed to save diagram preview:", error);
+      }
+    }, 2000); // 2s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [diagramId, nodes, edges]);
 
   // Listen for focus-node events from ReferenceLink
   useEffect(() => {
@@ -264,6 +410,7 @@ export function DiagramCanvas() {
       });
 
       const newNodeId = `node-${Date.now()}`;
+      const isHorizontal = layoutDirection === "LR";
       const newNode: Node = {
         id: newNodeId,
         type: "custom",
@@ -272,12 +419,15 @@ export function DiagramCanvas() {
         height: 50,
         data: {
           label: "New Node",
+          // Only 2 handle modes supported
+          targetHandlePosition: isHorizontal ? "left" : "top",
+          sourceHandlePosition: isHorizontal ? "right" : "bottom",
         },
       };
 
       addNode(newNode);
     },
-    [activeMode, addNode, updateMyPresence, handlers]
+    [activeMode, addNode, updateMyPresence, handlers, layoutDirection]
   );
 
   // Note: onSelectionChange is disabled since we use Presence for selection
@@ -355,6 +505,70 @@ export function DiagramCanvas() {
   const minZoom = 0.1; // Minimum zoom level (10%)
   const maxZoom = 2; // Maximum zoom level (200%)
 
+  const allNodeIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+
+  const applyLayout = useCallback(
+    (direction: LayoutDirection) => {
+      if (isAnyDragging) return;
+      if (nodes.length === 0) return;
+
+      const { nodes: layoutedNodes } = getLayoutedElements(
+        nodes,
+        edges,
+        direction
+      );
+
+      // update local immediately for responsiveness
+      setLocalNodes(layoutedNodes);
+
+      // persist positions
+      const positionChanges: NodeChange[] = layoutedNodes.map((node) => ({
+        id: node.id,
+        type: "position" as const,
+        position: node.position,
+      }));
+      updateNodes(positionChanges);
+
+      // IMPORTANT: notify React Flow (inside provider) to recalc internals & reposition handles/edges
+      setTimeout(() => {
+        setInternalsUpdateSignal((s) => s + 1);
+      }, 50);
+
+      setLayoutDirection(direction);
+      layoutDirectionRef.current = direction;
+
+      // Notify UI (PropertiesPanel) that layout mode changed
+      window.dispatchEvent(
+        new CustomEvent("diagram-layout-changed", { detail: { direction } })
+      );
+    },
+    [isAnyDragging, nodes, edges, updateNodes, setLocalNodes]
+  );
+
+  // Allow UI (PropertiesPanel) to trigger dagre layout
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ direction?: LayoutDirection | "TOGGLE" }>;
+      const dir = ev.detail?.direction;
+      if (!dir) return;
+      const next =
+        dir === "TOGGLE"
+          ? layoutDirectionRef.current === "TB"
+            ? "LR"
+            : "TB"
+          : dir;
+      applyLayout(next);
+    };
+
+    window.addEventListener("diagram-apply-layout", handler as EventListener);
+    return () => {
+      window.removeEventListener(
+        "diagram-apply-layout",
+        handler as EventListener
+      );
+    };
+  }, [applyLayout]);
+
   return (
     <ReactFlow
       colorMode={
@@ -365,8 +579,8 @@ export function DiagramCanvas() {
           : "system"
       }
       proOptions={{ hideAttribution: true }}
-      nodes={localNodes}
-      edges={edges}
+      nodes={visibleNodes}
+      edges={visibleEdges}
       onNodesChange={onNodesChangeLocal}
       onEdgesChange={updateEdges}
       onNodeDragStart={onNodeDragStart}
@@ -385,12 +599,12 @@ export function DiagramCanvas() {
       selectionOnDrag={false}
       nodeTypes={{ custom: CustomNode }}
       edgeTypes={{
-        default: CustomEdge,
-        straight: CustomEdge,
-        step: CustomEdge,
-        smoothstep: CustomEdge,
-        simplebezier: CustomEdge,
-        custom: CustomEdge,
+        default: SimpleFloatingEdge,
+        straight: SimpleFloatingEdge,
+        step: SimpleFloatingEdge,
+        smoothstep: SimpleFloatingEdge,
+        simplebezier: SimpleFloatingEdge,
+        custom: SimpleFloatingEdge,
       }}
       onNodeContextMenu={onNodeContextMenu}
       onInit={(instance) => (reactFlowInstance.current = instance)}
@@ -404,6 +618,10 @@ export function DiagramCanvas() {
       <DiagramHeader />
       <DiagramToolBar />
       <PropertiesPanel />
+      <UpdateNodeInternalsOnSignal
+        nodeIds={allNodeIds.filter((id) => !hiddenNodeIds.has(id))}
+        signal={internalsUpdateSignal}
+      />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />
       <CollaboratorCursors />
       <CombinedInteractionHandler onHandlersReady={(h) => setHandlers(h)} />

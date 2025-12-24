@@ -5,6 +5,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 
 const s3Client = new S3Client({
@@ -47,16 +48,6 @@ const generateFileName = (fileName: string) => {
     : `${sanitizedBaseName}_${timestamp}`;
 };
 
-const computeSHA256 = async (file: File) => {
-  const fileBuffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hashHex;
-};
-
 async function uploadFileToS3(
   file: File,
   folder?: string
@@ -64,19 +55,16 @@ async function uploadFileToS3(
   const fileName = generateFileName(file.name);
   const key = folder ? `${folder}/${fileName}` : fileName;
 
-  const checksum = await computeSHA256(file);
-
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_BUCKET!,
     Key: key,
     ContentType: file.type,
     ContentLength: file.size,
-    ChecksumSHA256: checksum,
   });
 
-  // get signed url for 1 minute
+  // get signed url for 1 hour
   const url = await getSignedUrl(s3Client, command, {
-    expiresIn: 60,
+    expiresIn: 3600,
   });
 
   return { url };
@@ -122,4 +110,54 @@ async function deleteFilesFromS3(fileNames: string[]): Promise<boolean[]> {
   return results;
 }
 
-export { uploadFileToS3, deleteFileFromS3, deleteFilesFromS3 };
+/**
+ * Generate a signed URL for reading a file from S3
+ * @param fileUrl - The public S3 URL or S3 key
+ * @param expiresIn - Expiration time in seconds (default: 1 hour)
+ * @returns Signed URL or null if failed
+ */
+async function getSignedFileUrl(
+  fileUrl: string,
+  expiresIn: number = 3600
+): Promise<string | null> {
+  try {
+    let s3Key: string;
+
+    if (fileUrl.startsWith("https://")) {
+      const url = new URL(fileUrl);
+      s3Key = url.pathname.substring(1);
+
+      // Validate hostname
+      const expectedHostname = `${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`;
+      if (url.hostname !== expectedHostname) {
+        console.error(
+          `Invalid S3 hostname: ${url.hostname}, expected: ${expectedHostname}`
+        );
+        return null;
+      }
+    } else {
+      s3Key = fileUrl;
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.AWS_BUCKET!,
+      Key: s3Key,
+    });
+
+    const signedUrl = await getSignedUrl(s3Client, command, {
+      expiresIn,
+    });
+
+    return signedUrl;
+  } catch (error) {
+    console.error("Failed to generate signed URL:", error);
+    return null;
+  }
+}
+
+export {
+  uploadFileToS3,
+  deleteFileFromS3,
+  deleteFilesFromS3,
+  getSignedFileUrl,
+};

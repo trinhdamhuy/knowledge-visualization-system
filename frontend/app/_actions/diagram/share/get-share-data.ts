@@ -142,9 +142,15 @@ export async function getShareData(
     let privacyType: "restricted" | "view" | "edit" = "restricted";
     try {
       const room = await liveblocks.getRoom(diagramId);
-      if (room?.defaultAccesses && room.defaultAccesses.length > 0) {
+      if (
+        room?.defaultAccesses &&
+        Array.isArray(room.defaultAccesses) &&
+        room.defaultAccesses.length > 0
+      ) {
         // Check if defaultAccesses has room:write (edit) or room:read (view)
-        if (room.defaultAccesses.includes("room:write")) {
+        if (
+          room.defaultAccesses.some((perm: string) => perm === "room:write")
+        ) {
           privacyType = "edit";
         } else {
           privacyType = "view";

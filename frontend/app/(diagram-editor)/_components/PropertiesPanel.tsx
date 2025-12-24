@@ -35,6 +35,8 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  ArrowDownUp,
+  ArrowLeftRight,
   Layout,
   ChevronDown,
   ChevronUp,
@@ -91,7 +93,6 @@ interface NodeStyle {
   shape: StyleValue<string>;
   color: StyleValue<string>;
   pageReference: StyleValue<number>;
-  handleType: StyleValue<string>;
 }
 
 interface EdgeStyle {
@@ -128,6 +129,7 @@ export function PropertiesPanel() {
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"TB" | "LR">("TB");
 
   // State to track expanded color pickers
   const [expandedColors, setExpandedColors] = useState({
@@ -143,7 +145,6 @@ export function PropertiesPanel() {
     fontSize: false,
     edgeType: false,
     edgeWidth: false,
-    handleType: false,
   });
 
   // State for editing node labels
@@ -186,6 +187,24 @@ export function PropertiesPanel() {
       );
     };
   }, [selectedObjectIds.nodeIds]);
+
+  // Sync layout mode from DiagramCanvas (dagre layout toggle)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ direction?: "TB" | "LR" }>;
+      if (ev.detail?.direction) {
+        setLayoutMode(ev.detail.direction);
+      }
+    };
+
+    window.addEventListener("diagram-layout-changed", handler as EventListener);
+    return () => {
+      window.removeEventListener(
+        "diagram-layout-changed",
+        handler as EventListener
+      );
+    };
+  }, []);
 
   const users = useOthers();
   const allUsers = [...users, currentUser];
@@ -311,22 +330,6 @@ export function PropertiesPanel() {
     }));
   }, [selectedNodes]);
 
-  // Helper function to group nodes by handle type
-  const groupNodesByHandleType = useCallback(() => {
-    const groups = new Map<string, string[]>();
-    selectedNodes.forEach((node) => {
-      const handleType = (node.data?.handleType as string) || "right-source";
-      if (!groups.has(handleType)) {
-        groups.set(handleType, []);
-      }
-      groups.get(handleType)!.push(node.id);
-    });
-    return Array.from(groups.entries()).map(([handleType, ids]) => ({
-      handleType,
-      ids,
-    }));
-  }, [selectedNodes]);
-
   // Helper function to group edges by type
   const groupEdgesByType = useCallback(() => {
     const groups = new Map<string, string[]>();
@@ -376,7 +379,6 @@ export function PropertiesPanel() {
         shape: "rectangle",
         color: "var(--card)", // Use CSS variable for card background
         pageReference: 0,
-        handleType: "right-source",
       };
     }
 
@@ -416,7 +418,6 @@ export function PropertiesPanel() {
       shape: getValue("shape", "rectangle"),
       color: getColorValue(),
       pageReference: getValue("pageReference", 0),
-      handleType: getValue("handleType", "right-source"),
     };
   }, [selectedNodes]);
 
@@ -424,7 +425,11 @@ export function PropertiesPanel() {
   const updateSelectedNodesStyleImmediate = useCallback(
     (styleUpdate: Record<string, unknown>) => {
       if (selectedObjectIds.nodeIds.length > 0) {
-        batchUpdateNodeData(selectedObjectIds.nodeIds, styleUpdate, undefined);
+        const finalUpdate = { ...styleUpdate };
+
+        // No handle configuration in floating-edge mode
+
+        batchUpdateNodeData(selectedObjectIds.nodeIds, finalUpdate, undefined);
       }
     },
     [selectedObjectIds.nodeIds, batchUpdateNodeData]
@@ -498,7 +503,7 @@ export function PropertiesPanel() {
   const unifiedEdgeStyle: EdgeStyle = useMemo(() => {
     if (selectedEdges.length === 0) {
       return {
-        type: "smoothstep",
+        type: "default",
         stroke: "#b1b1b7",
         strokeWidth: "1",
         animated: true,
@@ -561,7 +566,7 @@ export function PropertiesPanel() {
     };
 
     return {
-      type: getValue("type", "smoothstep"),
+      type: getValue("type", "default"),
       stroke: getValue("stroke", "#b1b1b7"),
       strokeWidth: getValue("strokeWidth", "1"),
       animated: getValue("animated", false),
@@ -609,7 +614,7 @@ export function PropertiesPanel() {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <Card
-        className={`min-w-80 overflow-hidden py-3 gap-2 ${
+        className={`min-w-96 overflow-hidden py-3 gap-2 ${
           hasSelectedNodesOrEdges ? "h-[97vh]" : "h-fit"
         }`}
       >
@@ -672,6 +677,38 @@ export function PropertiesPanel() {
           <CardDescription className="font-medium flex items-center gap-2">
             <ButtonGroup>
               <ZoomSelect />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent("diagram-apply-layout", {
+                          detail: { direction: "TOGGLE" },
+                        })
+                      );
+                    }}
+                    title={
+                      layoutMode === "TB"
+                        ? "Switch to Left-Right layout (LR)"
+                        : "Switch to Top-Down layout (TB)"
+                    }
+                  >
+                    {layoutMode === "TB" ? (
+                      <ArrowDownUp className="h-4 w-4" />
+                    ) : (
+                      <ArrowLeftRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    Layout:{" "}
+                    {layoutMode === "TB" ? "Top-Down (TB)" : "Left-Right (LR)"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -867,140 +904,6 @@ export function PropertiesPanel() {
                                       { value: "square", label: "Square" },
                                       { value: "circle", label: "Circle" },
                                       { value: "diamond", label: "Diamond" },
-                                    ].map(({ value, label }) => (
-                                      <SelectItem
-                                        key={value}
-                                        value={value}
-                                        className="text-xs"
-                                      >
-                                        {label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Handle Type */}
-                    <div className="px-2 space-y-2">
-                      <label className="block text-xs text-muted-foreground mb-1.5">
-                        Handle Configuration
-                      </label>
-                      <Select
-                        value={
-                          isMixed(unifiedStyle.handleType)
-                            ? ""
-                            : (unifiedStyle.handleType as string)
-                        }
-                        onValueChange={(value) =>
-                          updateSelectedNodesStyle({ handleType: value })
-                        }
-                      >
-                        <SelectTrigger className="w-full" size="sm">
-                          <SelectValue
-                            placeholder={
-                              isMixed(unifiedStyle.handleType)
-                                ? "Mixed configurations"
-                                : "Select handle configuration"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            {
-                              value: "top-source",
-                              label: "Top Source (rest are target)",
-                            },
-                            {
-                              value: "bottom-source",
-                              label: "Bottom Source (rest are target)",
-                            },
-                            {
-                              value: "right-source",
-                              label: "Right Source (rest are target)",
-                            },
-                            {
-                              value: "left-source",
-                              label: "Left Source (rest are target)",
-                            },
-                          ].map(({ value, label }) => (
-                            <SelectItem
-                              key={value}
-                              value={value}
-                              className="text-xs"
-                            >
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {isMixed(unifiedStyle.handleType) && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            onClick={() =>
-                              setExpandedProperties((prev) => ({
-                                ...prev,
-                                handleType: !prev.handleType,
-                              }))
-                            }
-                          >
-                            {expandedProperties.handleType ? (
-                              <>
-                                <ChevronUp className="h-3.5 w-3.5" />
-                                Hide individual configurations
-                              </>
-                            ) : (
-                              <>
-                                <ChevronDown className="h-3.5 w-3.5" />
-                                Show individual configurations
-                              </>
-                            )}
-                          </Button>
-                          {expandedProperties.handleType && (
-                            <div className="space-y-2 pl-2 border-l-2 border-border">
-                              {groupNodesByHandleType().map((group) => (
-                                <Select
-                                  key={`handle-type-group-${group.handleType}`}
-                                  value={group.handleType}
-                                  onValueChange={(newHandleType) => {
-                                    if (group.ids.length > 0) {
-                                      debouncedBatchUpdateNodeData(
-                                        group.ids,
-                                        { handleType: newHandleType },
-                                        undefined
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <SelectTrigger className="w-full" size="sm">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {[
-                                      {
-                                        value: "top-source",
-                                        label: "Top Source (rest are target)",
-                                      },
-                                      {
-                                        value: "bottom-source",
-                                        label:
-                                          "Bottom Source (rest are target)",
-                                      },
-                                      {
-                                        value: "right-source",
-                                        label: "Right Source (rest are target)",
-                                      },
-                                      {
-                                        value: "left-source",
-                                        label: "Left Source (rest are target)",
-                                      },
                                     ].map(({ value, label }) => (
                                       <SelectItem
                                         key={value}

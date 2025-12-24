@@ -27,34 +27,35 @@ export type AggregateDiagram = {
 export type DiagramMinAggregateOutputType = {
   id: string | null
   name: string | null
-  imageUrl: string | null
   folderId: string | null
   ownerId: string | null
   teamId: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  previewUpdatedAt: Date | null
 }
 
 export type DiagramMaxAggregateOutputType = {
   id: string | null
   name: string | null
-  imageUrl: string | null
   folderId: string | null
   ownerId: string | null
   teamId: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  previewUpdatedAt: Date | null
 }
 
 export type DiagramCountAggregateOutputType = {
   id: number
   name: number
-  imageUrl: number
   folderId: number
   ownerId: number
   teamId: number
   createdAt: number
   updatedAt: number
+  preview: number
+  previewUpdatedAt: number
   _all: number
 }
 
@@ -62,34 +63,35 @@ export type DiagramCountAggregateOutputType = {
 export type DiagramMinAggregateInputType = {
   id?: true
   name?: true
-  imageUrl?: true
   folderId?: true
   ownerId?: true
   teamId?: true
   createdAt?: true
   updatedAt?: true
+  previewUpdatedAt?: true
 }
 
 export type DiagramMaxAggregateInputType = {
   id?: true
   name?: true
-  imageUrl?: true
   folderId?: true
   ownerId?: true
   teamId?: true
   createdAt?: true
   updatedAt?: true
+  previewUpdatedAt?: true
 }
 
 export type DiagramCountAggregateInputType = {
   id?: true
   name?: true
-  imageUrl?: true
   folderId?: true
   ownerId?: true
   teamId?: true
   createdAt?: true
   updatedAt?: true
+  preview?: true
+  previewUpdatedAt?: true
   _all?: true
 }
 
@@ -168,12 +170,13 @@ export type DiagramGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
 export type DiagramGroupByOutputType = {
   id: string
   name: string
-  imageUrl: string | null
   folderId: string | null
   ownerId: string | null
   teamId: string | null
   createdAt: Date
   updatedAt: Date
+  preview: runtime.JsonValue | null
+  previewUpdatedAt: Date | null
   _count: DiagramCountAggregateOutputType | null
   _min: DiagramMinAggregateOutputType | null
   _max: DiagramMaxAggregateOutputType | null
@@ -200,12 +203,13 @@ export type DiagramWhereInput = {
   NOT?: Prisma.DiagramWhereInput | Prisma.DiagramWhereInput[]
   id?: Prisma.StringFilter<"Diagram"> | string
   name?: Prisma.StringFilter<"Diagram"> | string
-  imageUrl?: Prisma.StringNullableFilter<"Diagram"> | string | null
   folderId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   ownerId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   teamId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
+  preview?: Prisma.JsonNullableFilter<"Diagram">
+  previewUpdatedAt?: Prisma.DateTimeNullableFilter<"Diagram"> | Date | string | null
   folder?: Prisma.XOR<Prisma.FolderNullableScalarRelationFilter, Prisma.FolderWhereInput> | null
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   team?: Prisma.XOR<Prisma.TeamNullableScalarRelationFilter, Prisma.TeamWhereInput> | null
@@ -219,12 +223,13 @@ export type DiagramWhereInput = {
 export type DiagramOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   folderId?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrderInput | Prisma.SortOrder
   teamId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  preview?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   folder?: Prisma.FolderOrderByWithRelationInput
   owner?: Prisma.UserOrderByWithRelationInput
   team?: Prisma.TeamOrderByWithRelationInput
@@ -241,12 +246,13 @@ export type DiagramWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.DiagramWhereInput[]
   NOT?: Prisma.DiagramWhereInput | Prisma.DiagramWhereInput[]
   name?: Prisma.StringFilter<"Diagram"> | string
-  imageUrl?: Prisma.StringNullableFilter<"Diagram"> | string | null
   folderId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   ownerId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   teamId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
+  preview?: Prisma.JsonNullableFilter<"Diagram">
+  previewUpdatedAt?: Prisma.DateTimeNullableFilter<"Diagram"> | Date | string | null
   folder?: Prisma.XOR<Prisma.FolderNullableScalarRelationFilter, Prisma.FolderWhereInput> | null
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   team?: Prisma.XOR<Prisma.TeamNullableScalarRelationFilter, Prisma.TeamWhereInput> | null
@@ -260,12 +266,13 @@ export type DiagramWhereUniqueInput = Prisma.AtLeast<{
 export type DiagramOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   folderId?: Prisma.SortOrderInput | Prisma.SortOrder
   ownerId?: Prisma.SortOrderInput | Prisma.SortOrder
   teamId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  preview?: Prisma.SortOrderInput | Prisma.SortOrder
+  previewUpdatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.DiagramCountOrderByAggregateInput
   _max?: Prisma.DiagramMaxOrderByAggregateInput
   _min?: Prisma.DiagramMinOrderByAggregateInput
@@ -277,20 +284,22 @@ export type DiagramScalarWhereWithAggregatesInput = {
   NOT?: Prisma.DiagramScalarWhereWithAggregatesInput | Prisma.DiagramScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Diagram"> | string
   name?: Prisma.StringWithAggregatesFilter<"Diagram"> | string
-  imageUrl?: Prisma.StringNullableWithAggregatesFilter<"Diagram"> | string | null
   folderId?: Prisma.StringNullableWithAggregatesFilter<"Diagram"> | string | null
   ownerId?: Prisma.StringNullableWithAggregatesFilter<"Diagram"> | string | null
   teamId?: Prisma.StringNullableWithAggregatesFilter<"Diagram"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Diagram"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Diagram"> | Date | string
+  preview?: Prisma.JsonNullableWithAggregatesFilter<"Diagram">
+  previewUpdatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Diagram"> | Date | string | null
 }
 
 export type DiagramCreateInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -304,12 +313,13 @@ export type DiagramCreateInput = {
 export type DiagramUncheckedCreateInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -320,9 +330,10 @@ export type DiagramUncheckedCreateInput = {
 export type DiagramUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -336,12 +347,13 @@ export type DiagramUpdateInput = {
 export type DiagramUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -352,31 +364,34 @@ export type DiagramUncheckedUpdateInput = {
 export type DiagramCreateManyInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
 }
 
 export type DiagramUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type DiagramUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type DiagramListRelationFilter = {
@@ -392,34 +407,35 @@ export type DiagramOrderByRelationAggregateInput = {
 export type DiagramCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
   teamId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  preview?: Prisma.SortOrder
+  previewUpdatedAt?: Prisma.SortOrder
 }
 
 export type DiagramMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
   teamId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  previewUpdatedAt?: Prisma.SortOrder
 }
 
 export type DiagramMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   name?: Prisma.SortOrder
-  imageUrl?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
   ownerId?: Prisma.SortOrder
   teamId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  previewUpdatedAt?: Prisma.SortOrder
 }
 
 export type DiagramNullableScalarRelationFilter = {
@@ -635,9 +651,10 @@ export type DiagramUpdateOneRequiredWithoutFilesNestedInput = {
 export type DiagramCreateWithoutOwnerInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
@@ -650,11 +667,12 @@ export type DiagramCreateWithoutOwnerInput = {
 export type DiagramUncheckedCreateWithoutOwnerInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -694,20 +712,22 @@ export type DiagramScalarWhereInput = {
   NOT?: Prisma.DiagramScalarWhereInput | Prisma.DiagramScalarWhereInput[]
   id?: Prisma.StringFilter<"Diagram"> | string
   name?: Prisma.StringFilter<"Diagram"> | string
-  imageUrl?: Prisma.StringNullableFilter<"Diagram"> | string | null
   folderId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   ownerId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   teamId?: Prisma.StringNullableFilter<"Diagram"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Diagram"> | Date | string
+  preview?: Prisma.JsonNullableFilter<"Diagram">
+  previewUpdatedAt?: Prisma.DateTimeNullableFilter<"Diagram"> | Date | string | null
 }
 
 export type DiagramCreateWithoutTeamInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
@@ -720,11 +740,12 @@ export type DiagramCreateWithoutTeamInput = {
 export type DiagramUncheckedCreateWithoutTeamInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -761,9 +782,10 @@ export type DiagramUpdateManyWithWhereWithoutTeamInput = {
 export type DiagramCreateWithoutFolderInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
   shares?: Prisma.ShareCreateNestedManyWithoutDiagramInput
@@ -776,11 +798,12 @@ export type DiagramCreateWithoutFolderInput = {
 export type DiagramUncheckedCreateWithoutFolderInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -817,9 +840,10 @@ export type DiagramUpdateManyWithWhereWithoutFolderInput = {
 export type DiagramCreateWithoutTrashInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -832,12 +856,13 @@ export type DiagramCreateWithoutTrashInput = {
 export type DiagramUncheckedCreateWithoutTrashInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
@@ -863,9 +888,10 @@ export type DiagramUpdateToOneWithWhereWithoutTrashInput = {
 export type DiagramUpdateWithoutTrashInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -878,12 +904,13 @@ export type DiagramUpdateWithoutTrashInput = {
 export type DiagramUncheckedUpdateWithoutTrashInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
@@ -893,9 +920,10 @@ export type DiagramUncheckedUpdateWithoutTrashInput = {
 export type DiagramCreateWithoutSharesInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -908,12 +936,13 @@ export type DiagramCreateWithoutSharesInput = {
 export type DiagramUncheckedCreateWithoutSharesInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
@@ -939,9 +968,10 @@ export type DiagramUpdateToOneWithWhereWithoutSharesInput = {
 export type DiagramUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -954,12 +984,13 @@ export type DiagramUpdateWithoutSharesInput = {
 export type DiagramUncheckedUpdateWithoutSharesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
@@ -969,9 +1000,10 @@ export type DiagramUncheckedUpdateWithoutSharesInput = {
 export type DiagramCreateWithoutRecentsInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -984,12 +1016,13 @@ export type DiagramCreateWithoutRecentsInput = {
 export type DiagramUncheckedCreateWithoutRecentsInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
   starreds?: Prisma.StarredUncheckedCreateNestedManyWithoutDiagramInput
@@ -1015,9 +1048,10 @@ export type DiagramUpdateToOneWithWhereWithoutRecentsInput = {
 export type DiagramUpdateWithoutRecentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -1030,12 +1064,13 @@ export type DiagramUpdateWithoutRecentsInput = {
 export type DiagramUncheckedUpdateWithoutRecentsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
   starreds?: Prisma.StarredUncheckedUpdateManyWithoutDiagramNestedInput
@@ -1045,9 +1080,10 @@ export type DiagramUncheckedUpdateWithoutRecentsInput = {
 export type DiagramCreateWithoutStarredsInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -1060,12 +1096,13 @@ export type DiagramCreateWithoutStarredsInput = {
 export type DiagramUncheckedCreateWithoutStarredsInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -1091,9 +1128,10 @@ export type DiagramUpdateToOneWithWhereWithoutStarredsInput = {
 export type DiagramUpdateWithoutStarredsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -1106,12 +1144,13 @@ export type DiagramUpdateWithoutStarredsInput = {
 export type DiagramUncheckedUpdateWithoutStarredsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -1121,9 +1160,10 @@ export type DiagramUncheckedUpdateWithoutStarredsInput = {
 export type DiagramCreateWithoutFilesInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   folder?: Prisma.FolderCreateNestedOneWithoutDiagramsInput
   owner?: Prisma.UserCreateNestedOneWithoutDiagramsInput
   team?: Prisma.TeamCreateNestedOneWithoutDiagramsInput
@@ -1136,12 +1176,13 @@ export type DiagramCreateWithoutFilesInput = {
 export type DiagramUncheckedCreateWithoutFilesInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
   shares?: Prisma.ShareUncheckedCreateNestedManyWithoutDiagramInput
   recents?: Prisma.RecentUncheckedCreateNestedManyWithoutDiagramInput
   trash?: Prisma.TrashUncheckedCreateNestedOneWithoutDiagramInput
@@ -1167,9 +1208,10 @@ export type DiagramUpdateToOneWithWhereWithoutFilesInput = {
 export type DiagramUpdateWithoutFilesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
@@ -1182,12 +1224,13 @@ export type DiagramUpdateWithoutFilesInput = {
 export type DiagramUncheckedUpdateWithoutFilesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -1197,19 +1240,21 @@ export type DiagramUncheckedUpdateWithoutFilesInput = {
 export type DiagramCreateManyOwnerInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
 }
 
 export type DiagramUpdateWithoutOwnerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
@@ -1222,11 +1267,12 @@ export type DiagramUpdateWithoutOwnerInput = {
 export type DiagramUncheckedUpdateWithoutOwnerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -1237,29 +1283,32 @@ export type DiagramUncheckedUpdateWithoutOwnerInput = {
 export type DiagramUncheckedUpdateManyWithoutOwnerInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type DiagramCreateManyTeamInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   folderId?: string | null
   ownerId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
 }
 
 export type DiagramUpdateWithoutTeamInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folder?: Prisma.FolderUpdateOneWithoutDiagramsNestedInput
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
@@ -1272,11 +1321,12 @@ export type DiagramUpdateWithoutTeamInput = {
 export type DiagramUncheckedUpdateWithoutTeamInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -1287,29 +1337,32 @@ export type DiagramUncheckedUpdateWithoutTeamInput = {
 export type DiagramUncheckedUpdateManyWithoutTeamInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type DiagramCreateManyFolderInput = {
   id?: string
   name: string
-  imageUrl?: string | null
   ownerId?: string | null
   teamId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Date | string | null
 }
 
 export type DiagramUpdateWithoutFolderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   owner?: Prisma.UserUpdateOneWithoutDiagramsNestedInput
   team?: Prisma.TeamUpdateOneWithoutDiagramsNestedInput
   shares?: Prisma.ShareUpdateManyWithoutDiagramNestedInput
@@ -1322,11 +1375,12 @@ export type DiagramUpdateWithoutFolderInput = {
 export type DiagramUncheckedUpdateWithoutFolderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   shares?: Prisma.ShareUncheckedUpdateManyWithoutDiagramNestedInput
   recents?: Prisma.RecentUncheckedUpdateManyWithoutDiagramNestedInput
   trash?: Prisma.TrashUncheckedUpdateOneWithoutDiagramNestedInput
@@ -1337,11 +1391,12 @@ export type DiagramUncheckedUpdateWithoutFolderInput = {
 export type DiagramUncheckedUpdateManyWithoutFolderInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
-  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   teamId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  preview?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  previewUpdatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -1405,12 +1460,13 @@ export type DiagramCountOutputTypeCountFilesArgs<ExtArgs extends runtime.Types.E
 export type DiagramSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  imageUrl?: boolean
   folderId?: boolean
   ownerId?: boolean
   teamId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  preview?: boolean
+  previewUpdatedAt?: boolean
   folder?: boolean | Prisma.Diagram$folderArgs<ExtArgs>
   owner?: boolean | Prisma.Diagram$ownerArgs<ExtArgs>
   team?: boolean | Prisma.Diagram$teamArgs<ExtArgs>
@@ -1425,12 +1481,13 @@ export type DiagramSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type DiagramSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  imageUrl?: boolean
   folderId?: boolean
   ownerId?: boolean
   teamId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  preview?: boolean
+  previewUpdatedAt?: boolean
   folder?: boolean | Prisma.Diagram$folderArgs<ExtArgs>
   owner?: boolean | Prisma.Diagram$ownerArgs<ExtArgs>
   team?: boolean | Prisma.Diagram$teamArgs<ExtArgs>
@@ -1439,12 +1496,13 @@ export type DiagramSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type DiagramSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   name?: boolean
-  imageUrl?: boolean
   folderId?: boolean
   ownerId?: boolean
   teamId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  preview?: boolean
+  previewUpdatedAt?: boolean
   folder?: boolean | Prisma.Diagram$folderArgs<ExtArgs>
   owner?: boolean | Prisma.Diagram$ownerArgs<ExtArgs>
   team?: boolean | Prisma.Diagram$teamArgs<ExtArgs>
@@ -1453,15 +1511,16 @@ export type DiagramSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
 export type DiagramSelectScalar = {
   id?: boolean
   name?: boolean
-  imageUrl?: boolean
   folderId?: boolean
   ownerId?: boolean
   teamId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  preview?: boolean
+  previewUpdatedAt?: boolean
 }
 
-export type DiagramOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "imageUrl" | "folderId" | "ownerId" | "teamId" | "createdAt" | "updatedAt", ExtArgs["result"]["diagram"]>
+export type DiagramOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "folderId" | "ownerId" | "teamId" | "createdAt" | "updatedAt" | "preview" | "previewUpdatedAt", ExtArgs["result"]["diagram"]>
 export type DiagramInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   folder?: boolean | Prisma.Diagram$folderArgs<ExtArgs>
   owner?: boolean | Prisma.Diagram$ownerArgs<ExtArgs>
@@ -1499,12 +1558,13 @@ export type $DiagramPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     name: string
-    imageUrl: string | null
     folderId: string | null
     ownerId: string | null
     teamId: string | null
     createdAt: Date
     updatedAt: Date
+    preview: runtime.JsonValue | null
+    previewUpdatedAt: Date | null
   }, ExtArgs["result"]["diagram"]>
   composites: {}
 }
@@ -1938,12 +1998,13 @@ export interface Prisma__DiagramClient<T, Null = never, ExtArgs extends runtime.
 export interface DiagramFieldRefs {
   readonly id: Prisma.FieldRef<"Diagram", 'String'>
   readonly name: Prisma.FieldRef<"Diagram", 'String'>
-  readonly imageUrl: Prisma.FieldRef<"Diagram", 'String'>
   readonly folderId: Prisma.FieldRef<"Diagram", 'String'>
   readonly ownerId: Prisma.FieldRef<"Diagram", 'String'>
   readonly teamId: Prisma.FieldRef<"Diagram", 'String'>
   readonly createdAt: Prisma.FieldRef<"Diagram", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Diagram", 'DateTime'>
+  readonly preview: Prisma.FieldRef<"Diagram", 'Json'>
+  readonly previewUpdatedAt: Prisma.FieldRef<"Diagram", 'DateTime'>
 }
     
 

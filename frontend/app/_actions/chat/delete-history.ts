@@ -22,6 +22,7 @@ async function deleteChatHistory(
   try {
     const requestBody: DeleteRequest = {
       diagram_id: diagramId,
+      user_id: user.id,
     };
 
     const response = await fetch(`${BACKEND_URL}/api/delete-chat-history`, {

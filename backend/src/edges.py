@@ -288,8 +288,8 @@ ANSWER_PROMPT = (
     "- 'The concept is represented by the [**Introduction**](#pdf/page-number#node/node-id) node in the mindmap.'\n"
     "- 'For comprehensive information, see [**this section**](#pdf/page-number#node/node-id) which covers this topic.'\n"
     "- 'According to [**the document**](#pdf/page-number#node/node-id), the main principles are...'\n"
-    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern is explained in detail.'\n"
     "- 'The [**Text**](#pdf/page-number#node/node-id) pattern combines both references.'\n"
+    "- 'The [**Text**](#pdf/page-number#node/node-id) pattern is explained in detail.'\n"
     "\n"
     "User request:\n"
     "{request}\n"
@@ -356,10 +356,6 @@ class NodeData(BaseModel):
         default=0,
         description="Page number in PDF document that this node references (e.g., 26, 96). Use 0 if no page reference. This allows users to navigate to the specific page when clicking on the node.",
     )
-    handleType: str = Field(
-        default="right-source",
-        description="Handle configuration for the node. Determines which handle is a source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source'.",
-    )
 
 
 class Measured(BaseModel):
@@ -421,7 +417,7 @@ class Edge(BaseModel):
     source: str = Field(..., description="ID of the source node (parent)")
     target: str = Field(..., description="ID of the target node (child)")
     type: str = Field(
-        default="smoothstep",
+        default="default",
         description="Edge type for React Flow. Available types: 'default' (straight line), 'straight' (direct line), 'step' (right-angle), 'smoothstep' (curved hierarchical), 'simplebezier' (bezier curve). Use different types to create visual variety and hierarchy.",
     )
     style: Dict[str, str] = Field(
@@ -467,8 +463,7 @@ async def generate_answer(state: State):
     context_docs = state["context"]
     existing_mindmap_data = (
         state["messages"][-1].additional_kwargs.get("mindmap_data", {})
-        if state["messages"]
-        and state["messages"][-1].additional_kwargs
+        if state["messages"] and state["messages"][-1].additional_kwargs
         else {}
     )
 
@@ -606,6 +601,14 @@ async def generate_answer(state: State):
             )
             mindmap_dict = mindmap_response.model_dump()
 
+            # Normalize edges: if type is missing, default to simplebezier
+            if mindmap_dict and isinstance(mindmap_dict, dict):
+                edges = mindmap_dict.get("edges", {})
+                if isinstance(edges, dict):
+                    for edge_data in edges.values():
+                        if isinstance(edge_data, dict) and not edge_data.get("type"):
+                            edge_data["type"] = "simplebezier"
+
             # Extract node IDs from newly generated mindmap for reference
             # Include ALL node IDs, not just first 10, so AI can reference any node
             new_node_ids = []
@@ -688,7 +691,8 @@ MINDMAP_PROMPT = (
     "   - This should be the overarching theme or main subject of the documents\n"
     "\n"
     "2. HIERARCHICAL STRUCTURE (STRICT LIMITS):\n"
-    "   - Create a radial, tree-like structure radiating from the center\n"
+    "   - DEFAULT LAYOUT: DAGRE-LIKE TREE (Top-Down/TB). This matches the frontend auto-layout toggle.\n"
+    "   - Optional: Left-Right/LR layout when the user explicitly wants a horizontal flow.\n"
     "   - Main branches (level 1): Maximum 3-5 branches from center\n"
     "   - Sub-branches (level 2): Maximum 2-4 sub-concepts per main branch\n"
     "   - Sub-sub-branches (level 3): ONLY if absolutely essential, maximum 2-3 per sub-branch\n"
@@ -704,42 +708,44 @@ MINDMAP_PROMPT = (
     "   - Labels should be clear, memorable, and capture the essence\n"
     "   - Use action verbs or descriptive terms when appropriate\n"
     "\n"
-    "4. VISUAL ORGANIZATION & SPACING (CRITICAL):\n"
-    "   - Use GENEROUS spacing between all nodes - minimum 400-600 pixels between any two nodes\n"
-    "   - Nodes should NEVER be placed too close together - maintain wide, comfortable spacing\n"
-    "   - Layout can be flexible: radial, free-form, or hybrid - whatever creates the most spacious arrangement\n"
-    "   - You are NOT restricted to strict radial or waterfall layouts - use free-form positioning for optimal spacing\n"
-    "   - Main branches: Position 500-800 pixels from center node for comfortable spacing\n"
-    "   - Sub-branches: Position 400-600 pixels from their parent nodes\n"
-    "   - Sub-sub-branches: Position 400-600 pixels from their parent nodes\n"
-    "   - Spread nodes across a wide canvas area - use the full available space\n"
-    "   - Avoid clustering nodes together - distribute them widely\n"
-    "   - Think of nodes as needing their own 'breathing room' - each node should have ample space around it\n"
-    "   - If using radial layout, increase angles and distances significantly\n"
-    "   - If using free-form layout, spread nodes horizontally and vertically with large gaps\n"
-    "   - Minimum distance between any two nodes: 400 pixels (preferably 500-600 pixels)\n"
-    "   - The mindmap should look spacious and uncluttered, not cramped\n"
+    "4. DAGRE-FRIENDLY SPACING (CRITICAL):\n"
+    "   - The frontend can auto-layout nodes using a Dagre TB/LR layout.\n"
+    "   - You MUST still provide reasonable initial positions to avoid overlap before layout is applied.\n"
+    "   - Default (TB):\n"
+    "       * Use a layered tree: center at (0,0), level-1 around y≈300..500, level-2 around y≈800..1100, level-3 around y≈1400..1700\n"
+    "       * Spread siblings horizontally with large gaps: 300..600px depending on label length.\n"
+    "   - Optional (LR):\n"
+    "       * Use left-to-right layering: center at (0,0), level-1 around x≈300..500, level-2 around x≈800..1100, level-3 around x≈1400..1700\n"
+    "       * Spread siblings vertically with large gaps: 250..500px.\n"
+    "   - Anti-overlap guideline:\n"
+    "       * Keep at least 200px horizontal separation OR 160px vertical separation between node bounding boxes.\n"
+    "       * If labels are long, increase node width and increase spacing accordingly.\n"
     "\n"
     "5. COLOR CODING:\n"
     "   - Assign different colors to different main branches for visual distinction\n"
     "   - Use consistent colors within each branch (parent and children share similar color scheme)\n"
-    "   - Use node style.backgroundColor for branch colors (e.g., '#E3F2FD', '#F3E5F5', '#E8F5E9', '#FFF3E0', '#FCE4EC')\n"
-    "   - Use edge style.stroke to match parent node colors\n"
+    "   - Use node data.color (backgroundColor) for branch colors (e.g., '#E3F2FD', '#F3E5F5', '#E8F5E9', '#FFF3E0', '#FCE4EC')\n"
+    "   - For EVERY edge, set style.stroke to be CLOSELY RELATED to the PARENT node's background color (data.color), so label background and edge color feel connected\n"
+    "   - If you use a custom label text color (data.textColor), keep enough contrast between edge color, node background, and label text so everything stays readable\n"
     "   - Central node can have a distinct, prominent color\n"
     "\n"
     "6. EDGE STYLING & TYPES (USE VARIETY FOR VISUAL INTEREST):\n"
     "   - Available edge types: 'default', 'straight', 'step', 'smoothstep', 'simplebezier'\n"
-    "   - Use 'smoothstep' for main hierarchical connections (curved, organic-looking) - MOST COMMON\n"
-    "   - Use 'simplebezier' for secondary connections or cross-branch relationships (smooth curves)\n"
+    "   - DEFAULT edge type: always set to 'simplebezier' unless you intentionally choose another type; never leave empty\n"
+    "   - Use 'smoothstep' only when you want the stepped curve style for hierarchy\n"
+    "   - Use 'simplebezier' for most connections (main and secondary) to keep curves smooth\n"
     "   - Use 'step' for right-angle connections when you want a structured, organized look\n"
     "   - Use 'straight' for direct, non-hierarchical relationships or when emphasizing direct connections\n"
-    "   - Use 'default' sparingly, mainly for simple direct connections\n"
-    "   - MIX different edge types throughout the mindmap to create visual variety and hierarchy\n"
-    "   - Main branches from center: prefer 'smoothstep' or 'simplebezier'\n"
-    "   - Sub-branches: mix 'smoothstep', 'step', or 'simplebezier' based on relationship type\n"
+    "   - Use 'default' sparingly, mainly for simple direct connections when curves are unnecessary\n"
+    "   - MIX different edge types thoughtfully; start with 'simplebezier' and override only when needed\n"
+    "   - HIERARCHY-BASED STROKE WIDTH (VERY IMPORTANT):\n"
+    "       * Center -> level-1 main branches: use edge style.strokeWidth of 3 (thick, very important)\n"
+    "       * Level-1 -> level-2 branches: use strokeWidth of 2 (medium, important)\n"
+    "       * Level-2 -> level-3 branches: use strokeWidth of 1 (thin, less important)\n"
+    "   - Main branches from center: prefer 'simplebezier' (fallback: 'smoothstep' if you want stepped curvature)\n"
+    "   - Sub-branches: mix 'simplebezier' or 'step' based on relationship type\n"
     "   - Cross-connections between branches: use 'simplebezier' or 'straight'\n"
-    "   - Match edge colors to their parent branch colors\n"
-    "   - Use edge style.strokeWidth of 2-3 for main branches, 1-2 for sub-branches\n"
+    "   - ALWAYS match edge colors (style.stroke) to their parent branch colors (node data.color) so users can see which branch an edge belongs to\n"
     "\n"
     "7. CONTENT ANALYSIS & SUMMARIZATION (CRITICAL FOR LARGE DOCUMENTS):\n"
     "   - FIRST: Summarize and extract ONLY the most important high-level concepts\n"
@@ -765,6 +771,12 @@ MINDMAP_PROMPT = (
     "     * height: number (e.g., 50)\n"
     "     * data: object with:\n"
     "       - 'label' (string, required): The node text\n"
+    "       - 'shape' (string, optional): Visual shape for the node. MUST be one of: 'rectangle', 'square', 'circle', 'diamond'.\n"
+    "           * Use 'rectangle' as the default for most nodes.\n"
+    "           * Use 'square' for compact, important concepts (e.g., main categories).\n"
+    "           * Use 'circle' for hubs, highly central concepts, or grouped ideas.\n"
+    "           * Use 'diamond' for nodes that represent decisions, conditions, or branching logic.\n"
+    "           * ALWAYS choose a shape that matches the node's role in the mindmap.\n"
     "       - 'color' (string, optional): Background color hex code (e.g., '#E3F2FD') or empty string for default\n"
     "       - 'fontFamily' (string, optional): Font family name. MUST be one of: 'Inter', 'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Courier New'. Leave empty for default (Inter)\n"
     "       - 'fontSize' (number, optional): Font size in pixels (e.g., 14, 16, 18) or 0 for default\n"
@@ -773,7 +785,6 @@ MINDMAP_PROMPT = (
     "       - 'textDecoration' (string, optional): Text decoration (e.g., 'none', 'underline') or empty string for default\n"
     "       - 'textColor' (string, optional): Text color hex code (e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set when color is provided. If background is light, use dark text (#000000). If background is dark, use light text (#ffffff). NEVER leave empty when color is set. Leave empty ONLY when color is also empty.\n"
     "       - 'pageReference' (number, optional): PDF page number (e.g., 26, 96). Use 0 if no page reference.\n"
-    "       - 'handleType' (string, optional): Handle configuration determining which handle is source (output) and which are targets (inputs). Options: 'top-source' (top is source, rest are target), 'bottom-source' (bottom is source, rest are target), 'right-source' (right is source, rest are target), 'left-source' (left is source, rest are target). Use variety across nodes to create diverse connection patterns. Default is 'right-source' if not specified.\n"
     "     * measured: object with 'width' (number, e.g., 150) and 'height' (number, e.g., 50)\n"
     "   - Each edge MUST have:\n"
     "     * id: string (format: 'xy-edge__{{source}}-{{target}}' or custom, same as the dictionary key)\n"
@@ -791,7 +802,7 @@ MINDMAP_PROMPT = (
     "       'source': 'node-1766209382911',\n"
     "       'target': 'node-1766209382477',\n"
     "       'id': 'xy-edge__node-1766209382911-node-1766209382477',\n"
-    "       'type': 'smoothstep',\n"
+    "       'type': 'simplebezier',\n"
     "       'animated': false,\n"
     "       'data': {{'label': 'related to', 'labelFontFamily': 'Inter', 'labelFontSize': 12}}\n"
     "     }}\n"
@@ -800,8 +811,8 @@ MINDMAP_PROMPT = (
     "       'id': 'node-1766205361492',\n"
     "       'type': 'custom',\n"
     "       'position': {{'x': 0, 'y': 0}},\n"
-    "       'width': 150,\n"
-    "       'height': 50,\n"
+    "       'width': 180,\n"
+    "       'height': 60,\n"
     "       'data': {{\n"
     "         'label': 'New Node',\n"
     "         'color': '#E3F2FD',\n"
@@ -810,9 +821,9 @@ MINDMAP_PROMPT = (
     "         'fontWeight': 'bold',\n"
     "         'fontStyle': 'normal',\n"
     "         'textDecoration': 'none',\n"
-    "         'handleType': 'right-source'\n"
+    "         // No handle-related fields\n"
     "       }},\n"
-    "       'measured': {{'width': 150, 'height': 50}}\n"
+    "       'measured': {{'width': 180, 'height': 60}}\n"
     "     }}\n"
     "\n"
     "9. REACT FLOW FEATURES & STYLING:\n"
@@ -828,12 +839,15 @@ MINDMAP_PROMPT = (
     "     * Use node.data.fontWeight for emphasis: 'normal', 'bold', '600', '700' (use 'bold' for important nodes like center or main branches)\n"
     "     * Use node.data.fontStyle: 'normal' or 'italic' (use 'italic' sparingly for emphasis)\n"
     "     * Use node.data.textDecoration: 'none' or 'underline' (use 'underline' sparingly)\n"
-    "     * Use node.data.handleType to control handle configuration (which handle is source vs target). Options: 'top-source', 'bottom-source', 'right-source', 'left-source'. IMPORTANT: Use VARIETY across nodes to create diverse connection patterns. For example:\n"
-    "       - Central node: Use 'right-source' or 'bottom-source' (most common)\n"
-    "       - Main branches: Mix 'top-source', 'bottom-source', 'left-source', 'right-source' for visual variety\n"
-    "       - Sub-branches: Vary handleType based on their position relative to parent (e.g., if parent is on top, child might use 'top-source')\n"
-    "       - Create visual interest by using different handleTypes throughout the mindmap\n"
-    "       - Default is 'right-source' if not specified\n"
+    "     * NODE SHAPES (IMPORTANT FOR SEMANTICS):\n"
+    "       - Use node.data.shape to control the visual shape. Allowed values: 'rectangle', 'square', 'circle', 'diamond'.\n"
+    "       - Recommended conventions:\n"
+    "           * Central node (main topic): 'circle' or 'square' to make it visually distinct.\n"
+    "           * Main branches (level 1): 'rectangle' or 'square'.\n"
+    "           * Regular sub-branches (details): 'rectangle'.\n"
+    "           * Decision / condition / branching nodes: 'diamond'.\n"
+    "           * Grouped or highly central hubs (connecting many branches): 'circle'.\n"
+    "       - Be consistent: nodes with similar roles should share the same shape.\n"
     "     * Central node and main branches: Consider using larger fontSize (18-20), bold fontWeight for hierarchy\n"
     "     * Sub-branches: Use medium fontSize (14-16), normal fontWeight\n"
     "   - EDGE STYLING:\n"
@@ -846,24 +860,25 @@ MINDMAP_PROMPT = (
     "     * Use edge.data.labelColor for edge label text color (hex format, e.g., '#000000' for black, '#ffffff' for white). CRITICAL: MUST ALWAYS set labelColor when labelBackgroundColor is provided. If labelBackgroundColor is light (e.g., '#E3F2FD', '#F3E5F5'), use dark text (#000000). If labelBackgroundColor is dark (e.g., '#1a1a1a'), use light text (#ffffff). NEVER leave labelColor empty when labelBackgroundColor is set - this causes poor contrast. Leave empty ONLY when labelBackgroundColor is also empty (using default theme).\n"
     "     * Only add edge labels when they add meaningful information about the relationship\n"
     "\n"
-    "10. LAYOUT CALCULATION (SPACIOUS POSITIONING):\n"
+    "10. LAYOUT CALCULATION (SPACIOUS & EVEN POSITIONING):\n"
     "   - Center node: position (0, 0) or near center\n"
     "   - Layout style: You can use radial, free-form, or hybrid - choose what creates the most spacious layout\n"
     "   - For radial layout with N main branches:\n"
-    "     * Distribute at angles: 360°/N intervals\n"
-    "     * Use LARGE distances: 500-800 pixels from center (NOT 250-400)\n"
+    "     * Distribute at equal angles: 360°/N intervals\n"
+    "     * Use LARGE, EVEN distances: 500-800 pixels from center (NOT 250-400)\n"
     "     * Calculate: x = distance * cos(angle), y = distance * sin(angle)\n"
-    "   - For free-form layout:\n"
-    "     * Spread nodes widely across the canvas\n"
-    "     * Use horizontal spacing: minimum 500-600 pixels between nodes on same level\n"
-    "     * Use vertical spacing: minimum 400-500 pixels between levels\n"
-    "     * Position nodes at coordinates like: (-800, 0), (-400, 0), (400, 0), (800, 0) for horizontal spread\n"
-    "     * Or: (0, -600), (0, -200), (0, 200), (0, 600) for vertical spread\n"
-    "   - Sub-branches: Position 400-600 pixels from parent (NOT 200-300)\n"
-    "   - Sub-sub-branches: Position 400-600 pixels from parent\n"
-    "   - IMPORTANT: When calculating positions, always ensure minimum 400 pixels distance between ANY two nodes\n"
-    "   - Use the full canvas space - spread nodes from -1000 to +1000 on both axes if needed\n"
-    "   - Better to have nodes too far apart than too close together\n"
+    "   - For grid-like / free-form layout with even spacing:\n"
+    "     * Think in terms of a virtual grid with step 400-500 pixels.\n"
+    "     * For main branches at same level, use coordinates with equal gaps, e.g.:\n"
+    "         (-800, 0), (-400, 0), (0, 0), (400, 0), (800, 0)\n"
+    "     * For vertical stacking, use:\n"
+    "         (0, -600), (0, -200), (0, 200), (0, 600)\n"
+    "     * Avoid irregular, arbitrary spacing (like 123, 287, 359) for siblings; prefer clean, rounded coordinates with equal differences.\n"
+    "   - Sub-branches: Position 400-600 pixels from parent using the same grid step logic.\n"
+    "   - Sub-sub-branches: Position 400-600 pixels from parent.\n"
+    "   - IMPORTANT: When calculating positions, always ensure minimum 400 pixels distance between ANY two nodes.\n"
+    "   - Use the full canvas space - spread nodes from -1000 to +1000 on both axes if needed.\n"
+    "   - Better to have nodes too far apart than too close together.\n"
     "\n"
     "11. EXISTING DATA HANDLING:\n"
     "    - If user provided existing mindmap data, analyze and extend it logically\n"
@@ -878,6 +893,13 @@ MINDMAP_PROMPT = (
     "    - If document is extremely large (400+ pages), focus on chapter/section titles only\n"
     "    - Quality over quantity: Better to have fewer, well-chosen nodes than many confusing ones\n"
     "    - When in doubt, choose the most important concepts and skip the rest\n"
+    "    - NODE SIZE VS TEXT (CRITICAL):\n"
+    "        * Nodes MUST be large enough to contain their label text plus padding.\n"
+    "        * For short labels (<= 15 characters): width >= 150, height >= 50.\n"
+    "        * For medium labels (16-30 characters): width >= 200, height >= 60.\n"
+    "        * For long labels (> 30 characters): width >= 260, height >= 70.\n"
+    "        * NEVER set width < 120 or height < 40.\n"
+    "        * If you are unsure, prefer slightly larger nodes rather than smaller.\n"
     "\n"
     "13. CONTENT SELECTION STRATEGY:\n"
     "    - For large documents, create mindmap based on TABLE OF CONTENTS or SECTION STRUCTURE\n"

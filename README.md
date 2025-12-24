@@ -11,7 +11,9 @@ This project provides a collaborative platform for knowledge management and visu
 The project is organized into two main directories:
 
 ### `backend/`
+
 The backend API handles AI-powered chat functionality and document processing. Built with FastAPI and LangChain, it provides:
+
 - **AI Chat Engine**: RAG (Retrieval-Augmented Generation) pipeline for context-aware responses
 - **Document Processing**: PDF and text file parsing with intelligent chunking
 - **Vector Storage**: PGVector-based semantic search for document retrieval
@@ -19,7 +21,9 @@ The backend API handles AI-powered chat functionality and document processing. B
 - **Real-time Streaming**: Server-sent events for live chat responses
 
 ### `frontend/`
+
 The web application provides the user interface for diagram creation and collaboration. Built with Next.js and React, it offers:
+
 - **Diagram Editor**: Interactive canvas for creating mind maps and flowcharts using React Flow
 - **Real-time Collaboration**: Multi-user editing with Liveblocks
 - **Authentication**: Secure user management with NextAuth.js (Google OAuth)
@@ -42,8 +46,9 @@ The web application provides the user interface for diagram creation and collabo
 ## 🛠️ Tech Stack
 
 ### Backend
+
 - **Framework**: FastAPI (async Python web framework)
-- **AI/ML**: 
+- **AI/ML**:
   - LangChain (LLM orchestration)
   - LangGraph (workflow management)
   - Google Generative AI (Gemini models)
@@ -54,6 +59,7 @@ The web application provides the user interface for diagram creation and collabo
 - **Deployment**: Docker & Docker Compose
 
 ### Frontend
+
 - **Framework**: Next.js 16 (React 19, App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS 4
@@ -102,6 +108,7 @@ The web application provides the user interface for diagram creation and collabo
 ## 📦 Installation
 
 ### Prerequisites
+
 - **Node.js** 20+ and npm/yarn/pnpm
 - **Python** 3.10+
 - **Docker** 20.10+ and Docker Compose 2.0+
@@ -113,16 +120,19 @@ The web application provides the user interface for diagram creation and collabo
 ### Backend Setup
 
 1. Navigate to the backend directory:
+
 ```bash
 cd backend
 ```
 
 2. Create a `.env` file based on `.env.example`:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Configure environment variables:
+
 ```env
 FRONTEND_URL=http://localhost:3000
 
@@ -137,6 +147,7 @@ LIVEBLOCKS_SECRET_KEY=your_liveblocks_secret
 ```
 
 4. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -144,16 +155,19 @@ pip install -r requirements.txt
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
+
 ```bash
 cd frontend
 ```
 
 2. Create a `.env` file based on `.env.example`:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Configure environment variables:
+
 ```env
 BACKEND_URL=http://localhost:8000
 
@@ -174,11 +188,13 @@ DISABLE_ERD=true
 ```
 
 4. Install dependencies:
+
 ```bash
 npm install
 ```
 
 5. Generate Prisma client and run migrations:
+
 ```bash
 npx prisma generate
 npx prisma migrate dev
@@ -189,17 +205,20 @@ npx prisma migrate dev
 ### Option 1: Docker (Recommended for Backend)
 
 #### Backend with Docker
+
 ```bash
 cd backend
 docker-compose up --build
 ```
 
 The API will be available at:
+
 - API Base URL: `http://localhost:8000`
 - API Documentation: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
 #### Frontend (Local Development)
+
 ```bash
 cd frontend
 npm run dev
@@ -210,14 +229,17 @@ The web app will be available at `http://localhost:3000`
 ### Option 2: Local Development
 
 #### Backend (without Docker)
+
 1. Ensure PostgreSQL with PGVector extension is running
 2. Start the FastAPI server:
+
 ```bash
 cd backend
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### Frontend
+
 ```bash
 cd frontend
 npm run dev
@@ -226,12 +248,14 @@ npm run dev
 ### Production Build
 
 #### Backend
+
 ```bash
 cd backend
 docker-compose up -d --build
 ```
 
 #### Frontend
+
 ```bash
 cd frontend
 npm run build
@@ -241,6 +265,7 @@ npm start
 ## 📁 Folder Structure
 
 ### Backend
+
 ```
 backend/
 ├── src/
@@ -255,6 +280,7 @@ backend/
 ```
 
 ### Frontend
+
 ```
 frontend/
 ├── app/
@@ -313,7 +339,7 @@ frontend/
 
 - [ ] **Export Features**: Export diagrams as PNG, SVG, or PDF
 - [ ] **Additional Diagram Types**: Support for UML, ER diagrams, and more
-- [ ] **Advanced AI Features**: 
+- [ ] **Advanced AI Features**:
   - Multi-document analysis
   - Automatic diagram generation from text
   - Smart suggestions for diagram improvements

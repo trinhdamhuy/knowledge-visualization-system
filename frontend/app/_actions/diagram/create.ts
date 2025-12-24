@@ -10,14 +10,12 @@ import { liveblocks } from "@/lib/liveblocks";
  * @param name - Diagram name
  * @param folderId - Folder ID containing the diagram (optional)
  * @param teamId - Team ID (optional)
- * @param imageUrl - Preview image URL (optional)
  * @returns Newly created diagram or null if failed
  */
 async function createDiagram(
   name: string,
   folderId?: string | null,
-  teamId?: string | null,
-  imageUrl?: string | null
+  teamId?: string | null
 ): Promise<Diagram | null> {
   const user = await getCurrentUser();
 
@@ -54,11 +52,10 @@ async function createDiagram(
     // Create diagram
     const diagram = await prisma.diagram.create({
       data: {
-        name: name,
+        name,
         ownerId: user.id,
         folderId: folderId || null,
         teamId: teamId || null,
-        imageUrl: imageUrl || null,
       },
     });
 

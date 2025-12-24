@@ -20,25 +20,17 @@ export const diagramKeys = {
   detail: (id: string) => [...diagramKeys.details(), id] as const,
 };
 
-interface CreateDiagramParams {
-  name: string;
-  folderId?: string | null;
-  teamId?: string | null;
-  imageUrl?: string | null;
-}
-
 export const useDiagram = () => {
   const queryClient = useQueryClient();
 
   // Mutation: Create diagram
   const createDiagramMutation = useMutation({
-    mutationFn: async (params: CreateDiagramParams) => {
-      return await createDiagram(
-        params.name,
-        params.folderId,
-        params.teamId,
-        params.imageUrl
-      );
+    mutationFn: async (params: {
+      name: string;
+      folderId?: string | null;
+      teamId?: string | null;
+    }) => {
+      return await createDiagram(params.name, params.folderId, params.teamId);
     },
     onSuccess: (data) => {
       if (data) {
@@ -59,7 +51,6 @@ export const useDiagram = () => {
       diagramId: string;
       data: {
         name?: string;
-        imageUrl?: string | null;
         folderId?: string | null;
       };
     }) => {

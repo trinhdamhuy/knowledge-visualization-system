@@ -11,25 +11,22 @@ import { DiagramMode } from "@/enums/modes";
 import { useSelf, useOthers } from "@liveblocks/react";
 import { getUserColor } from "./utils/user-colors";
 
+interface CustomNodeData {
+  label: string;
+  color?: string;
+  shape?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: string;
+  fontStyle?: string;
+  textDecoration?: string;
+  textAlign?: string;
+  textColor?: string;
+  pageReference?: number;
+}
+
 const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
-  const nodeData = data as {
-    label: string;
-    color?: string;
-    shape?: string;
-    fontFamily?: string;
-    fontSize?: number;
-    fontWeight?: string;
-    fontStyle?: string;
-    textDecoration?: string;
-    textAlign?: string;
-    textColor?: string;
-    pageReference?: number;
-    handleType?:
-      | "top-source"
-      | "bottom-source"
-      | "right-source"
-      | "left-source";
-  };
+  const nodeData = data as unknown as CustomNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(nodeData.label);
   const { updateNodeData } = useReactFlow();
@@ -118,8 +115,8 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
     // Shift+Enter will naturally create a new line
   };
 
-  const nodeWidth = width || 150;
-  const nodeHeight = height || 50;
+  const nodeWidth = width ?? 150;
+  const nodeHeight = height ?? 50;
   const shape = nodeData.shape || "rectangle";
   const nodeColor = nodeData.color || "var(--card)";
 
@@ -150,9 +147,6 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
         return "3px";
     }
   };
-
-  // Get ring color for current user selection
-  const currentUserRingColor = "#3b82f6"; // blue color for current user
 
   const baseStyle: React.CSSProperties = {
     background: shape === "diamond" ? "transparent" : nodeColor,
@@ -192,6 +186,24 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
 
   const shapeStyle = getShapeStyle();
 
+  // --- Static handles (no per-node handle configuration) ---
+  // Render handles on all sides so floating edges can choose the best side dynamically.
+  const HANDLE_OFFSET = 6; // px: distance from node border (acts like padding)
+  const handleStyleByPosition = (position: Position): React.CSSProperties => {
+    switch (position) {
+      case Position.Top:
+        return { top: -HANDLE_OFFSET };
+      case Position.Bottom:
+        return { bottom: -HANDLE_OFFSET };
+      case Position.Left:
+        return { left: -HANDLE_OFFSET };
+      case Position.Right:
+        return { right: -HANDLE_OFFSET };
+      default:
+        return {};
+    }
+  };
+
   // Render diamond shape with SVG background
   const renderDiamondBackground = () => {
     if (shape !== "diamond") return null;
@@ -215,28 +227,15 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
             points="50,2 98,50 50,98 2,50"
             fill={nodeColor}
             stroke="var(--border)"
-            strokeWidth="1.5"
           />
-          {/* Ring for current user selection - middle ring */}
-          {isSelectedByCurrentUser && (
-            <polygon
-              points="50,2 98,50 50,98 2,50"
-              fill="none"
-              stroke={currentUserRingColor}
-              strokeWidth="4"
-              opacity="0.5"
-            />
-          )}
           {/* Rings for other users' selections - outside rings */}
-          {selectingUsers.map((user, index) => (
+          {selectingUsers.map((user) => (
             <polygon
               key={user.connectionId}
               points="50,2 98,50 50,98 2,50"
               fill="none"
               stroke={user.color}
-              strokeWidth="6"
-              opacity="0.5"
-              transform={`translate(${index * 2}, ${index * 2})`}
+              strokeWidth="2"
             />
           ))}
         </svg>
@@ -245,36 +244,28 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
   };
 
   return (
-    <div data-node-id={id} data-node-label={label} style={shapeStyle}>
+    <div
+      data-node-id={id}
+      data-node-label={label}
+      style={shapeStyle}
+      className="group"
+    >
       {/* Ring for selection - similar to edge */}
       {renderDiamondBackground()}
       {/* Ring for current user selection (for non-diamond shapes) - middle ring */}
-      {shape !== "diamond" && isSelectedByCurrentUser && (
-        <div
-          style={{
-            position: "absolute",
-            inset: "-2px",
-            border: `2px solid ${currentUserRingColor}`,
-            borderRadius: shapeStyle.borderRadius,
-            opacity: 0.5,
-            pointerEvents: "none",
-            zIndex: -1,
-          }}
-        />
-      )}
       {/* Rings for other users' selections (for non-diamond shapes) - outside rings */}
       {shape !== "diamond" &&
-        selectingUsers.map((user, index) => (
+        selectingUsers.map((user) => (
           <div
             key={user.connectionId}
             style={{
               position: "absolute",
-              inset: `${-4 - index * 2}px`,
-              border: `3px solid ${user.color}`,
+              inset: "-1px",
+              border: `2px solid ${user.color}`,
               borderRadius: shapeStyle.borderRadius,
               opacity: 0.5,
               pointerEvents: "none",
-              zIndex: -2,
+              zIndex: 0,
             }}
           />
         ))}
@@ -286,57 +277,65 @@ const CustomNode = memo(({ data, id, width, height }: NodeProps) => {
           keepAspectRatio={isSquareShape}
         />
       )}
-      {/* Render handles based on handleType */}
-      {(() => {
-        const handleType = nodeData.handleType || "right-source";
-        switch (handleType) {
-          case "top-source":
-            return (
-              <>
-                <Handle type="source" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          case "bottom-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="source" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          case "right-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="source" position={Position.Right} />
-              </>
-            );
-          case "left-source":
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="source" position={Position.Left} />
-                <Handle type="target" position={Position.Right} />
-              </>
-            );
-          default:
-            return (
-              <>
-                <Handle type="target" position={Position.Top} />
-                <Handle type="target" position={Position.Bottom} />
-                <Handle type="target" position={Position.Left} />
-                <Handle type="source" position={Position.Right} />
-              </>
-            );
-        }
-      })()}
+      {/* Source handles (visible) */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="s-top"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Top)}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="s-right"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Right)}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="s-bottom"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Bottom)}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="s-left"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Left)}
+      />
+
+      {/* Target handles (show on hover to keep UI clean) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="t-top"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Top)}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="t-right"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Right)}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="t-bottom"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Bottom)}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="t-left"
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={handleStyleByPosition(Position.Left)}
+      />
 
       {isEditing ? (
         <textarea
