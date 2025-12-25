@@ -28,17 +28,13 @@ export default function StickyHeader() {
               <Link href="/login">
                 <Button
                   variant="outline"
-                  size="sm"
                   className="rounded-full border-border/60 bg-background/60 backdrop-blur-md"
                 >
                   Login
                 </Button>
               </Link>
               <Link href="/sign-up">
-                <Button
-                  size="sm"
-                  className="rounded-full bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 text-white shadow-md shadow-sky-500/30 hover:from-sky-500 hover:via-cyan-500 hover:to-indigo-500"
-                >
+                <Button className="rounded-full bg-linear-to-r from-sky-500 via-cyan-500 to-indigo-500 text-white shadow-md shadow-sky-500/30 hover:from-sky-500 hover:via-cyan-500 hover:to-indigo-500">
                   Sign Up
                 </Button>
               </Link>
