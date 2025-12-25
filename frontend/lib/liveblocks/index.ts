@@ -5,7 +5,8 @@ if (typeof window !== "undefined") {
 }
 
 const liveblocks = new Liveblocks({
-  secret: process.env.LIVEBLOCKS_SECRET_KEY as string,
+  secret:
+    "sk_prod_8sLEy3p5YF-XRrnCF0H8TqIgUJVdvcKbhvOQl4hXH4zw6i3XMGWmuziPsNUQ7IUf",
 });
 
 export { liveblocks };
