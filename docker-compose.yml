@@ -55,7 +55,7 @@ services:
       dockerfile: Dockerfile
     container_name: knovion-frontend
     ports:
-      - "443:3000"
+      - "3000:3000"
     depends_on:
       - backend
     restart: unless-stopped
