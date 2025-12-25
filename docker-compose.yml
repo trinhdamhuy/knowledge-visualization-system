@@ -1,4 +1,4 @@
-name: knowledge-visualization
+name: knovion
 
 services:
   pgvector:
@@ -21,8 +21,10 @@ services:
       timeout: 5s
       retries: 5
 
-  chatbot-api:
-    build: .
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: knovion-chatbot-api
     environment:
       FRONTEND_URL: ${FRONTEND_URL}
@@ -46,6 +48,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: knovion-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - knovion-network
+    environment:
+      BACKEND_URL: ${BACKEND_URL}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
+      DISABLE_ERD: ${DISABLE_ERD}
 
 networks:
   knovion-network:
