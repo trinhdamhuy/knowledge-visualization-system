@@ -1,12 +1,10 @@
-export const runtime = "nodejs";
-
 import { Liveblocks } from "@liveblocks/node";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDiagramRole } from "@/app/_actions/diagram/permission";
 import { Permission } from "@/generated/prisma/client";
 
-const liveblocksSecretKey = process.env.LIVEBLOCKS_SECRET_KEY;
+const liveblocksSecretKey = process.env.LIVEBLOCKS_SECRET_KEY!;
 
 if (!liveblocksSecretKey) {
   throw new Error("Missing Liveblocks Secret Key");
