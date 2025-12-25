@@ -1,5 +1,3 @@
-"use server";
-
 import { Liveblocks } from "@liveblocks/node";
 
 if (typeof window !== "undefined") {

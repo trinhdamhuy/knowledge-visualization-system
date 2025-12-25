@@ -1,4 +1,4 @@
-"use server";
+export const runtime = "nodejs";
 
 import { Liveblocks } from "@liveblocks/node";
 import { NextRequest, NextResponse } from "next/server";
