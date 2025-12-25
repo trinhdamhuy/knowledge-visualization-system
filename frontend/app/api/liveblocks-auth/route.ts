@@ -1,16 +1,10 @@
+export const runtime = "nodejs";
+
 import { Liveblocks } from "@liveblocks/node";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDiagramRole } from "@/app/_actions/diagram/permission";
 import { Permission } from "@/generated/prisma/client";
-
-const liveblocksSecretKey = process.env.LIVEBLOCKS_SECRET_KEY!;
-
-if (!liveblocksSecretKey) {
-  throw new Error("Missing Liveblocks Secret Key");
-}
-
-const liveblocks = new Liveblocks({ secret: liveblocksSecretKey });
 
 /**
  * Convert application Permission to Liveblocks room permissions
@@ -35,6 +29,14 @@ function getLiveblocksPermissions(permission: Permission | null): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  const liveblocksSecretKey = process.env.LIVEBLOCKS_SECRET_KEY!;
+
+  if (!liveblocksSecretKey) {
+    throw new Error("Missing Liveblocks Secret Key");
+  }
+
+  const liveblocks = new Liveblocks({ secret: liveblocksSecretKey });
+
   try {
     const authSession = await auth();
     const { room } = await request.json();
