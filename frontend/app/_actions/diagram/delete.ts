@@ -8,6 +8,9 @@ import { deleteFileFromS3 } from "@/lib/file-upload-handler";
 import { deleteChatHistory } from "../chat/delete-history";
 import { deleteDiagramStore } from "../chat/delete-store";
 
+const LIVEBLOCKS_SECRET_KEY =
+  "sk_prod_FnBVxnhHqxg4RSN1zvKMWpwL4OTTNBltGnhP_ltdeNZ657mx_vI7KjbvOsBcNgv4";
+
 /**
  * Delete a Liveblocks room
  * @param roomId - Room ID to delete
@@ -20,7 +23,7 @@ async function deleteLiveblocksRoom(roomId: string): Promise<boolean> {
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer sk_prod_FnBVxnhHqxg4RSN1zvKMWpwL4OTTNBltGnhP_ltdeNZ657mx_vI7KjbvOsBcNgv4`,
+          Authorization: `Bearer ${LIVEBLOCKS_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
       }

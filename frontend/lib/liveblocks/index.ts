@@ -6,7 +6,7 @@ if (typeof window !== "undefined") {
 
 const liveblocks = new Liveblocks({
   secret:
-    "sk_prod_8sLEy3p5YF-XRrnCF0H8TqIgUJVdvcKbhvOQl4hXH4zw6i3XMGWmuziPsNUQ7IUf",
+    "sk_prod_FnBVxnhHqxg4RSN1zvKMWpwL4OTTNBltGnhP_ltdeNZ657mx_vI7KjbvOsBcNgv4",
 });
 
 export { liveblocks };
