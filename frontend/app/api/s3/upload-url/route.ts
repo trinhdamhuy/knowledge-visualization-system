@@ -69,7 +69,9 @@ export async function POST(request: Request) {
       ContentType: contentType,
     });
 
-    const url = await getSignedUrl(getS3Client(), command, { expiresIn: 3600 });
+    const url = await getSignedUrl(await getS3Client(), command, {
+      expiresIn: 3600,
+    });
     const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${encodeURI(
       key
     )}`;

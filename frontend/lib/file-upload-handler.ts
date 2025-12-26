@@ -12,7 +12,7 @@ type SignedURLResponse = Promise<
   { failure?: undefined; url: string } | { failure: string; url?: undefined }
 >;
 
-export function getS3Client() {
+export async function getS3Client() {
   return new S3Client({
     region: process.env.AWS_REGION!,
   });
@@ -63,7 +63,7 @@ async function uploadFileToS3(
   });
 
   // get signed url for 1 hour
-  const url = await getSignedUrl(getS3Client(), command, {
+  const url = await getSignedUrl(await getS3Client(), command, {
     expiresIn: 3600,
   });
 
@@ -99,7 +99,7 @@ async function deleteFileFromS3(fileName: string): Promise<boolean> {
     Key: s3Key,
   });
 
-  const result = await getS3Client().send(command);
+  const result = await (await getS3Client()).send(command);
   return result.$metadata.httpStatusCode === 204;
 }
 
@@ -144,7 +144,7 @@ async function getSignedFileUrl(
       Key: s3Key,
     });
 
-    const signedUrl = await getSignedUrl(getS3Client(), command, {
+    const signedUrl = await getSignedUrl(await getS3Client(), command, {
       expiresIn,
     });
 
