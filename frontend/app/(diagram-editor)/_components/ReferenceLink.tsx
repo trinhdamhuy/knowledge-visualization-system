@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   HoverCard,
   HoverCardContent,
@@ -11,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Focus } from "lucide-react";
 import { useUpdateMyPresence } from "@liveblocks/react";
 import { useFile } from "@/hooks/use-file";
-import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { useFileCardStore } from "../_stores/use-file-card-store";
 
 interface ReferenceLinkProps {
   page?: number;
@@ -26,22 +25,12 @@ interface ReferenceLinkProps {
 export function ReferenceLink({ page, nodeId, children }: ReferenceLinkProps) {
   const updateMyPresence = useUpdateMyPresence();
   const { fileUrl } = useFile();
-  const { setIsOpen: setFilePanelOpen } = useChatPanelStore();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { openPdfPage } = useFileCardStore();
 
   const handleOpenPDF = useCallback(() => {
     if (!fileUrl || !page) return;
-
-    // Open file panel if not already open
-    setFilePanelOpen(true);
-
-    // Set page number in URL params
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("pdf-page", page.toString());
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [fileUrl, page, setFilePanelOpen, router, pathname, searchParams]);
+    openPdfPage(page);
+  }, [fileUrl, page, openPdfPage]);
 
   const handleFocusNode = useCallback(() => {
     if (!nodeId) return;

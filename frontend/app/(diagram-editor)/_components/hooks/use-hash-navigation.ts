@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useUpdateMyPresence } from "@liveblocks/react";
 import { useFile } from "@/hooks/use-file";
-import { useChatPanelStore } from "../../_stores/use-chat-panel-store";
+import { useFileCardStore } from "../../_stores/use-file-card-store";
 
 /**
  * Hook to handle hash-based navigation for reference links
@@ -14,12 +13,9 @@ import { useChatPanelStore } from "../../_stores/use-chat-panel-store";
  * - Combined: #node/node_id#pdf/page_number
  */
 export function useHashNavigation() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const updateMyPresence = useUpdateMyPresence();
   const { fileUrl } = useFile();
-  const { setIsOpen: setFilePanelOpen } = useChatPanelStore();
+  const { openPdfPage } = useFileCardStore();
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -53,13 +49,7 @@ export function useHashNavigation() {
           const pageStr = fragment.substring(4); // Remove "pdf/"
           const page = parseInt(pageStr, 10);
           if (page > 0 && fileUrl) {
-            // Open file panel if not already open
-            setFilePanelOpen(true);
-
-            // Set page number in URL params (keep query params approach for PDF)
-            const params = new URLSearchParams(searchParams.toString());
-            params.set("page", page.toString());
-            router.push(`${pathname}?${params.toString()}`, { scroll: false });
+            openPdfPage(page);
           }
         }
       });
@@ -74,12 +64,5 @@ export function useHashNavigation() {
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
-  }, [
-    router,
-    pathname,
-    searchParams,
-    updateMyPresence,
-    fileUrl,
-    setFilePanelOpen,
-  ]);
+  }, [updateMyPresence, fileUrl, openPdfPage]);
 }

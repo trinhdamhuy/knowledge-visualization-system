@@ -27,7 +27,6 @@ import { CombinedInteractionHandler } from "./CombinedInteractionHandler";
 import { SelectionBox } from "./SelectionBox";
 import { useSelectedNodesBox } from "./hooks/use-selected-nodes-box";
 import { useHashNavigation } from "./hooks/use-hash-navigation";
-import { usePdfPageParams } from "./hooks/use-pdf-page-params";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
 import { useTheme } from "next-themes";
 import { DiagramMode } from "@/enums/modes";
@@ -147,9 +146,6 @@ export function DiagramCanvas() {
 
   // Handle hash-based navigation for reference links
   useHashNavigation();
-
-  // Handle pdf-page URL parameter to open FilePanel and navigate to page
-  usePdfPageParams();
 
   const { activeMode, setActiveMode } = useDiagramStore();
   const currentUser = useSelf();

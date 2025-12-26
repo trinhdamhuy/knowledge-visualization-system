@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,8 @@ import { getSignedFileUrlAction } from "@/app/_actions/file";
 
 export function FilePanel() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const diagramId = params?.diagramId as string | undefined;
-  const { isOpen, setIsOpen } = useFileCardStore();
+  const { isOpen, setIsOpen, pdfPage } = useFileCardStore();
   const { displayMode } = useChatPanelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -35,10 +34,6 @@ export function FilePanel() {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
-
-  // Get page number from URL params (check both "page" and "pdf-page")
-  const pageParam = searchParams.get("page") || searchParams.get("pdf-page");
-  const pdfPage = pageParam ? parseInt(pageParam, 10) : null;
 
   const {
     fileName,

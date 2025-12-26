@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useDiagramSync } from "@/hooks/use-diagram-sync";
 import { useUpdateMyPresence, useSelf } from "@liveblocks/react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useChatPanelStore } from "../_stores/use-chat-panel-store";
+import { useFileCardStore } from "../_stores/use-file-card-store";
 import { getDescendantNodeIds } from "./utils/collapse-utils";
 
 interface ContextMenuProps {
@@ -377,10 +376,7 @@ export function NodeContextMenu({
     onClose();
   }, [currentSelection.edgeIds, edges, batchUpdateEdgeData, onClose]);
 
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { setIsOpen: setFilePanelOpen } = useChatPanelStore();
+  const { openPdfPage } = useFileCardStore();
 
   // Handle "Change REFERENCE" - focus on pageReference input in PropertiesPanel
   const handleChangeReference = useCallback(() => {
@@ -405,24 +401,10 @@ export function NodeContextMenu({
     const pageRef = nodeData?.pageReference;
 
     if (!pageRef || pageRef <= 0) return;
-
-    // Open file panel if not already open
-    setFilePanelOpen(true);
-
-    // Set page number in URL params
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("pdf-page", pageRef.toString());
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    openPdfPage(pageRef);
 
     onClose();
-  }, [
-    selectedNodes,
-    setFilePanelOpen,
-    router,
-    pathname,
-    searchParams,
-    onClose,
-  ]);
+  }, [selectedNodes, openPdfPage, onClose]);
 
   const options: Array<{
     label: string;
