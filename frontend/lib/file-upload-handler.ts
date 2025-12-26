@@ -12,7 +12,7 @@ type SignedURLResponse = Promise<
   { failure?: undefined; url: string } | { failure: string; url?: undefined }
 >;
 
-function getS3Client() {
+export function getS3Client() {
   return new S3Client({
     region: process.env.AWS_REGION!,
   });

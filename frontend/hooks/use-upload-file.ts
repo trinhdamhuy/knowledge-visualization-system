@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { uploadFileToS3, deleteFileFromS3 } from "@/lib/file-upload-handler";
+import { deleteFileFromS3 } from "@/lib/file-upload-handler";
 import { Response } from "@/types";
 
 interface UseUploadFileResult {
@@ -22,14 +22,37 @@ export function useUploadFile(): UseUploadFileResult {
     file: File,
     folder?: string
   ): Promise<Response<string | null>> {
-    const fileUrl = await uploadFileToS3(file, folder);
-    if (fileUrl.failure || !fileUrl.url) {
+    const presignRes = await fetch("/api/s3/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        folder,
+      }),
+    });
+
+    if (!presignRes.ok) {
+      const text = await presignRes.text().catch(() => "");
       return {
         success: false,
-        error: fileUrl.failure || "Failed to upload file",
+        error: text
+          ? `Failed to create upload URL: ${presignRes.status} ${
+              presignRes.statusText
+            } - ${text.substring(0, 500)}`
+          : `Failed to create upload URL: ${presignRes.status} ${presignRes.statusText}`,
       };
     }
-    const imageUrl = fileUrl.url.split("?")[0];
+
+    const fileUrl = (await presignRes.json()) as {
+      url: string;
+      publicUrl: string;
+      key?: string;
+    };
+
+    if (!fileUrl?.url || !fileUrl?.publicUrl) {
+      return { success: false, error: "Invalid upload URL response" };
+    }
 
     // Use XMLHttpRequest to track upload progress
     setUploadProgress(0);
@@ -106,7 +129,7 @@ export function useUploadFile(): UseUploadFileResult {
     // Ensure progress bar reaches 100% on success
     setUploadProgress(100);
 
-    return { success: true, data: imageUrl };
+    return { success: true, data: fileUrl.publicUrl };
   }
 
   async function deleteFile(fileUrl: string): Promise<Response<null>> {
