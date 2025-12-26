@@ -12,11 +12,6 @@ import { deleteDiagramStore } from "../chat/delete-store";
  * @returns true if successful, false otherwise
  */
 async function deleteLiveblocksRoom(roomId: string): Promise<boolean> {
-  const liveblocksSecretKey = process.env.LIVEBLOCKS_SECRET_KEY;
-  if (!liveblocksSecretKey) {
-    console.error("Missing Liveblocks Secret Key");
-    return false;
-  }
   try {
     // Delete room using Liveblocks REST API
     const response = await fetch(
@@ -24,7 +19,7 @@ async function deleteLiveblocksRoom(roomId: string): Promise<boolean> {
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${liveblocksSecretKey}`,
+          Authorization: `Bearer sk_prod_FnBVxnhHqxg4RSN1zvKMWpwL4OTTNBltGnhP_ltdeNZ657mx_vI7KjbvOsBcNgv4`,
           "Content-Type": "application/json",
         },
       }

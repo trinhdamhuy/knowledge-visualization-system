@@ -143,7 +143,6 @@ POSTGRES_PORT=5432
 POSTGRES_DB=knowledge_viz
 
 GOOGLE_API_KEY=your_google_api_key
-LIVEBLOCKS_SECRET_KEY=your_liveblocks_secret
 ```
 
 4. Install dependencies:
@@ -186,8 +185,6 @@ AWS_BUCKET=your_s3_bucket_name
 AWS_REGION=your_aws_region
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_ACCESS_SECRET=your_aws_secret_key
-
-LIVEBLOCKS_SECRET_KEY=your_liveblocks_secret
 
 DISABLE_ERD=true
 ```
