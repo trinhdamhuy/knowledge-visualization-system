@@ -60,8 +60,10 @@ async function uploadFileToS3(
   const command = new PutObjectCommand({
     Bucket: process.env.AWS_BUCKET!,
     Key: key,
-    ContentType: file.type,
-    ContentLength: file.size,
+    ContentType:
+      file.type && file.type.trim().length > 0
+        ? file.type
+        : "application/octet-stream",
   });
 
   // get signed url for 1 hour
