@@ -183,8 +183,6 @@ DATABASE_URL=postgresql://user:password@localhost:5432/knowledge_viz
 
 AWS_BUCKET=your_s3_bucket_name
 AWS_REGION=your_aws_region
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_ACCESS_SECRET=your_aws_secret_key
 
 DISABLE_ERD=true
 ```
