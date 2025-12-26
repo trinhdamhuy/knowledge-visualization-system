@@ -62,7 +62,7 @@ services:
     networks:
       - knovion-network
     environment:
-      NEXT_PUBLIC_BACKEND_URL: http://backend:8000
+      BACKEND_URL: http://backend:8000
       # NextAuth base URL (used to build OAuth redirect_uri/callback URLs).
       # In production, set this to your public domain, e.g. https://app.example.com
       AUTH_URL: ${AUTH_URL:-http://localhost:3000}

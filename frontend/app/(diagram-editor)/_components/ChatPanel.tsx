@@ -50,8 +50,6 @@ import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 import { ReferenceLink } from "./ReferenceLink";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-
 export function ChatPanel() {
   const params = useParams();
   const diagramId = params?.diagramId as string | undefined;
@@ -436,7 +434,7 @@ export function ChatPanel() {
     streamControllerRef.current = controller;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/chat/stream`, {
+      const response = await fetch(`/api/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

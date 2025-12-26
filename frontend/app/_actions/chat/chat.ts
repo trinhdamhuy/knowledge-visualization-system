@@ -2,8 +2,7 @@
 
 import { canViewDiagram } from "../diagram/permission";
 import type { ChatRequest } from "@/types/chat";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { getEnv } from "@/lib/get-env";
 
 /**
  * Send chat request to backend
@@ -22,6 +21,8 @@ async function sendChatRequest(request: ChatRequest): Promise<boolean> {
   if (!request.user_id) {
     return false;
   }
+
+  const { backendUrl: BACKEND_URL } = getEnv();
 
   try {
     const response = await fetch(`${BACKEND_URL}/api/chat`, {
@@ -56,6 +57,8 @@ async function cancelChatRequest(diagramId: string): Promise<boolean> {
   if (!canView) {
     return false;
   }
+
+  const { backendUrl: BACKEND_URL } = getEnv();
 
   try {
     const response = await fetch(`${BACKEND_URL}/api/chat/cancel`, {

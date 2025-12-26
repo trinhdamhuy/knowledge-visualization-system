@@ -2,8 +2,7 @@
 
 import { getCurrentUser } from "../user";
 import type { BaseResponse, DeleteRequest } from "@/types/chat";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { getEnv } from "@/lib/get-env";
 
 /**
  * Delete chat history for a diagram
@@ -18,6 +17,8 @@ async function deleteChatHistory(
   if (!user || !user.id) {
     return null;
   }
+
+  const { backendUrl: BACKEND_URL } = getEnv();
 
   try {
     const requestBody: DeleteRequest = {

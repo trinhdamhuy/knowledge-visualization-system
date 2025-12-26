@@ -8,17 +8,19 @@ import {
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
-
 type SignedURLResponse = Promise<
   { failure?: undefined; url: string } | { failure: string; url?: undefined }
 >;
+
+function getS3Client() {
+  return new S3Client({
+    region: process.env.AWS_REGION!,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+}
 
 const generateFileName = (fileName: string) => {
   const now = new Date();
@@ -63,7 +65,7 @@ async function uploadFileToS3(
   });
 
   // get signed url for 1 hour
-  const url = await getSignedUrl(s3Client, command, {
+  const url = await getSignedUrl(getS3Client(), command, {
     expiresIn: 3600,
   });
 
@@ -99,7 +101,7 @@ async function deleteFileFromS3(fileName: string): Promise<boolean> {
     Key: s3Key,
   });
 
-  const result = await s3Client.send(command);
+  const result = await getS3Client().send(command);
   return result.$metadata.httpStatusCode === 204;
 }
 
@@ -144,7 +146,7 @@ async function getSignedFileUrl(
       Key: s3Key,
     });
 
-    const signedUrl = await getSignedUrl(s3Client, command, {
+    const signedUrl = await getSignedUrl(getS3Client(), command, {
       expiresIn,
     });
 

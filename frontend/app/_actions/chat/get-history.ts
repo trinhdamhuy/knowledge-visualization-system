@@ -2,8 +2,7 @@
 
 import { canViewDiagram } from "../diagram/permission";
 import type { HistoryResponse } from "@/types/chat";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+import { getEnv } from "@/lib/get-env";
 
 /**
  * Get chat history for a diagram with pagination
@@ -30,6 +29,8 @@ async function getChatHistory(
   if (!userId) {
     return null;
   }
+
+  const { backendUrl: BACKEND_URL } = getEnv();
 
   try {
     const response = await fetch(

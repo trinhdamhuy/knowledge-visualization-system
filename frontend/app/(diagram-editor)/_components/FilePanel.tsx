@@ -234,7 +234,7 @@ export function FilePanel() {
       <CardHeader className="flex flex-row items-center justify-between shrink-0 p-0">
         <div className="flex items-center gap-2">
           <FileText className="size-5" />
-          <CardTitle className="text-sm">File Viewer</CardTitle>
+          <CardTitle>File Viewer</CardTitle>
         </div>
         {displayMode === "docked" && (
           <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
@@ -440,7 +440,7 @@ export function FilePanel() {
     isOpen && (
       <div className="h-full flex shrink-0">
         <Card
-          className="h-full flex flex-col overflow-hidden rounded-none border-none shadow-none p-3 shrink-0"
+          className="h-full flex flex-col overflow-hidden rounded-none border-none shadow-none gap-3 p-3 shrink-0"
           style={{ width: `${width}px` }}
         >
           {fileContentJSX}
