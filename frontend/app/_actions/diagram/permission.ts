@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { Permission } from "@/generated/prisma/client";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 /**
  * Helper function to compare permissions and return the highest one
@@ -125,6 +125,7 @@ async function checkLiveblocksRoomAccess(diagramId: string): Promise<{
   canEdit: boolean;
 } | null> {
   try {
+    const liveblocks = getLiveblocks();
     const roomInfo = await liveblocks.getRoom(diagramId);
 
     // Check if room has defaultAccesses (public access)

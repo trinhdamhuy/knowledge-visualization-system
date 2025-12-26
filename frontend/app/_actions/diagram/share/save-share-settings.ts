@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../../user";
 import { Permission } from "@/generated/prisma/client";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 export interface SaveShareSettingsParams {
   diagramId: string;
@@ -55,6 +55,7 @@ export async function saveShareSettings(
   const { diagramId, privacyType, teamPermission, userShares } = params;
 
   try {
+    const liveblocks = getLiveblocks();
     // Check if user is the owner
     const diagram = await prisma.diagram.findUnique({
       where: { id: diagramId },

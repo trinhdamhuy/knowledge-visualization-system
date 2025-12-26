@@ -5,7 +5,7 @@ import { getCurrentUser } from "../user";
 import { deleteFileFromS3, deleteFilesFromS3 } from "@/lib/file-upload-handler";
 import { deleteChatHistory } from "../chat/delete-history";
 import { deleteDiagramStore } from "../chat/delete-store";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 /**
  * Delete a room from Liveblocks
@@ -14,6 +14,7 @@ import { liveblocks } from "@/lib/liveblocks";
  */
 async function deleteLiveblocksRoom(roomId: string): Promise<boolean> {
   try {
+    const liveblocks = getLiveblocks();
     await liveblocks.deleteRoom(roomId);
     return true;
   } catch (error) {

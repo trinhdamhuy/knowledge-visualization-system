@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDiagramRole } from "@/app/_actions/diagram/permission";
 import { Permission } from "@/generated/prisma/client";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 /**
  * Convert application Permission to Liveblocks room permissions
@@ -30,6 +30,7 @@ function getLiveblocksPermissions(permission: Permission | null): string[] {
 
 export async function POST(request: NextRequest) {
   try {
+    const liveblocks = getLiveblocks();
     const authSession = await auth();
     const { room } = await request.json();
 

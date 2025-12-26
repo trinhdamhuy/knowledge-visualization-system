@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { Diagram } from "@/generated/prisma/client";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 /**
  * Create a new diagram
@@ -24,6 +24,7 @@ async function createDiagram(
   }
 
   try {
+    const liveblocks = getLiveblocks();
     // Validate: if folderId exists, check if folder exists
     if (folderId) {
       const folder = await prisma.folder.findUnique({

@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../../user";
 import { Permission } from "@/generated/prisma/client";
-import { liveblocks } from "@/lib/liveblocks";
+import { getLiveblocks } from "@/lib/liveblocks";
 
 export interface ShareData {
   diagramId: string;
@@ -57,6 +57,7 @@ async function getTeamPermissionFromLiveblocks(
   teamId: string
 ): Promise<Permission | null> {
   try {
+    const liveblocks = getLiveblocks();
     // Get room info from Liveblocks
     const room = await liveblocks.getRoom(roomId);
 
@@ -93,6 +94,7 @@ export async function getShareData(
   }
 
   try {
+    const liveblocks = getLiveblocks();
     const diagram = await prisma.diagram.findUnique({
       where: { id: diagramId },
       select: {
