@@ -47,6 +47,7 @@ interface UnifiedContextMenuProps {
   onCopy?: () => void;
   onDelete?: () => void;
   onRestore?: () => void;
+  onRequestDeleteForever?: () => void;
   // Single item menu props
   onRename?: (item: Item) => void; // Callback when Rename is clicked
   onDeleteItem?: (item: Item) => void; // Callback when Delete single item is clicked
@@ -63,6 +64,7 @@ export function UnifiedContextMenu({
   onCopy,
   onDelete,
   onRestore,
+  onRequestDeleteForever,
   onRename,
   onDeleteItem,
   onShare,
@@ -247,6 +249,12 @@ export function UnifiedContextMenu({
   const handleDeleteForever = async () => {
     if (!hasTrashSelection) return;
 
+    // Prefer showing confirmation dialog if caller provided it.
+    if (onRequestDeleteForever) {
+      onRequestDeleteForever();
+      return;
+    }
+
     try {
       setIsDeletingForever(true);
       let successCount = 0;
@@ -260,6 +268,8 @@ export function UnifiedContextMenu({
       if (successCount > 0) {
         toast.success(`Permanently deleted ${successCount} item(s)`);
         queryClient.invalidateQueries({ queryKey: trashKeys.list() });
+        queryClient.invalidateQueries({ queryKey: itemsKeys.all });
+        queryClient.invalidateQueries({ queryKey: diagramKeys.lists() });
         onDelete?.();
       } else {
         toast.error("Failed to delete items");

@@ -2,12 +2,13 @@ import { useEffect, useCallback } from "react";
 import { useDiagramClipboardStore } from "@/stores/diagram-clipboard-store";
 import { useActionHistoryStore } from "@/stores/action-history-store";
 import { useDiagram } from "@/hooks/use-diagram";
+import { deleteDiagrams } from "@/app/_actions/diagram";
 import {
-  deleteDiagrams,
-  deleteDiagramsPermanently,
-} from "@/app/_actions/diagram";
+  permanentDeleteDiagrams,
+  permanentDeleteFolders,
+} from "@/app/_actions/trash";
 import { restoreDiagram, restoreFolder } from "@/app/_actions/trash/restore";
-import { useRestoreTrash, usePermanentDeleteTrash } from "@/hooks/use-trash";
+import { useRestoreTrash } from "@/hooks/use-trash";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { itemsKeys } from "@/hooks/use-items";
@@ -24,6 +25,7 @@ interface UseUnifiedKeyboardShortcutsProps {
   onCopy?: () => void;
   onDelete?: () => void;
   onRestore?: () => void;
+  onRequestDeleteForever?: () => void;
   enabled?: boolean;
 }
 
@@ -34,13 +36,13 @@ export function useUnifiedKeyboardShortcuts({
   onCopy,
   onDelete,
   onRestore,
+  onRequestDeleteForever,
   enabled = true,
 }: UseUnifiedKeyboardShortcutsProps) {
   const { copyDiagrams, getClipboard, hasClipboard } =
     useDiagramClipboardStore();
   const { pasteDiagrams } = useDiagram();
   const { restore } = useRestoreTrash();
-  const { permanentDelete } = usePermanentDeleteTrash();
   const queryClient = useQueryClient();
   const {
     pushAction,
@@ -166,13 +168,23 @@ export function useUnifiedKeyboardShortcuts({
     if (!hasTrashSelection) return;
 
     try {
-      let successCount = 0;
-      for (const item of selectedTrashItems) {
-        const success = await permanentDelete({ item });
-        if (success) {
-          successCount++;
-        }
-      }
+      const diagramIds = selectedTrashItems
+        .filter((i) => i.type === "diagram")
+        .map((i) => i.id);
+      const folderIds = selectedTrashItems
+        .filter((i) => i.type === "folder")
+        .map((i) => i.id);
+
+      const [deletedDiagrams, deletedFolders] = await Promise.all([
+        diagramIds.length > 0
+          ? permanentDeleteDiagrams(diagramIds)
+          : Promise.resolve(0),
+        folderIds.length > 0
+          ? permanentDeleteFolders(folderIds)
+          : Promise.resolve(0),
+      ]);
+
+      const successCount = deletedDiagrams + deletedFolders;
 
       if (successCount > 0) {
         toast.success(`Permanently deleted ${successCount} item(s)`);
@@ -185,13 +197,7 @@ export function useUnifiedKeyboardShortcuts({
       console.error("Error deleting items:", error);
       toast.error("An error occurred while deleting items");
     }
-  }, [
-    hasTrashSelection,
-    selectedTrashItems,
-    permanentDelete,
-    queryClient,
-    onDelete,
-  ]);
+  }, [hasTrashSelection, selectedTrashItems, queryClient, onDelete]);
 
   // Undo handler - executes inverse action
   const handleUndo = useCallback(async () => {
@@ -213,9 +219,7 @@ export function useUnifiedKeyboardShortcuts({
           // Undo paste or restore: delete (permanently for paste, move to trash for restore)
           if (action.type === "paste") {
             // Undo paste: delete permanently
-            const deletedCount = await deleteDiagramsPermanently(
-              action.itemIds
-            );
+            const deletedCount = await permanentDeleteDiagrams(action.itemIds);
             if (deletedCount > 0) {
               toast.success(`Undone: Deleted ${deletedCount} diagram(s)`);
               queryClient.invalidateQueries({ queryKey: itemsKeys.all });
@@ -398,7 +402,12 @@ export function useUnifiedKeyboardShortcuts({
           hasTrashSelection
         ) {
           e.preventDefault();
-          handleDeleteForever();
+          if (onRequestDeleteForever) {
+            onRequestDeleteForever();
+          } else {
+            // Fallback (if caller didn't provide a dialog)
+            handleDeleteForever();
+          }
           return;
         }
       } else {
@@ -445,5 +454,6 @@ export function useUnifiedKeyboardShortcuts({
     handleDeleteForever,
     handleUndo,
     handleRedo,
+    onRequestDeleteForever,
   ]);
 }

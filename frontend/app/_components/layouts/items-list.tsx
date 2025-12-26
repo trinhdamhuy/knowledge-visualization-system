@@ -43,6 +43,7 @@ interface ItemsListProps {
   onRename?: (item: Item) => void; // Callback for rename action
   onDeleteItem?: (item: Item) => void; // Callback for delete single item action
   onShare?: (item: Item) => void; // Callback for share action
+  onRequestDeleteForever?: (items: Item[]) => void; // Callback to open permanent-delete confirmation (trash mode)
 }
 
 export function ItemsList({
@@ -65,6 +66,7 @@ export function ItemsList({
   onRename,
   onDeleteItem,
   onShare,
+  onRequestDeleteForever,
 }: ItemsListProps = {}) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -176,6 +178,10 @@ export function ItemsList({
     selectedDiagramIds: isTrashMode ? [] : selectedDiagramIds,
     selectedTrashItems: isTrashMode ? selectedTrashItems : [],
     isTrashMode,
+    onRequestDeleteForever: () => {
+      if (!isTrashMode) return;
+      onRequestDeleteForever?.(selectedItemsArray);
+    },
     onCopy: () => {
       // Selection will remain after copy
     },
@@ -376,6 +382,10 @@ export function ItemsList({
               }}
               onRestore={() => {
                 // Selection will be cleared when items are removed
+              }}
+              onRequestDeleteForever={() => {
+                if (!isTrashMode) return;
+                onRequestDeleteForever?.(selectedItemsArray);
               }}
               onRename={onRename}
               onDeleteItem={onDeleteItem}

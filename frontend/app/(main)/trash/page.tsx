@@ -54,8 +54,8 @@ export default function TrashPage() {
   const { restore, isRestoring } = useRestoreTrash();
   const [deleteForeverDialog, setDeleteForeverDialog] = useState<{
     open: boolean;
-    item: Item | null;
-  }>({ open: false, item: null });
+    items: Item[];
+  }>({ open: false, items: [] });
 
   // Convert TrashItem[] to Item[]
   const items = useMemo(() => {
@@ -102,7 +102,12 @@ export default function TrashPage() {
    * Handle permanent delete action for trash items
    */
   const handleDeleteForever = (item: Item) => {
-    setDeleteForeverDialog({ open: true, item });
+    setDeleteForeverDialog({ open: true, items: [item] });
+  };
+
+  const handleDeleteForeverSelection = (selected: Item[]) => {
+    if (!selected || selected.length === 0) return;
+    setDeleteForeverDialog({ open: true, items: selected });
   };
 
   const sortByOptions = useMemo(
@@ -145,6 +150,7 @@ export default function TrashPage() {
         showCreateButtons={false}
         isTrashMode={true}
         trashItemsMap={trashItemsMap}
+        onRequestDeleteForever={handleDeleteForeverSelection}
         renderContextMenu={(item) => (
           <>
             <ContextMenuItem
@@ -175,18 +181,20 @@ export default function TrashPage() {
           </>
         )}
       />
-      {deleteForeverDialog.item && (
+      {deleteForeverDialog.open && deleteForeverDialog.items.length > 0 && (
         <DeleteForeverDialog
           open={deleteForeverDialog.open}
           onOpenChange={(open) =>
             setDeleteForeverDialog({
               open,
-              item: open ? deleteForeverDialog.item : null,
+              items: open ? deleteForeverDialog.items : [],
             })
           }
-          itemId={deleteForeverDialog.item.id}
-          itemTitle={deleteForeverDialog.item.name}
-          itemType={deleteForeverDialog.item.type}
+          items={deleteForeverDialog.items.map((i) => ({
+            id: i.id,
+            title: i.name,
+            type: i.type,
+          }))}
         />
       )}
     </>
