@@ -171,6 +171,11 @@ cp .env.example .env
 ```env
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
+# NextAuth base URL (critical for Google OAuth redirect_uri)
+# - local dev: http://localhost:3000
+# - production: https://your-domain.com
+AUTH_URL=http://localhost:3000
+
 AUTH_SECRET=your_auth_secret
 AUTH_GOOGLE_ID=your_google_oauth_client_id
 AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
@@ -186,6 +191,13 @@ LIVEBLOCKS_SECRET_KEY=your_liveblocks_secret
 
 DISABLE_ERD=true
 ```
+
+#### Google OAuth Redirect URI (important)
+
+In Google Cloud Console → OAuth 2.0 Client ID, add **Authorized redirect URIs** that match your `AUTH_URL`:
+
+- `http://localhost:3000/api/auth/callback/google` (dev)
+- `https://your-domain.com/api/auth/callback/google` (prod)
 
 4. Install dependencies:
 
