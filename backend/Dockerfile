@@ -21,5 +21,5 @@ COPY . .
 EXPOSE 8000
 
 # Run the application
-CMD ["fastapi", "run", "src/main.py", "--port", "8000", "--proxy-headers"]
+CMD ["fastapi", "run", "src/main.py", "--port", "8000"]
 
