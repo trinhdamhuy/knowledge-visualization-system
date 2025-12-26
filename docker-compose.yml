@@ -62,6 +62,7 @@ services:
     networks:
       - knovion-network
     environment:
+      AUTH_SECRET: ${AUTH_SECRET}
       NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
