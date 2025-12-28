@@ -41,7 +41,6 @@ export function FilePanel() {
     setFile,
     useFilesByDiagram,
     uploadAndCreateFile,
-    deleteFile,
     deleteFileByUrlMutation,
     uploadProgress,
   } = useFile();
@@ -169,7 +168,9 @@ export function FilePanel() {
     }
 
     try {
-      const deleted = await deleteFile(currentFileUrl, diagramId);
+      const deleted = await deleteFileByUrlMutation.mutateAsync({
+        fileUrl: currentFileUrl,
+      });
       if (deleted) {
         toast.success("File removed successfully");
         setCurrentFileUrl(null);

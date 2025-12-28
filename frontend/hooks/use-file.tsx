@@ -31,8 +31,7 @@ interface DeleteFileByUrlParams {
 export const useFile = () => {
   const queryClient = useQueryClient();
   const { fileName, fileUrl, setFile, clearFile } = useFileStore();
-  const { uploadFileHandler, deleteFileHandler, uploadProgress } =
-    useUploadFile();
+  const { uploadFileHandler, uploadProgress, reset } = useUploadFile();
 
   // Query: Get files by diagram ID
   const useFilesByDiagram = (diagramId: string, enabled: boolean = true) => {
@@ -78,9 +77,6 @@ export const useFile = () => {
   // Mutation: Delete file by URL
   const deleteFileByUrlMutation = useMutation({
     mutationFn: async (params: DeleteFileByUrlParams) => {
-      // Delete from S3 first
-      await deleteFileHandler(params.fileUrl);
-      // Then delete from database
       return await deleteFileByUrl(params.fileUrl);
     },
     onSuccess: (data) => {
@@ -91,6 +87,7 @@ export const useFile = () => {
         });
         // Clear file store
         clearFile();
+        reset();
       }
     },
   });
@@ -129,23 +126,6 @@ export const useFile = () => {
     return result;
   };
 
-  // Combined: Delete file (S3 + database)
-  const deleteFile = async (
-    fileUrl: string,
-    diagramId?: string
-  ): Promise<boolean> => {
-    const result = await deleteFileByUrlMutation.mutateAsync({ fileUrl });
-
-    // If we have diagramId, invalidate that specific query
-    if (diagramId && result) {
-      queryClient.invalidateQueries({
-        queryKey: fileKeys.byDiagram(diagramId),
-      });
-    }
-
-    return result;
-  };
-
   return {
     // State
     fileName,
@@ -159,7 +139,6 @@ export const useFile = () => {
 
     // Mutations
     uploadAndCreateFile,
-    deleteFile,
     createFileMutation,
     deleteFileByUrlMutation,
   };

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { deleteFileFromS3 } from "@/lib/file-upload-handler";
 import { Response } from "@/types";
 
 interface UseUploadFileResult {
   uploadFileHandler: (file: File, folder?: string) => Promise<string | null>;
-  deleteFileHandler: (url: string) => Promise<void>;
   loading: boolean;
   uploadProgress: number;
   error: string | null;
@@ -132,14 +130,6 @@ export function useUploadFile(): UseUploadFileResult {
     return { success: true, data: fileUrl.publicUrl };
   }
 
-  async function deleteFile(fileUrl: string): Promise<Response<null>> {
-    const success = await deleteFileFromS3(fileUrl);
-    if (!success) {
-      return { success: false, error: "Failed to delete file" };
-    }
-    return { success };
-  }
-
   const uploadFileHandler = async (
     file: File,
     folder?: string
@@ -178,30 +168,6 @@ export function useUploadFile(): UseUploadFileResult {
     }
   };
 
-  const deleteFileHandler = async (fileUrl: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await deleteFile(fileUrl);
-      if (response.success) {
-      } else {
-        setError(response.error || "Delete failed");
-      }
-    } catch (err: unknown) {
-      let message = "Delete failed";
-      if (err instanceof Error) {
-        message = err.message;
-      } else if (typeof err === "string") {
-        message = err;
-      }
-      setError(message);
-    } finally {
-      setLoading(false);
-      // Reset upload progress when deleting file
-      setUploadProgress(0);
-    }
-  };
-
   const reset = () => {
     setError(null);
     setLoading(false);
@@ -210,7 +176,6 @@ export function useUploadFile(): UseUploadFileResult {
 
   return {
     uploadFileHandler,
-    deleteFileHandler,
     loading,
     uploadProgress,
     error,

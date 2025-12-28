@@ -4,56 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "../user";
 import { canEditDiagram } from "../diagram/permission";
 import { deleteDiagramStore } from "../chat/delete-store";
-
-/**
- * Delete a file
- * @param fileId - File ID to delete
- * @returns true if successful, false otherwise
- */
-async function deleteFile(fileId: string): Promise<boolean> {
-  const user = await getCurrentUser();
-
-  if (!user || !user.id) {
-    return false;
-  }
-
-  try {
-    // Get file with diagram
-    const file = await prisma.file.findUnique({
-      where: { id: fileId },
-      include: { diagram: true },
-    });
-
-    if (!file || !file.diagram) {
-      return false;
-    }
-
-    // Check edit permission
-    const hasPermission = await canEditDiagram(file.diagram.id);
-    if (!hasPermission) {
-      return false;
-    }
-
-    // Clear chatbot vector store for this diagram to avoid stale context
-    const storeDeleted = await deleteDiagramStore(file.diagram.id);
-    if (!storeDeleted || storeDeleted.status !== 200) {
-      console.error(
-        `Failed to delete diagram store for diagram ${file.diagram.id} when deleting file ${fileId}`
-      );
-      return false;
-    }
-
-    // Delete file
-    await prisma.file.delete({
-      where: { id: fileId },
-    });
-
-    return true;
-  } catch (error) {
-    console.error("Failed to delete file:", error);
-    return false;
-  }
-}
+import { deleteFileFromS3 } from "@/lib/file-upload-handler";
 
 /**
  * Delete a file by URL (used when deleting from S3)
@@ -84,6 +35,12 @@ async function deleteFileByUrl(fileUrl: string): Promise<boolean> {
       return false;
     }
 
+    // Delete from S3
+    const deleted = await deleteFileFromS3(fileUrl);
+    if (!deleted) {
+      return false;
+    }
+
     // Clear chatbot vector store for this diagram to avoid stale context
     const storeDeleted = await deleteDiagramStore(file.diagram.id);
     if (!storeDeleted || storeDeleted.status !== 200) {
@@ -105,4 +62,4 @@ async function deleteFileByUrl(fileUrl: string): Promise<boolean> {
   }
 }
 
-export { deleteFile, deleteFileByUrl };
+export { deleteFileByUrl };
