@@ -116,11 +116,12 @@ export function TeamSwitcher() {
                   </div>
                 ) : (
                   <>
-                    {
+                    {React.createElement(
                       defaultLogos[
                         displayTeam.name.length % defaultLogos.length
-                      ]
-                    }
+                      ],
+                      { className: "size-4" }
+                    )}
                   </>
                 )}
               </div>
@@ -157,7 +158,12 @@ export function TeamSwitcher() {
                       height={24}
                     />
                   ) : (
-                    <>{defaultLogos[team.name.length % defaultLogos.length]}</>
+                    <>
+                      {React.createElement(
+                        defaultLogos[team.name.length % defaultLogos.length],
+                        { className: "size-4" }
+                      )}
+                    </>
                   )}
                 </div>
                 {team.name}

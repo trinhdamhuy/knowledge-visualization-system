@@ -9,7 +9,7 @@ import {
   GripVertical,
   Square,
 } from "lucide-react";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, Activity } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,13 +42,13 @@ import { ImportMindmapDialog } from "./ImportMindmapDialog";
 import { DeleteChatDialog } from "./DeleteChatDialog";
 import { getUserById } from "@/app/_actions/user";
 import { useChatSettingsStore } from "@/stores/chat-settings-store";
-import { getSignedFileUrlAction } from "@/app/_actions/file";
 import { useChatUIStore } from "@/stores/chat-ui-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatKeys } from "@/hooks/use-chat";
 import { useChatPanelStore } from "../_stores/use-chat-panel-store";
 import { ReferenceLink } from "./ReferenceLink";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getSignedFileUrl } from "@/lib/file-upload-handler";
 
 export function ChatPanel() {
   const params = useParams();
@@ -183,7 +183,7 @@ export function ChatPanel() {
       // Only load from text files (txt, md)
       if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
         try {
-          const signedUrl = await getSignedFileUrlAction(fileUrl);
+          const signedUrl = await getSignedFileUrl(fileUrl);
           if (!signedUrl) {
             throw new Error("Failed to generate signed URL");
           }
@@ -1050,7 +1050,7 @@ export function ChatPanel() {
   if (displayMode === "docked") {
     return (
       <>
-        {isOpen && (
+        <Activity mode={isOpen ? "visible" : "hidden"}>
           <div className="fixed right-3 bottom-3 z-10 h-[90vh] flex">
             <div
               className="w-2 cursor-ew-resize shrink-0"
@@ -1066,7 +1066,7 @@ export function ChatPanel() {
               {chatContent}
             </Card>
           </div>
-        )}
+        </Activity>
 
         <ImportMindmapDialog
           open={importDialogOpen}
@@ -1086,7 +1086,7 @@ export function ChatPanel() {
 
   return (
     <>
-      {isOpen && (
+      <Activity mode={isOpen ? "visible" : "hidden"}>
         <div className="h-full flex shrink-0">
           {/* Resize handle */}
           <div
@@ -1110,7 +1110,7 @@ export function ChatPanel() {
             {chatContent}
           </Card>
         </div>
-      )}
+      </Activity>
 
       <ImportMindmapDialog
         open={importDialogOpen}

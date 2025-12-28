@@ -1,11 +1,16 @@
 import { getEnv } from "@/lib/get-env";
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const { backendUrl } = getEnv();
-
+  const authData = await auth();
+  if (!authData?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const upstream = await fetch(`${backendUrl}/api/chat/stream`, {
     method: "POST",
     headers: {

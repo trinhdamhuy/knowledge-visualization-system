@@ -38,8 +38,6 @@ import { toPreviewPayload } from "./utils/preview-utils";
 
 type LayoutDirection = "TB" | "LR";
 
-const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-
 function UpdateNodeInternalsOnSignal({
   nodeIds,
   signal,
@@ -49,10 +47,42 @@ function UpdateNodeInternalsOnSignal({
 }) {
   // IMPORTANT: This hook must be used inside the ReactFlow provider tree.
   const updateNodeInternals = useUpdateNodeInternals();
+  const runIdRef = useRef(0);
+  const lastSignalRef = useRef<number>(0);
 
   useEffect(() => {
     if (!signal) return;
-    nodeIds.forEach((id) => updateNodeInternals(id));
+    // Only run when signal changes. Otherwise, any rerender (eg. nodeIds array identity)
+    // would re-trigger updates and cause persistent lag until reload.
+    if (signal === lastSignalRef.current) return;
+    lastSignalRef.current = signal;
+
+    // Chunk updates across frames to avoid blocking the main thread on large diagrams.
+    runIdRef.current += 1;
+    const runId = runIdRef.current;
+
+    const BATCH_SIZE = 50;
+    let i = 0;
+
+    const tick = () => {
+      if (runIdRef.current !== runId) return; // cancelled by a newer run
+
+      const end = Math.min(i + BATCH_SIZE, nodeIds.length);
+      for (; i < end; i++) {
+        updateNodeInternals(nodeIds[i]);
+      }
+
+      if (i < nodeIds.length) {
+        requestAnimationFrame(tick);
+      }
+    };
+
+    requestAnimationFrame(tick);
+
+    return () => {
+      // Cancel any in-flight run on unmount or when a new run starts.
+      runIdRef.current += 1;
+    };
   }, [signal, nodeIds, updateNodeInternals]);
 
   return null;
@@ -63,6 +93,10 @@ function getLayoutedElements(
   edges: Edge[],
   direction: LayoutDirection = "TB"
 ) {
+  // IMPORTANT: create a fresh graph per layout run.
+  // Reusing a global graph without clearing nodes/edges can make layouts slower over time.
+  const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+
   // generous spacing (tune as needed)
   dagreGraph.setGraph({
     rankdir: direction,
@@ -221,6 +255,8 @@ export function DiagramCanvas() {
     x: number;
     y: number;
   } | null>(null);
+  const pointerMoveRafRef = useRef<number | null>(null);
+  const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null);
 
   // Set default mode on mount
   useEffect(() => {
@@ -358,24 +394,39 @@ export function DiagramCanvas() {
     (e: React.PointerEvent) => {
       if (!reactFlowInstance.current) return;
 
-      const position = reactFlowInstance.current.screenToFlowPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
+      // Throttle cursor/presence updates to animation frames to reduce UI/network pressure.
+      lastPointerClientRef.current = { x: e.clientX, y: e.clientY };
+      if (pointerMoveRafRef.current != null) return;
 
-      updateMyPresence({
-        cursor: { x: Math.round(position.x), y: Math.round(position.y) },
-      });
+      pointerMoveRafRef.current = requestAnimationFrame(() => {
+        pointerMoveRafRef.current = null;
+        const last = lastPointerClientRef.current;
+        if (!last || !reactFlowInstance.current) return;
 
-      // Track mouse position for create node mode
-      if (activeMode === DiagramMode.CreateNode) {
-        setMousePosition({ x: e.clientX, y: e.clientY });
-      }
+        const position = reactFlowInstance.current.screenToFlowPosition({
+          x: last.x,
+          y: last.y,
+        });
+
+        updateMyPresence({
+          cursor: { x: Math.round(position.x), y: Math.round(position.y) },
+        });
+
+        // Track mouse position for create node mode
+        if (activeMode === DiagramMode.CreateNode) {
+          setMousePosition({ x: last.x, y: last.y });
+        }
+      });
     },
     [updateMyPresence, activeMode]
   );
 
   const onPointerLeave = useCallback(() => {
+    if (pointerMoveRafRef.current != null) {
+      cancelAnimationFrame(pointerMoveRafRef.current);
+      pointerMoveRafRef.current = null;
+    }
+    lastPointerClientRef.current = null;
     updateMyPresence({ cursor: null });
     setMousePosition(null);
   }, [updateMyPresence]);
@@ -502,15 +553,24 @@ export function DiagramCanvas() {
   const maxZoom = 2; // Maximum zoom level (200%)
 
   const allNodeIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+  const internalsNodeIds = useMemo(
+    () => allNodeIds.filter((id) => !hiddenNodeIds.has(id)),
+    [allNodeIds, hiddenNodeIds]
+  );
 
   const applyLayout = useCallback(
     (direction: LayoutDirection) => {
       if (isAnyDragging) return;
       if (nodes.length === 0) return;
 
+      // Prefer measured nodes/edges from the live ReactFlow instance when available.
+      // This avoids using stale sizes and reduces extra relayouts.
+      const layoutInputNodes = reactFlowInstance.current?.getNodes() ?? nodes;
+      const layoutInputEdges = reactFlowInstance.current?.getEdges() ?? edges;
+
       const { nodes: layoutedNodes } = getLayoutedElements(
-        nodes,
-        edges,
+        layoutInputNodes,
+        layoutInputEdges,
         direction
       );
 
@@ -523,12 +583,11 @@ export function DiagramCanvas() {
         type: "position" as const,
         position: node.position,
       }));
-      updateNodes(positionChanges);
+      // Persist asynchronously so UI can paint the new layout first.
+      setTimeout(() => updateNodes(positionChanges), 0);
 
       // IMPORTANT: notify React Flow (inside provider) to recalc internals & reposition handles/edges
-      setTimeout(() => {
-        setInternalsUpdateSignal((s) => s + 1);
-      }, 50);
+      requestAnimationFrame(() => setInternalsUpdateSignal((s) => s + 1));
 
       setLayoutDirection(direction);
       layoutDirectionRef.current = direction;
@@ -615,7 +674,7 @@ export function DiagramCanvas() {
       <DiagramToolBar />
       <PropertiesPanel />
       <UpdateNodeInternalsOnSignal
-        nodeIds={allNodeIds.filter((id) => !hiddenNodeIds.has(id))}
+        nodeIds={internalsNodeIds}
         signal={internalsUpdateSignal}
       />
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} />

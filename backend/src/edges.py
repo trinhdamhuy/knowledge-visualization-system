@@ -13,6 +13,19 @@ from src.models.chat_model import model
 from src.models.vector_store import get_vector_store
 
 
+def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
+    """Remove documents with empty/whitespace-only content.
+
+    Gemini embeddings rejects empty text with 400 INVALID_ARGUMENT.
+    """
+    non_empty: list[Document] = []
+    for doc in documents or []:
+        content = getattr(doc, "page_content", None)
+        if isinstance(content, str) and content.strip():
+            non_empty.append(doc)
+    return non_empty
+
+
 async def load_file(state: State):
     """Load a file into documents."""
 
@@ -26,10 +39,21 @@ async def load_file(state: State):
         loader = PyPDFLoader(file_url)
     else:
         writer({"current_status": "Can not load file"})
-        raise ValueError("Unsupported file type")
-    documents = await loader.aload()
-
-    return {"context": documents}
+        return {"context": []}
+    try:
+        documents = await loader.aload()
+        documents = _filter_non_empty_documents(documents)
+        if not documents:
+            writer(
+                {
+                    "current_status": "File loaded but contains no text content to process."
+                }
+            )
+            return {"context": []}
+        return {"context": documents}
+    except Exception:  # pylint: disable=broad-exception-caught
+        writer({"current_status": "Can not load file"})
+        return {"context": []}
 
 
 async def add_documents(state: State):
@@ -41,11 +65,15 @@ async def add_documents(state: State):
     vector_store = get_vector_store()
 
     diagram_id = state["diagram_id"]
-    context = state["context"]
+    context = _filter_non_empty_documents(state.get("context", []))
 
     if not diagram_id:
         writer({"current_status": "Diagram ID not found"})
         raise ValueError("Diagram ID not found")
+
+    if not context:
+        writer({"current_status": "No text content found to embed (empty documents)."})
+        return {"context": []}
 
     # Add metadata directly to each document instead of passing separately
     for doc in context:
@@ -484,199 +512,199 @@ async def generate_answer(state: State):
             [{"role": "user", "content": prompt}]
         )
         return {"messages": [AIMessage(content=response.answer)]}
-    else:
-        # We have context documents - generate answer with context
-        # Include metadata (page numbers) in context so AI can use reference links
-        context_parts = []
-        for doc in context_docs:
-            content = doc.page_content
-            # Add page number if available in metadata
-            if doc.metadata and "page" in doc.metadata:
-                page_num = doc.metadata["page"]
-                context_parts.append(f"[Page {page_num}]\n{content}")
-            else:
-                context_parts.append(content)
-        context = "\n\n".join(context_parts)
-        prompt = ANSWER_PROMPT.format(request=request, context=context)
 
-        # Generate answer
-        response = await model.with_structured_output(GenerateAnswer).ainvoke(
-            [{"role": "user", "content": prompt}]
+    # We have context documents - generate answer with context
+    # Include metadata (page numbers) in context so AI can use reference links
+    context_parts = []
+    for doc in context_docs:
+        content = doc.page_content
+        # Add page number if available in metadata
+        if doc.metadata and "page" in doc.metadata:
+            page_num = doc.metadata["page"]
+            context_parts.append(f"[Page {page_num}]\n{content}")
+        else:
+            context_parts.append(content)
+    context = "\n\n".join(context_parts)
+    prompt = ANSWER_PROMPT.format(request=request, context=context)
+
+    # Generate answer
+    response = await model.with_structured_output(GenerateAnswer).ainvoke(
+        [{"role": "user", "content": prompt}]
+    )
+
+    mindmap_dict = None
+
+    try:
+        # Prepare context for mindmap generation
+        full_context = "\n".join([doc.page_content for doc in context_docs])
+
+        # If context is very long, create a high-level summary for mindmap generation
+        if len(full_context) > 50000:
+            summary_prompt = (
+                "You are summarizing a large document to create a mindmap.\n"
+                "Extract ONLY the high-level structure:\n"
+                "- Main topic/subject\n"
+                "- Major sections/chapters (3-5 main sections)\n"
+                "- Key topics within each section (2-4 topics per section)\n"
+                "Focus on organizational structure, not details.\n"
+                "Output format: A structured summary with main topic, sections, and key topics.\n"
+                "\n"
+                "Document content:\n"
+                f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
+            )
+            summary_response = await model.ainvoke(
+                [{"role": "user", "content": summary_prompt}]
+            )
+            mindmap_context = summary_response.content
+        else:
+            mindmap_context = full_context
+
+        # Extract node IDs from existing mindmap if available
+        # Include ALL node IDs, not just first 10
+        existing_node_ids = []
+        existing_node_labels_map = {}
+        if existing_mindmap_data and isinstance(existing_mindmap_data, dict):
+            nodes = existing_mindmap_data.get("nodes", {})
+            if isinstance(nodes, dict):
+                existing_node_ids = list(nodes.keys())
+                # Build a map of node IDs to labels for better context
+                for node_id, node_data in nodes.items():
+                    if isinstance(node_data, dict) and "data" in node_data:
+                        label = node_data.get("data", {}).get("label", "")
+                        if label:
+                            existing_node_labels_map[node_id] = label
+
+        # Update prompt to include node IDs for reference
+        answer_prompt_with_nodes = prompt
+        if existing_node_ids:
+            # Create a more helpful list showing node IDs with their labels
+            node_info_list = []
+            for node_id in existing_node_ids:
+                label = existing_node_labels_map.get(node_id, "")
+                if label:
+                    node_info_list.append(f"{node_id} (label: '{label}')")
+                else:
+                    node_info_list.append(node_id)
+
+            node_ids_str = "\n".join(node_info_list)
+            answer_prompt_with_nodes = (
+                f"{prompt}\n\n"
+                f"Available nodes from existing mindmap (you can reference these using hash format [**text content**](#node/node-id)):\n"
+                f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                f"\n"
+                f"{node_ids_str}\n"
+                f"\n"
+                f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above.\n"
+                f"Format example: [**Introduction**](#node/node-1766205361492)\n"
+            )
+            # Re-generate answer with node context
+            response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                [{"role": "user", "content": answer_prompt_with_nodes}]
+            )
+
+        # Generate mindmap data
+        # Add instruction to create more nodes when reloading from full PDF
+        need_initialize_data = state.get("need_initialize_data", False)
+        mindmap_prompt_base = MINDMAP_PROMPT.format(
+            request=request,
+            context=mindmap_context,
+            data=existing_mindmap_data,
         )
 
+        # When reloading from PDF, encourage creating comprehensive mindmap
+        if need_initialize_data and len(context_docs) > 10:
+            mindmap_prompt = (
+                f"{mindmap_prompt_base}\n\n"
+                "IMPORTANT: You are creating a mindmap from the FULL document content (not just a few chunks). "
+                "Create a COMPREHENSIVE mindmap that covers the entire document structure. "
+                "Aim for 25-40 nodes to properly represent the document's content and structure. "
+                "Include all major sections, chapters, and key topics. "
+                "This is a full document mindmap, so be thorough but still organized."
+            )
+        else:
+            mindmap_prompt = mindmap_prompt_base
+
+        mindmap_response = await model.with_structured_output(MindmapData).ainvoke(
+            [{"role": "user", "content": mindmap_prompt}]
+        )
+        mindmap_dict = mindmap_response.model_dump()
+
+        # Normalize edges: if type is missing, default to simplebezier
+        if mindmap_dict and isinstance(mindmap_dict, dict):
+            edges = mindmap_dict.get("edges", {})
+            if isinstance(edges, dict):
+                for edge_data in edges.values():
+                    if isinstance(edge_data, dict) and not edge_data.get("type"):
+                        edge_data["type"] = "simplebezier"
+
+        # Extract node IDs from newly generated mindmap for reference
+        # Include ALL node IDs, not just first 10, so AI can reference any node
+        new_node_ids = []
+        node_labels_map = {}  # Map node IDs to their labels for better context
+        if mindmap_dict and isinstance(mindmap_dict, dict):
+            nodes = mindmap_dict.get("nodes", {})
+            if isinstance(nodes, dict):
+                new_node_ids = list(nodes.keys())
+                # Build a map of node IDs to labels for better context
+                for node_id, node_data in nodes.items():
+                    if isinstance(node_data, dict) and "data" in node_data:
+                        label = node_data.get("data", {}).get("label", "")
+                        if label:
+                            node_labels_map[node_id] = label
+
+        # Regenerate answer with node IDs from the new mindmap
+        if new_node_ids:
+            # Create a more helpful list showing node IDs with their labels
+            node_info_list = []
+            for node_id in new_node_ids:
+                label = node_labels_map.get(node_id, "")
+                if label:
+                    node_info_list.append(f"{node_id} (label: '{label}')")
+                else:
+                    node_info_list.append(node_id)
+
+            node_ids_str = "\n".join(node_info_list)
+            final_prompt = (
+                f"{prompt}\n\n"
+                f"IMPORTANT: A mindmap has just been generated with the following nodes. "
+                f"You MUST include references to these nodes in your response using the hash-based format [**text**](#node/node-id).\n"
+                f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
+                f"\n"
+                f"Available nodes from the generated mindmap:\n"
+                f"{node_ids_str}\n"
+                f"\n"
+                f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above. "
+                f"For example, if a node ID is 'node-1766205361492', use exactly '#node/node-1766205361492' in your reference link.\n"
+                f"\n"
+                f"Also include page references when available. Combine both when relevant: [**text**](#node/node-id#pdf/page-number).\n"
+                f"Format examples:\n"
+                f"- Node only: [**Introduction**](#node/node-1766205361492)\n"
+                f"- Page only: [**Page 26**](#pdf/26)\n"
+                f"- Both: [**Introduction**](#node/node-1766205361492#pdf/26)\n"
+                f"\n"
+                f"Make sure to reference multiple nodes throughout your response to help users navigate the mindmap."
+            )
+            response = await model.with_structured_output(GenerateAnswer).ainvoke(
+                [{"role": "user", "content": final_prompt}]
+            )
+    except (ValueError, KeyError, AttributeError) as e:
+        # If mindmap generation fails, just continue with answer
+        print(f"Failed to generate mindmap data: {e}")
         mindmap_dict = None
 
-        try:
-            # Prepare context for mindmap generation
-            full_context = "\n".join([doc.page_content for doc in context_docs])
+    # Return message with answer and optional mindmap data
+    additional_kwargs = {}
+    if mindmap_dict:
+        additional_kwargs["mindmap_data"] = mindmap_dict
 
-            # If context is very long, create a high-level summary for mindmap generation
-            if len(full_context) > 50000:
-                summary_prompt = (
-                    "You are summarizing a large document to create a mindmap.\n"
-                    "Extract ONLY the high-level structure:\n"
-                    "- Main topic/subject\n"
-                    "- Major sections/chapters (3-5 main sections)\n"
-                    "- Key topics within each section (2-4 topics per section)\n"
-                    "Focus on organizational structure, not details.\n"
-                    "Output format: A structured summary with main topic, sections, and key topics.\n"
-                    "\n"
-                    "Document content:\n"
-                    f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
-                )
-                summary_response = await model.ainvoke(
-                    [{"role": "user", "content": summary_prompt}]
-                )
-                mindmap_context = summary_response.content
-            else:
-                mindmap_context = full_context
-
-            # Extract node IDs from existing mindmap if available
-            # Include ALL node IDs, not just first 10
-            existing_node_ids = []
-            existing_node_labels_map = {}
-            if existing_mindmap_data and isinstance(existing_mindmap_data, dict):
-                nodes = existing_mindmap_data.get("nodes", {})
-                if isinstance(nodes, dict):
-                    existing_node_ids = list(nodes.keys())
-                    # Build a map of node IDs to labels for better context
-                    for node_id, node_data in nodes.items():
-                        if isinstance(node_data, dict) and "data" in node_data:
-                            label = node_data.get("data", {}).get("label", "")
-                            if label:
-                                existing_node_labels_map[node_id] = label
-
-            # Update prompt to include node IDs for reference
-            answer_prompt_with_nodes = prompt
-            if existing_node_ids:
-                # Create a more helpful list showing node IDs with their labels
-                node_info_list = []
-                for node_id in existing_node_ids:
-                    label = existing_node_labels_map.get(node_id, "")
-                    if label:
-                        node_info_list.append(f"{node_id} (label: '{label}')")
-                    else:
-                        node_info_list.append(node_id)
-
-                node_ids_str = "\n".join(node_info_list)
-                answer_prompt_with_nodes = (
-                    f"{prompt}\n\n"
-                    f"Available nodes from existing mindmap (you can reference these using hash format [**text content**](#node/node-id)):\n"
-                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
-                    f"\n"
-                    f"{node_ids_str}\n"
-                    f"\n"
-                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above.\n"
-                    f"Format example: [**Introduction**](#node/node-1766205361492)\n"
-                )
-                # Re-generate answer with node context
-                response = await model.with_structured_output(GenerateAnswer).ainvoke(
-                    [{"role": "user", "content": answer_prompt_with_nodes}]
-                )
-
-            # Generate mindmap data
-            # Add instruction to create more nodes when reloading from full PDF
-            need_initialize_data = state.get("need_initialize_data", False)
-            mindmap_prompt_base = MINDMAP_PROMPT.format(
-                request=request,
-                context=mindmap_context,
-                data=existing_mindmap_data,
+    return {
+        "messages": [
+            AIMessage(
+                content=response.answer,
+                additional_kwargs=additional_kwargs,  # Always pass dict, never None
             )
-
-            # When reloading from PDF, encourage creating comprehensive mindmap
-            if need_initialize_data and len(context_docs) > 10:
-                mindmap_prompt = (
-                    f"{mindmap_prompt_base}\n\n"
-                    "IMPORTANT: You are creating a mindmap from the FULL document content (not just a few chunks). "
-                    "Create a COMPREHENSIVE mindmap that covers the entire document structure. "
-                    "Aim for 25-40 nodes to properly represent the document's content and structure. "
-                    "Include all major sections, chapters, and key topics. "
-                    "This is a full document mindmap, so be thorough but still organized."
-                )
-            else:
-                mindmap_prompt = mindmap_prompt_base
-
-            mindmap_response = await model.with_structured_output(MindmapData).ainvoke(
-                [{"role": "user", "content": mindmap_prompt}]
-            )
-            mindmap_dict = mindmap_response.model_dump()
-
-            # Normalize edges: if type is missing, default to simplebezier
-            if mindmap_dict and isinstance(mindmap_dict, dict):
-                edges = mindmap_dict.get("edges", {})
-                if isinstance(edges, dict):
-                    for edge_data in edges.values():
-                        if isinstance(edge_data, dict) and not edge_data.get("type"):
-                            edge_data["type"] = "simplebezier"
-
-            # Extract node IDs from newly generated mindmap for reference
-            # Include ALL node IDs, not just first 10, so AI can reference any node
-            new_node_ids = []
-            node_labels_map = {}  # Map node IDs to their labels for better context
-            if mindmap_dict and isinstance(mindmap_dict, dict):
-                nodes = mindmap_dict.get("nodes", {})
-                if isinstance(nodes, dict):
-                    new_node_ids = list(nodes.keys())
-                    # Build a map of node IDs to labels for better context
-                    for node_id, node_data in nodes.items():
-                        if isinstance(node_data, dict) and "data" in node_data:
-                            label = node_data.get("data", {}).get("label", "")
-                            if label:
-                                node_labels_map[node_id] = label
-
-            # Regenerate answer with node IDs from the new mindmap
-            if new_node_ids:
-                # Create a more helpful list showing node IDs with their labels
-                node_info_list = []
-                for node_id in new_node_ids:
-                    label = node_labels_map.get(node_id, "")
-                    if label:
-                        node_info_list.append(f"{node_id} (label: '{label}')")
-                    else:
-                        node_info_list.append(node_id)
-
-                node_ids_str = "\n".join(node_info_list)
-                final_prompt = (
-                    f"{prompt}\n\n"
-                    f"IMPORTANT: A mindmap has just been generated with the following nodes. "
-                    f"You MUST include references to these nodes in your response using the hash-based format [**text**](#node/node-id).\n"
-                    f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
-                    f"\n"
-                    f"Available nodes from the generated mindmap:\n"
-                    f"{node_ids_str}\n"
-                    f"\n"
-                    f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above. "
-                    f"For example, if a node ID is 'node-1766205361492', use exactly '#node/node-1766205361492' in your reference link.\n"
-                    f"\n"
-                    f"Also include page references when available. Combine both when relevant: [**text**](#node/node-id#pdf/page-number).\n"
-                    f"Format examples:\n"
-                    f"- Node only: [**Introduction**](#node/node-1766205361492)\n"
-                    f"- Page only: [**Page 26**](#pdf/26)\n"
-                    f"- Both: [**Introduction**](#node/node-1766205361492#pdf/26)\n"
-                    f"\n"
-                    f"Make sure to reference multiple nodes throughout your response to help users navigate the mindmap."
-                )
-                response = await model.with_structured_output(GenerateAnswer).ainvoke(
-                    [{"role": "user", "content": final_prompt}]
-                )
-        except (ValueError, KeyError, AttributeError) as e:
-            # If mindmap generation fails, just continue with answer
-            print(f"Failed to generate mindmap data: {e}")
-            mindmap_dict = None
-
-        # Return message with answer and optional mindmap data
-        additional_kwargs = {}
-        if mindmap_dict:
-            additional_kwargs["mindmap_data"] = mindmap_dict
-
-        return {
-            "messages": [
-                AIMessage(
-                    content=response.answer,
-                    additional_kwargs=additional_kwargs,  # Always pass dict, never None
-                )
-            ]
-        }
+        ]
+    }
 
 
 MINDMAP_PROMPT = (

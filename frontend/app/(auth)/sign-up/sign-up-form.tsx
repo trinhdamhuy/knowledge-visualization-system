@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
@@ -26,11 +26,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { sendVerificationCode } from "@/app/_actions/auth/send-verification";
 
 export function SignUpForm() {
   const t = useTranslations("auth.sign-up");
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
   const formSchema = z
     .object({
@@ -46,6 +55,9 @@ export function SignUpForm() {
       confirmPassword: z.string().min(6, {
         message: t("passwordRequired"),
       }),
+      otp: z.string().min(6, {
+        message: "OTP must be 6 digits",
+      }),
     })
     .refine((data) => data.password === data.confirmPassword, {
       message: t("passwordMismatch"),
@@ -58,6 +70,7 @@ export function SignUpForm() {
       email: "",
       password: "",
       confirmPassword: "",
+      otp: "",
     },
     validators: {
       onSubmit: formSchema,
@@ -66,6 +79,28 @@ export function SignUpForm() {
       onSubmit(values.value);
     },
   });
+
+  const handleSendOtp = async (email: string) => {
+    if (!email) {
+      toast.error(t("emailRequired"));
+      return;
+    }
+
+    // Simple email validation regex or rely on form validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error(t("emailRequired"));
+      return;
+    }
+
+    const res = await sendVerificationCode(email);
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Verification code sent");
+      setCooldown(60);
+    }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -80,6 +115,7 @@ export function SignUpForm() {
           username: values.username,
           email: values.email,
           password: values.password,
+          otp: values.otp,
         }),
       });
 
@@ -176,6 +212,45 @@ export function SignUpForm() {
                         disabled={isLoading}
                         aria-invalid={isInvalid}
                       />
+                      {isInvalid && (
+                        <FieldError errors={field.state.meta.errors} />
+                      )}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+
+              <form.Field name="otp">
+                {(field) => {
+                  const isInvalid =
+                    field.state.meta.isTouched && !field.state.meta.isValid;
+                  return (
+                    <Field data-invalid={isInvalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Verification Code
+                        <span className="text-red-500 text-xs">*</span>
+                      </FieldLabel>
+                      <div className="flex gap-2">
+                        <Input
+                          id={field.name}
+                          name={field.name}
+                          value={field.state.value}
+                          onBlur={field.handleBlur}
+                          onChange={(e) => field.handleChange(e.target.value)}
+                          placeholder="Enter 6-digit code"
+                          disabled={isLoading}
+                          aria-invalid={isInvalid}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleSendOtp(form.state.values.email)}
+                          disabled={cooldown > 0 || isLoading}
+                          className="whitespace-nowrap min-w-[100px]"
+                        >
+                          {cooldown > 0 ? `${cooldown}s` : "Send Code"}
+                        </Button>
+                      </div>
                       {isInvalid && (
                         <FieldError errors={field.state.meta.errors} />
                       )}

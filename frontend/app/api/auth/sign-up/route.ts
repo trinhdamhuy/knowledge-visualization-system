@@ -2,10 +2,43 @@ import { createUser, getUserByEmail } from "../../../_actions";
 import { SignUpErrors } from "../../../../enums/errors";
 import bcrypt from "bcrypt";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, email, password } = await req.json();
+    const { username, email, password, otp } = await req.json();
+
+    if (!otp) {
+      return NextResponse.json(
+        { error: "Verification code is required" },
+        { status: 400 }
+      );
+    }
+
+    // Verify OTP
+    const verificationToken = await prisma.verificationToken.findFirst({
+      where: {
+        email,
+        token: otp,
+      },
+    });
+
+    if (!verificationToken) {
+      return NextResponse.json(
+        { error: "Invalid verification code" },
+        { status: 400 }
+      );
+    }
+
+    if (verificationToken.expires < new Date()) {
+      await prisma.verificationToken.delete({
+        where: { id: verificationToken.id },
+      });
+      return NextResponse.json(
+        { error: "Verification code expired" },
+        { status: 400 }
+      );
+    }
 
     const existingUser = await getUserByEmail(email);
 
@@ -16,7 +49,17 @@ export async function POST(req: NextRequest) {
       );
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await createUser(username, email, hashedPassword);
+    const newUser = await createUser(
+      username,
+      email,
+      hashedPassword,
+      new Date()
+    );
+
+    // Delete used token
+    await prisma.verificationToken.delete({
+      where: { id: verificationToken.id },
+    });
 
     return NextResponse.json({
       user: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Activity } from "react";
 import { useParams } from "next/navigation";
 import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
-import { getSignedFileUrlAction } from "@/app/_actions/file";
+import { getSignedFileUrl } from "@/lib/file-upload-handler";
 
 export function FilePanel() {
   const params = useParams();
@@ -65,7 +65,7 @@ export function FilePanel() {
       setFileError(null);
 
       // Generate signed URL for all file types
-      getSignedFileUrlAction(latestFile.fileUrl)
+      getSignedFileUrl(latestFile.fileUrl)
         .then((signedUrl) => {
           if (!signedUrl) {
             throw new Error("Failed to generate signed URL");
@@ -409,7 +409,7 @@ export function FilePanel() {
     if (!isOpen) return null;
 
     return (
-      isOpen && (
+      <Activity mode={isOpen ? "visible" : "hidden"}>
         <div
           className="fixed left-20 bottom-3 z-10 h-[90vh] flex"
           style={{ width: `${width}px` }}
@@ -426,13 +426,13 @@ export function FilePanel() {
             }}
           />
         </div>
-      )
+      </Activity>
     );
   }
 
   // Sidebar mode: resizable panel on the left
   return (
-    isOpen && (
+    <Activity mode={isOpen ? "visible" : "hidden"}>
       <div className="h-full flex shrink-0">
         <Card
           className="h-full flex flex-col overflow-hidden rounded-none border-none shadow-none gap-3 p-3 shrink-0"
@@ -456,6 +456,6 @@ export function FilePanel() {
           </div>
         </div>
       </div>
-    )
+    </Activity>
   );
 }

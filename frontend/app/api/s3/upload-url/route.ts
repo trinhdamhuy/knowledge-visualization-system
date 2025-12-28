@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Client } from "@/lib/file-upload-handler";
+import { auth } from "@/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,10 @@ function generateFileName(fileName: string) {
 }
 
 export async function POST(request: Request) {
+  const authData = await auth();
+  if (!authData?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const bucket = process.env.AWS_BUCKET;
     const region = process.env.AWS_REGION;

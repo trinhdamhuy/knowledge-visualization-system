@@ -321,6 +321,13 @@ async def stream_chat_events(
                 payload = chunk if isinstance(chunk, dict) else {"chunk": str(chunk)}
                 data = json.dumps(payload, ensure_ascii=False)
                 yield f"data: {data}\n\n"
+        except Exception as e:
+            # Avoid hard-closing the SSE connection (frontend sees "failed to pipe response")
+            error_payload = {
+                "error": str(e),
+                "type": e.__class__.__name__,
+            }
+            yield f"event: error\ndata: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
         finally:
             app_state.cancel_flags[diagram_id] = False
             yield "event: stream_complete\ndata: {}\n\n"
