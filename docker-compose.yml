@@ -84,4 +84,3 @@ networks:
 volumes:
   pgvector:
     name: knovion-chat-store
-    external: true
