@@ -104,7 +104,12 @@ export function ChatPanel() {
     !!diagramId && !!fileUrl
   );
 
-  const { useChatHistory, deleteChatHistory, cancelChatRequest } = useChat();
+  const {
+    useChatHistory,
+    deleteChatHistory,
+    cancelChatRequest,
+    deleteDiagramStore,
+  } = useChat();
   const [isBusy, setIsBusy] = useState(false);
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
@@ -514,6 +519,20 @@ export function ChatPanel() {
 
     // Set chatbot as busy
     setIsBusy(true);
+
+    // If reloading data, clear old data first
+    if (needInitializeData) {
+      try {
+        // Clear vector store
+        await deleteDiagramStore({ diagramId });
+
+        // Clear all nodes and edges in Liveblocks
+        importMindmapData({ nodes: [], edges: [] }, true);
+      } catch (error) {
+        console.error("Failed to clear old data:", error);
+        // Continue anyway - best effort cleanup
+      }
+    }
 
     // Always send mindmap_data if we have nodes
     const mindmapData: MindmapData | null =
