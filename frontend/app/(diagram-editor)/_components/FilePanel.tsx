@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, Activity } from "react";
+import { useState, useRef, useEffect, Activity, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { X, FileText, Upload, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,7 @@ export function FilePanel() {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
+  const [hasRetriedSignedUrl, setHasRetriedSignedUrl] = useState(false);
 
   const {
     fileName,
@@ -45,15 +46,46 @@ export function FilePanel() {
     uploadProgress,
   } = useFile();
 
+  // storeFileUrl isn't directly used in this component's render path, but keeping the
+  // destructuring for parity with other panels can be handy. Avoid unused var lint.
+  void storeFileUrl;
+
   // Load file from database
   const { data: latestFile, refetch: refetchFile } = useFilesByDiagram(
     diagramId || "",
-    !!diagramId && isOpen
+    !!diagramId
   );
 
   // Check edit permission
   const { data: canEdit = false, isLoading: isLoadingPermission } =
     useCanEditDiagram(diagramId);
+
+  const refreshSignedUrl = useCallback(
+    async (fileUrl: string, fileType: "pdf" | "txt" | "md") => {
+      // Keep signed URL TTL at 1 day (project policy); we still refresh on iframe error when it expires.
+      const signedUrl = await getSignedFileUrl(fileUrl, 3600 * 24);
+      if (!signedUrl) {
+        throw new Error("Failed to generate signed URL");
+      }
+      setSignedFileUrl(signedUrl);
+
+      // Load text content for TXT and MD files
+      if (fileType === "txt" || fileType === "md") {
+        const res = await fetch(signedUrl);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const text = await res.text();
+        setFileContent(text);
+      } else {
+        setFileContent(null);
+      }
+
+      setFileError(null);
+      return signedUrl;
+    },
+    []
+  );
 
   // Sync file from query to store - support PDF, TXT, MD
   useEffect(() => {
@@ -61,61 +93,41 @@ export function FilePanel() {
       setFile(latestFile.fileName, latestFile.fileUrl);
       setCurrentFileUrl(latestFile.fileUrl);
       setCurrentFileType(latestFile.fileType as "pdf" | "txt" | "md");
-      setFileError(null);
+      setHasRetriedSignedUrl(false);
 
-      // Generate signed URL for all file types
-      getSignedFileUrl(latestFile.fileUrl)
-        .then((signedUrl) => {
-          if (!signedUrl) {
-            throw new Error("Failed to generate signed URL");
-          }
-          setSignedFileUrl(signedUrl);
-
-          // Load text content for TXT and MD files
-          if (latestFile.fileType === "txt" || latestFile.fileType === "md") {
-            return fetch(signedUrl);
-          }
-          return null;
-        })
-        .then((res) => {
-          if (res) {
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}`);
-            }
-            return res.text();
-          }
-          return null;
-        })
-        .then((text) => {
-          if (text !== null) {
-            setFileContent(text);
-          } else {
-            setFileContent(null);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to load file:", err);
-          setFileError("Failed to load file content");
-          setFileContent(null);
-          setSignedFileUrl(null);
-        });
+      refreshSignedUrl(
+        latestFile.fileUrl,
+        latestFile.fileType as "pdf" | "txt" | "md"
+      ).catch((err) => {
+        console.error("Failed to load file:", err);
+        setFileError("Failed to load file content");
+        setFileContent(null);
+        setSignedFileUrl(null);
+      });
     } else {
       setCurrentFileUrl(null);
       setSignedFileUrl(null);
       setCurrentFileType(null);
       setFileContent(null);
       setFileError(null);
+      setHasRetriedSignedUrl(false);
     }
-  }, [latestFile, setFile]);
+  }, [latestFile, refreshSignedUrl, setFile]);
 
-  const handleFileError = () => {
-    setFileError("Failed to load file. The file may have been deleted.");
-    setCurrentFileUrl(null);
-    setCurrentFileType(null);
-    setFileContent(null);
-    if (storeFileUrl) {
-      setFile("", "");
+  const handleFileError = async () => {
+    // Common case: signed URL expired. Try to refresh once before surfacing error.
+    if (currentFileUrl && currentFileType && !hasRetriedSignedUrl) {
+      try {
+        setHasRetriedSignedUrl(true);
+        await refreshSignedUrl(currentFileUrl, currentFileType);
+        return;
+      } catch (err) {
+        console.error("Failed to refresh signed URL:", err);
+      }
     }
+
+    setFileError("Failed to load file. The file link may have expired.");
+    setSignedFileUrl(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,7 +330,6 @@ export function FilePanel() {
                   className="w-full h-full border-0 p-0"
                   onError={handleFileError}
                   title="File Viewer"
-                  key={pdfPage || 0}
                 />
               ) : currentFileUrl &&
                 (currentFileType === "txt" || currentFileType === "md") ? (
@@ -403,12 +414,8 @@ export function FilePanel() {
     </>
   );
 
-  if (!isOpen) return null;
-
   // Docked mode: card on the right side of toolbar
   if (displayMode === "docked") {
-    if (!isOpen) return null;
-
     return (
       <Activity mode={isOpen ? "visible" : "hidden"}>
         <div

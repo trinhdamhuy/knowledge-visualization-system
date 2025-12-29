@@ -10,7 +10,7 @@ from langgraph.config import get_stream_writer
 
 from src.schemas.states import State
 from src.models.chat_model import model
-from src.models.vector_store import get_vector_store
+from src.models.vector_store import get_vector_store, delete_by_filter, count_by_filter
 
 
 def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
@@ -65,6 +65,8 @@ async def add_documents(state: State):
     vector_store = get_vector_store()
 
     diagram_id = state["diagram_id"]
+    file_url = state.get("file_url")
+    need_initialize_data = state.get("need_initialize_data", False)
     context = _filter_non_empty_documents(state.get("context", []))
 
     if not diagram_id:
@@ -75,11 +77,39 @@ async def add_documents(state: State):
         writer({"current_status": "No text content found to embed (empty documents)."})
         return {"context": []}
 
+    # Option B:
+    # - If reloading and the same file_url already exists in store -> skip embedding.
+    # - If reloading and file_url is new -> delete existing docs for diagram_id, then add new docs.
+    if need_initialize_data and file_url:
+        try:
+            existing_count = await count_by_filter(
+                {"diagram_id": diagram_id, "file_url": file_url}
+            )
+            if existing_count > 0:
+                writer(
+                    {
+                        "current_status": "Data for this file already exists. Skipping embedding..."
+                    }
+                )
+                return {"context": context}
+
+            writer({"current_status": "New file detected. Clearing old store data..."})
+            await delete_by_filter(filter_dict={"diagram_id": diagram_id})
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # Best-effort: proceed to add documents even if the check/cleanup fails.
+            writer(
+                {
+                    "current_status": f"Warning: store check/cleanup failed, continuing: {exc}"
+                }
+            )
+
     # Add metadata directly to each document instead of passing separately
     for doc in context:
         if doc.metadata is None:
             doc.metadata = {}
         doc.metadata["diagram_id"] = diagram_id
+        if file_url:
+            doc.metadata["file_url"] = file_url
 
     await vector_store.aadd_documents(context)
 
@@ -129,11 +159,20 @@ async def retrieve_documents(state: State):
 
     question = get_question_for_retrieval(state)
     diagram_id = state["diagram_id"]
+    file_url = state.get("file_url")
     vector_store = get_vector_store()
 
-    retrieved_docs = await vector_store.asimilarity_search(
-        question, k=5, filter={"diagram_id": diagram_id}
-    )
+    # Prefer filtering by both diagram_id + file_url to avoid mixing old/new file data.
+    # Backward-compatible fallback: if older rows don't have file_url yet, fall back to diagram_id only.
+    filter_dict: dict = {"diagram_id": diagram_id}
+    if file_url:
+        filter_dict["file_url"] = file_url
+
+    retrieved_docs = await vector_store.asimilarity_search(question, k=5, filter=filter_dict)
+    if file_url and len(retrieved_docs) == 0:
+        retrieved_docs = await vector_store.asimilarity_search(
+            question, k=5, filter={"diagram_id": diagram_id}
+        )
     if len(retrieved_docs) == 0:
         # Clear context and return signal for no relevant data
         # This will be handled by grade_documents which checks for empty context

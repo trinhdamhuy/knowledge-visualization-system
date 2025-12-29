@@ -42,6 +42,13 @@ export const useFile = () => {
         return result;
       },
       enabled: enabled && !!diagramId,
+      // File metadata rarely changes without an explicit user action (upload/delete),
+      // so avoid refetches that can indirectly cause viewer reloads.
+      staleTime: Number.POSITIVE_INFINITY,
+      gcTime: 30 * 60 * 1000, // keep in cache for 30m after last observer
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
       select: (data) => {
         // Return the latest file if available
         if (data && data.length > 0) {

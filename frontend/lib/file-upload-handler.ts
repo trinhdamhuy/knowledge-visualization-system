@@ -113,12 +113,12 @@ async function deleteFilesFromS3(fileNames: string[]): Promise<boolean[]> {
 /**
  * Generate a signed URL for reading a file from S3
  * @param fileUrl - The public S3 URL or S3 key
- * @param expiresIn - Expiration time in seconds (default: 1 hour)
+ * @param expiresIn - Expiration time in seconds (default: 1 day)
  * @returns Signed URL or null if failed
  */
 async function getSignedFileUrl(
   fileUrl: string,
-  expiresIn: number = 3600
+  expiresIn: number = 3600 * 24 // 1 day
 ): Promise<string | null> {
   try {
     let s3Key: string;

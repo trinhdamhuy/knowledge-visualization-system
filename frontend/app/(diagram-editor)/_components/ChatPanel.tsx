@@ -9,7 +9,14 @@ import {
   GripVertical,
   Square,
 } from "lucide-react";
-import { useState, useRef, useEffect, useMemo, Activity } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  Activity,
+  useCallback,
+} from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
@@ -92,6 +99,10 @@ export function ChatPanel() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const hasInitialAutoScrolledRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const prevMessagesLenRef = useRef(0);
+  const [needsInitialScroll, setNeedsInitialScroll] = useState(false);
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({
     minHeight: 72,
     maxHeight: 300,
@@ -158,6 +169,11 @@ export function ChatPanel() {
       if (messagesOffset === 0) {
         // First load or reset: replace all messages
         setAllMessages(historyData.messages);
+        // Only auto-scroll to bottom ONCE for the initial fetch of latest messages.
+        if (!hasInitialAutoScrolledRef.current) {
+          hasInitialAutoScrolledRef.current = true;
+          setNeedsInitialScroll(true);
+        }
       } else {
         // Load more: prepend older messages to the beginning
         setAllMessages((prev) => [...historyData.messages!, ...prev]);
@@ -336,80 +352,108 @@ export function ChatPanel() {
 
   const userCache = userQueries.data || {};
 
+  const getScrollViewport = useCallback(() => {
+    const root = messagesContainerRef.current;
+    if (!root) return null;
+    return root.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    ) as HTMLDivElement | null;
+  }, []);
+
   // Function to scroll to bottom
-  const scrollToBottom = (smooth: boolean = true) => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      // Use requestAnimationFrame to ensure DOM is updated
-      requestAnimationFrame(() => {
-        if (smooth) {
-          // Use scrollIntoView for smooth scrolling
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        } else {
-          // Use scrollTop for instant scrolling
-          container.scrollTop = container.scrollHeight;
-        }
-      });
-    }
-  };
-
-  // Scroll to bottom when panel opens
-  useEffect(() => {
-    if (isOpen) {
-      // Delay to ensure panel animation completes and DOM is ready
-      // Use double requestAnimationFrame to ensure layout is complete
-      requestAnimationFrame(() => {
+  const scrollToBottom = useCallback(
+    (smooth: boolean = true) => {
+      const viewport = getScrollViewport();
+      if (viewport) {
+        // Use requestAnimationFrame to ensure DOM is updated
         requestAnimationFrame(() => {
-          setTimeout(() => {
-            scrollToBottom(true); // Smooth scroll when opening
-          }, 150);
+          if (smooth) {
+            // Use scrollIntoView for smooth scrolling
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          } else {
+            // Use scrollTop for instant scrolling
+            viewport.scrollTop = viewport.scrollHeight;
+          }
         });
-      });
-    }
-  }, [isOpen]);
+      }
+    },
+    [getScrollViewport]
+  );
 
-  // Scroll to bottom when messages change
+  // Reset initial scroll flags when switching diagrams
   useEffect(() => {
-    if (isOpen && messages.length > 0) {
-      scrollToBottom(true); // Smooth scroll when messages update
+    hasInitialAutoScrolledRef.current = false;
+    prevMessagesLenRef.current = 0;
+  }, [diagramId]);
+
+  // Scroll to bottom exactly once after the initial fetch (when the panel is open).
+  // If data arrives while closed, this will trigger on the next open.
+  useEffect(() => {
+    if (!needsInitialScroll) return;
+    if (!isOpen) return;
+    setNeedsInitialScroll(false);
+    // Delay to ensure panel animation completes and DOM is ready
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          scrollToBottom(false);
+        }, 0);
+      });
+    });
+  }, [needsInitialScroll, isOpen, scrollToBottom]);
+
+  // Auto-scroll on new messages only if user is already near the bottom.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevLen = prevMessagesLenRef.current;
+    const nextLen = messages.length;
+    prevMessagesLenRef.current = nextLen;
+
+    // Only auto-scroll for appended messages (typical chat flow), not when user paginates older messages.
+    if (nextLen > prevLen && isNearBottomRef.current) {
+      scrollToBottom(true);
     }
-  }, [messages, isOpen]);
+  }, [messages.length, isOpen, scrollToBottom]);
 
   // Scroll to bottom when currentStatus changes (streaming)
   useEffect(() => {
-    if (isOpen && currentStatus) {
+    if (isOpen && currentStatus && isNearBottomRef.current) {
       scrollToBottom(true);
     }
-  }, [currentStatus, isOpen]);
+  }, [currentStatus, isOpen, scrollToBottom]);
 
   // Handle scroll to detect when user is at top
   const [isAtTop, setIsAtTop] = useState(false);
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
+    const viewport = getScrollViewport();
+    if (!viewport) return;
 
     const handleScroll = () => {
-      const isScrolledToTop = container.scrollTop <= 10; // 10px threshold
+      const isScrolledToTop = viewport.scrollTop <= 10; // 10px threshold
       setIsAtTop(isScrolledToTop);
+
+      const distanceFromBottom =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      isNearBottomRef.current = distanceFromBottom <= 24; // px threshold
     };
 
-    container.addEventListener("scroll", handleScroll);
+    viewport.addEventListener("scroll", handleScroll);
     // Check initial state
     handleScroll();
 
     return () => {
-      container.removeEventListener("scroll", handleScroll);
+      viewport.removeEventListener("scroll", handleScroll);
     };
-  }, [isOpen, messages]);
+  }, [getScrollViewport, messages.length]);
 
   // Load more messages
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMoreMessages || !diagramId) return;
 
     setIsLoadingMore(true);
-    const container = messagesContainerRef.current;
-    const previousScrollHeight = container?.scrollHeight || 0;
-    const previousScrollTop = container?.scrollTop || 0;
+    const viewport = getScrollViewport();
+    const previousScrollHeight = viewport?.scrollHeight || 0;
+    const previousScrollTop = viewport?.scrollTop || 0;
 
     // Load next batch
     const nextOffset = messagesOffset + 10;
@@ -417,11 +461,12 @@ export function ChatPanel() {
 
     // Wait for messages to load and then adjust scroll position to maintain view
     setTimeout(() => {
-      if (container) {
-        const newScrollHeight = container.scrollHeight;
+      const viewportNow = getScrollViewport();
+      if (viewportNow) {
+        const newScrollHeight = viewportNow.scrollHeight;
         const scrollDifference = newScrollHeight - previousScrollHeight;
         // Maintain scroll position relative to the new content
-        container.scrollTop = previousScrollTop + scrollDifference;
+        viewportNow.scrollTop = previousScrollTop + scrollDifference;
       }
       setIsLoadingMore(false);
     }, 500);
@@ -520,20 +565,6 @@ export function ChatPanel() {
     // Set chatbot as busy
     setIsBusy(true);
 
-    // If reloading data, clear old data first
-    if (needInitializeData) {
-      try {
-        // Clear vector store
-        await deleteDiagramStore({ diagramId });
-
-        // Clear all nodes and edges in Liveblocks
-        importMindmapData({ nodes: [], edges: [] }, true);
-      } catch (error) {
-        console.error("Failed to clear old data:", error);
-        // Continue anyway - best effort cleanup
-      }
-    }
-
     // Always send mindmap_data if we have nodes
     const mindmapData: MindmapData | null =
       nodes.length > 0
@@ -586,10 +617,13 @@ export function ChatPanel() {
 
     try {
       const result = await deleteChatHistory({ diagramId });
-      if (result) {
+      const storeResult = await deleteDiagramStore({ diagramId });
+      if (result && storeResult) {
         toast.success("Chat history deleted successfully");
+        toast.success("Diagram store deleted successfully");
       } else {
         toast.error("Failed to delete chat history");
+        toast.error("Failed to delete diagram store");
       }
     } catch (error) {
       console.error("Failed to delete chat history:", error);
@@ -1062,8 +1096,6 @@ export function ChatPanel() {
       </CardContent>
     </div>
   );
-
-  if (!isOpen) return null;
 
   // Docked mode: floating card
   if (displayMode === "docked") {
