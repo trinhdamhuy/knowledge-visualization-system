@@ -330,6 +330,14 @@ export function FilePanel() {
                   className="w-full h-full border-0 p-0"
                   onError={handleFileError}
                   title="File Viewer"
+                  // Force remount when navigating to a specific page.
+                  // This makes page jumps reliable across browsers (some ignore hash-only changes on iframes).
+                  // It does NOT remount on open/close (we no longer unmount the panel).
+                  key={
+                    pdfPage && pdfPage > 0
+                      ? `pdf-page-${pdfPage}`
+                      : "pdf-page-0"
+                  }
                 />
               ) : currentFileUrl &&
                 (currentFileType === "txt" || currentFileType === "md") ? (

@@ -903,23 +903,30 @@ export function ChatPanel() {
         {/* Options */}
         <div className="flex items-center gap-4 flex-wrap text-sm">
           {fileUrl && fileName && (
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="reload-data"
-                checked={needInitializeData}
-                onCheckedChange={(checked) =>
-                  setNeedInitializeData(checked === true)
-                }
-                disabled={isBusy || !userId}
-              />
-              <Label
-                htmlFor="reload-data"
-                className="text-sm cursor-pointer flex items-center gap-1.5"
-                title="Reload data from uploaded PDF file"
-              >
-                <RefreshCw className="size-3.5" />
-                Reload data from uploaded PDF file
-              </Label>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="reload-data"
+                  checked={needInitializeData}
+                  onCheckedChange={(checked) =>
+                    setNeedInitializeData(checked === true)
+                  }
+                  disabled={isBusy || !userId}
+                />
+                <Label
+                  htmlFor="reload-data"
+                  className="text-sm cursor-pointer flex items-center gap-1.5"
+                  title="Tip: After uploading a file, turn this on for your first message so the system can load and index the file. You can turn it off after that."
+                >
+                  <RefreshCw className="size-3.5" />
+                  Answer with full context of the uploaded file
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                After uploading a file, turn this on for your first message to
+                load/index the file. You can turn it off for follow-up
+                questions.
+              </p>
             </div>
           )}
           {nodes.length > 0 && (
