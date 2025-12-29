@@ -65,9 +65,9 @@ services:
       BACKEND_URL: http://backend:8000
       # NextAuth base URL (used to build OAuth redirect_uri/callback URLs).
       # In production, set this to your public domain, e.g. https://app.example.com
-      AUTH_URL: ${AUTH_URL:-http://frontend:3000}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
       # Compatibility with tools/configs still expecting NEXTAUTH_URL
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://frontend:3000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useUpdateMyPresence } from "@liveblocks/react";
-import { useFile } from "@/hooks/use-file";
 import { useFileCardStore } from "../../_stores/use-file-card-store";
 
 /**
@@ -14,7 +13,6 @@ import { useFileCardStore } from "../../_stores/use-file-card-store";
  */
 export function useHashNavigation() {
   const updateMyPresence = useUpdateMyPresence();
-  const { fileUrl } = useFile();
   const { openPdfPage } = useFileCardStore();
 
   useEffect(() => {
@@ -47,8 +45,12 @@ export function useHashNavigation() {
           }
         } else if (fragment.startsWith("pdf/")) {
           const pageStr = fragment.substring(4); // Remove "pdf/"
-          const page = parseInt(pageStr, 10);
-          if (page > 0 && fileUrl) {
+          // Accept formats like: pdf/26, pdf/page-26, pdf/page:26
+          const match = pageStr.match(/\d+/);
+          const page = match ? parseInt(match[0], 10) : Number.NaN;
+          // Open the file panel even if fileUrl isn't ready yet; FilePanel will
+          // fetch and populate it. This avoids "PDF ref does nothing" states.
+          if (Number.isFinite(page) && page > 0) {
             openPdfPage(page);
           }
         }
@@ -64,5 +66,5 @@ export function useHashNavigation() {
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
-  }, [updateMyPresence, fileUrl, openPdfPage]);
+  }, [updateMyPresence, openPdfPage]);
 }

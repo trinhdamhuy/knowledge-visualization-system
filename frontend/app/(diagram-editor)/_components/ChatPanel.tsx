@@ -620,7 +620,6 @@ export function ChatPanel() {
       const storeResult = await deleteDiagramStore({ diagramId });
       if (result && storeResult) {
         toast.success("Chat history deleted successfully");
-        toast.success("Diagram store deleted successfully");
       } else {
         toast.error("Failed to delete chat history");
         toast.error("Failed to delete diagram store");
@@ -689,13 +688,45 @@ export function ChatPanel() {
     };
   }, [isResizing, displayMode]);
 
-  // Pre-process content - the new format is already [text](ref:page:X:node:Y)
-  // So we don't need to convert, just ensure it's properly formatted
+  // Pre-process content to support multiple reference link formats.
+  // Preferred format is hash-based: [**Text**](#node/<id>#pdf/<page>) or [**Text**](#pdf/<page>)
+  // We also accept legacy formats like: [Text](ref:page:26:node:node-123) or [Text](#ref/node-123)
   const processRefLinks = (text: string): string => {
-    // The new format from AI is already [text](ref:page:X:node:Y)
-    // We just need to ensure it's properly formatted for ReactMarkdown
-    // No conversion needed - AI now outputs the correct format directly
-    return text;
+    let out = text;
+
+    // Convert legacy "#ref/<nodeId>" to "#node/<nodeId>"
+    out = out.replace(/\(#ref\/([^)#\s]+)\)/g, "(#node/$1)");
+
+    // Convert legacy "ref:" scheme inside markdown links:
+    // - (ref:page:26) -> (#pdf/26)
+    // - (ref:node:node-123) -> (#node/node-123)
+    // - (ref:page:26:node:node-123) / (ref:node:node-123:page:26) -> (#node/node-123#pdf/26)
+    out = out.replace(/\(ref:([^)]*)\)/g, (_m, payload: string) => {
+      const parts = String(payload).split(":").filter(Boolean);
+      let page: number | undefined;
+      let nodeId: string | undefined;
+
+      for (let i = 0; i < parts.length; i += 2) {
+        const key = parts[i];
+        const value = parts[i + 1];
+        if (!key || !value) continue;
+        if (key === "page") {
+          const match = value.match(/\d+/);
+          if (match) page = parseInt(match[0], 10);
+        }
+        if (key === "node") {
+          nodeId = value;
+        }
+      }
+
+      const fragments: string[] = [];
+      if (nodeId) fragments.push(`node/${nodeId}`);
+      if (page && page > 0) fragments.push(`pdf/${page}`);
+      if (fragments.length === 0) return "(#)";
+      return `(#${fragments.join("#")})`;
+    });
+
+    return out;
   };
 
   const renderMessage = (message: BaseMessage, index: number) => {
@@ -777,7 +808,10 @@ export function ChatPanel() {
                         if (fragment.startsWith("node/")) {
                           nodeId = fragment.substring(5); // Remove "node/"
                         } else if (fragment.startsWith("pdf/")) {
-                          page = parseInt(fragment.substring(4), 10); // Remove "pdf/"
+                          // Accept formats like: pdf/26, pdf/page-26, pdf/page:26
+                          const pageRaw = fragment.substring(4); // Remove "pdf/"
+                          const match = pageRaw.match(/\d+/);
+                          if (match) page = parseInt(match[0], 10);
                         }
                       });
 
@@ -970,7 +1004,7 @@ export function ChatPanel() {
               </div>
             )}
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 px-4">
+              <div className="flex flex-col items-center justify-center py-6 px-4">
                 <p className="text-center text-muted-foreground mb-4">
                   No messages yet. Start a conversation!
                 </p>

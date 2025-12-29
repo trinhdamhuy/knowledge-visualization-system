@@ -9,7 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { FileText, Focus } from "lucide-react";
 import { useUpdateMyPresence } from "@liveblocks/react";
-import { useFile } from "@/hooks/use-file";
 import { useFileCardStore } from "../_stores/use-file-card-store";
 
 interface ReferenceLinkProps {
@@ -24,13 +23,12 @@ interface ReferenceLinkProps {
  */
 export function ReferenceLink({ page, nodeId, children }: ReferenceLinkProps) {
   const updateMyPresence = useUpdateMyPresence();
-  const { fileUrl } = useFile();
   const { openPdfPage } = useFileCardStore();
 
   const handleOpenPDF = useCallback(() => {
-    if (!fileUrl || !page) return;
+    if (!page) return;
     openPdfPage(page);
-  }, [fileUrl, page, openPdfPage]);
+  }, [page, openPdfPage]);
 
   const handleFocusNode = useCallback(() => {
     if (!nodeId) return;
