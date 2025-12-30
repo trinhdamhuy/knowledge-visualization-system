@@ -18,6 +18,9 @@ const notoSansJP = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: "Knovion",
   description: "Knowledge Visualization Platform",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default async function RootLayout({
