@@ -73,6 +73,7 @@ services:
       AWS_BUCKET: ${AWS_BUCKET}
       AWS_REGION: ${AWS_REGION}
       LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
 
 networks:
   knovion-network:
