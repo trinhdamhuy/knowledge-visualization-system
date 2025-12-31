@@ -12,6 +12,14 @@ export async function sendVerificationCode(email: string) {
       return { error: "Email is required" };
     }
 
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return { error: "Email already in use" };
+    }
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
@@ -32,7 +40,6 @@ export async function sendVerificationCode(email: string) {
     // Send email
     await resend.emails.send({
       to: email,
-      subject: "Verify your email",
       template: {
         id: "email-verification",
         variables: {
