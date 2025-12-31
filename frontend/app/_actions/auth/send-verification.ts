@@ -1,11 +1,12 @@
 "use server";
 
-import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { getEnv } from "@/lib/get-env";
+import { Resend } from "resend";
 
 export async function sendVerificationCode(email: string) {
+  const { resendApiKey } = getEnv();
+  const resend = new Resend(resendApiKey);
   try {
     if (!email) {
       return { error: "Email is required" };

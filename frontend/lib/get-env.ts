@@ -1,5 +1,6 @@
 type BackendEnv = {
   backendUrl: string;
+  resendApiKey: string;
 };
 
 /**
@@ -11,6 +12,6 @@ type BackendEnv = {
  */
 export function getEnv(): BackendEnv {
   const backendUrl = process.env.BACKEND_URL || "http://backend:8000";
-
-  return { backendUrl };
+  const resendApiKey = process.env.RESEND_API_KEY || "";
+  return { backendUrl, resendApiKey };
 }
