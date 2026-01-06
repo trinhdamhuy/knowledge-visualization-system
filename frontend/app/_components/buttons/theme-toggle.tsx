@@ -24,6 +24,37 @@ export function ThemeToggle({
   size?: ButtonSize;
 }) {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  // Avoid hydration mismatch by only rendering theme-dependent content after mount
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Render a placeholder icon during SSR to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant={variant} size={size} className={className}>
+            <Monitor />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-fit z-999">
+          <DropdownMenuItem onClick={() => setTheme("light")}>
+            <Sun />
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme("dark")}>
+            <Moon />
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTheme("system")}>
+            <Monitor />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 
   return (
     <DropdownMenu>
