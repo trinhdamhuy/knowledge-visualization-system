@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTeamStore } from "@/stores/team-store";
 import { teamKeys, useTeam } from "@/hooks/use-team";
-import { Team } from "@/generated/prisma/client";
+import type { Team } from "@/generated/prisma/client";
 
 export function useActiveTeam() {
   const { currentTeam, setCurrentTeam, setActiveTeam } = useTeamStore();

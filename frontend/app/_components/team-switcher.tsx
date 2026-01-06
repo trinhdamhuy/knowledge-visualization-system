@@ -8,6 +8,7 @@ import {
   FileText,
   GalleryVerticalEnd,
   Plus,
+  Settings,
   Star,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ import Image from "next/image";
 import { useActiveTeam } from "@/hooks/use-active-team";
 import { useTeam } from "@/hooks/use-team";
 import { CreateTeamDialog } from "./dialogs/create-team-dialog";
+import { TeamSettingsDialog } from "./dialogs/team-settings-dialog";
 
 const defaultLogos = [
   AudioWaveform,
@@ -44,6 +46,9 @@ export function TeamSwitcher() {
   const { teams } = useTeam();
   const { activeTeam, setActiveTeam, isLoading } = useActiveTeam();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+  const [settingsTeamId, setSettingsTeamId] = React.useState<string | null>(
+    null
+  );
 
   // Show skeleton when loading initially (no teams yet)
   if (isLoading && !teams.length) {
@@ -142,32 +147,46 @@ export function TeamSwitcher() {
               Teams
             </DropdownMenuLabel>
             {teams.map((team) => (
-              <DropdownMenuItem
-                key={team.id}
-                onClick={() => {
-                  setActiveTeam(team);
-                }}
-                className="gap-2 p-2"
-              >
-                <div className="flex size-6 items-center justify-center rounded-md overflow-auto border">
-                  {team.imageUrl ? (
-                    <Image
-                      src={team.imageUrl}
-                      alt={team.name}
-                      width={24}
-                      height={24}
-                    />
-                  ) : (
-                    <>
-                      {React.createElement(
-                        defaultLogos[team.name.length % defaultLogos.length],
-                        { className: "size-4" }
-                      )}
-                    </>
-                  )}
-                </div>
-                {team.name}
-              </DropdownMenuItem>
+              <React.Fragment key={team.id}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setActiveTeam(team);
+                  }}
+                  className="gap-2 p-2"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-md overflow-auto border">
+                    {team.imageUrl ? (
+                      <Image
+                        src={team.imageUrl}
+                        alt={team.name}
+                        width={24}
+                        height={24}
+                      />
+                    ) : (
+                      <>
+                        {React.createElement(
+                          defaultLogos[team.name.length % defaultLogos.length],
+                          { className: "size-4" }
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {team.name}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSettingsTeamId(team.id);
+                  }}
+                  className="gap-2 p-2 pl-8"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                    <Settings className="size-4" />
+                  </div>
+                  <div className="text-muted-foreground font-medium">
+                    Team Settings
+                  </div>
+                </DropdownMenuItem>
+              </React.Fragment>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -187,6 +206,17 @@ export function TeamSwitcher() {
           open={isCreateDialogOpen}
           onOpenChange={setIsCreateDialogOpen}
         />
+        {settingsTeamId && (
+          <TeamSettingsDialog
+            open={!!settingsTeamId}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSettingsTeamId(null);
+              }
+            }}
+            teamId={settingsTeamId}
+          />
+        )}
       </SidebarMenuItem>
     </SidebarMenu>
   );
