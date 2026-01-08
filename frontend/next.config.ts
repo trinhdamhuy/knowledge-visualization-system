@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: `${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`,
       },
+      {
+        protocol: "https",
+        hostname: `${process.env.UFS_APP_ID}.ufs.sh`,
+        pathname: "/f/*",
+      },
     ],
   },
 };
