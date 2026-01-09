@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAutoResizeTextarea } from "@/hooks/use-auto-resize-textarea";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Bot } from "@/components/animate-ui/icons/bot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,6 @@ export function ChatPanel() {
   const [isResizing, setIsResizing] = useState(false);
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   const hasRestoredFromCacheRef = useRef(false);
-  const streamControllerRef = useRef<AbortController | null>(null);
 
   // Default prompt suggestions (detailed prompts)
   const defaultPrompts = [
@@ -87,11 +86,9 @@ export function ChatPanel() {
   const { needInitializeData, setNeedInitializeData } = useChatSettingsStore();
   const {
     isOpen,
-    currentStatus,
     importDialogOpen,
     pendingMindmapData,
     setIsOpen,
-    setCurrentStatus,
     setImportDialogOpen,
     setPendingMindmapData,
   } = useChatUIStore();
@@ -107,7 +104,7 @@ export function ChatPanel() {
     minHeight: 72,
     maxHeight: 300,
   });
-  const { fileName, fileUrl, useFilesByDiagram } = useFile();
+  const { fileName, fileUrl, signedFileUrl, useFilesByDiagram } = useFile();
 
   // Load file data to get content for prompts
   const { data: latestFile } = useFilesByDiagram(
@@ -415,13 +412,6 @@ export function ChatPanel() {
     }
   }, [messages.length, isOpen, scrollToBottom]);
 
-  // Scroll to bottom when currentStatus changes (streaming)
-  useEffect(() => {
-    if (isOpen && currentStatus && isNearBottomRef.current) {
-      scrollToBottom(true);
-    }
-  }, [currentStatus, isOpen, scrollToBottom]);
-
   // Handle scroll to detect when user is at top
   const [isAtTop, setIsAtTop] = useState(false);
   useEffect(() => {
@@ -479,75 +469,34 @@ export function ChatPanel() {
     }
   };
 
-  const streamChat = async (payload: ChatRequest) => {
-    const controller = new AbortController();
-    streamControllerRef.current = controller;
-
+  const sendChat = async (payload: ChatRequest) => {
     try {
-      const response = await fetch(`/api/chat/stream`, {
+      const response = await fetch(`/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: controller.signal,
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error(`Stream failed: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.statusText}`);
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      // Wait a bit for backend to process and save messages
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() ?? "";
-
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line) continue;
-
-          if (line.startsWith("event: stream_complete")) {
-            setIsBusy(false);
-            setCurrentStatus(null);
-            if (diagramId) {
-              setMessagesOffset(0);
-              queryClient.invalidateQueries({
-                queryKey: chatKeys.history(diagramId, userId),
-              });
-              refetchHistory();
-            }
-            continue;
-          }
-
-          if (line.startsWith("data:")) {
-            const jsonStr = line.slice(5).trim();
-            if (!jsonStr) continue;
-            try {
-              const payloadObj = JSON.parse(jsonStr) as Record<string, unknown>;
-              if ("current_status" in payloadObj) {
-                setCurrentStatus(
-                  payloadObj.current_status as "busy" | "idle" | null
-                );
-              }
-            } catch (err) {
-              console.error("Failed to parse stream chunk", err);
-            }
-          }
-        }
+      setIsBusy(false);
+      if (diagramId) {
+        setMessagesOffset(0);
+        queryClient.invalidateQueries({
+          queryKey: chatKeys.history(diagramId, userId),
+        });
+        refetchHistory();
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
-        console.error("Stream error:", error);
-        toast.error("Failed to stream response");
-        setIsBusy(false);
-      }
-    } finally {
-      streamControllerRef.current = null;
+      console.error("Chat error:", error);
+      toast.error("Failed to send message");
+      setIsBusy(false);
+      throw error;
     }
   };
 
@@ -587,7 +536,7 @@ export function ChatPanel() {
     const payload: ChatRequest = {
       user_id: userId,
       diagram_id: diagramId,
-      file_url: fileUrl || null,
+      file_url: signedFileUrl || fileUrl || null,
       messages: [
         {
           type: "human",
@@ -602,13 +551,10 @@ export function ChatPanel() {
     };
 
     try {
-      await streamChat(payload);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      toast.error("Failed to send message");
+      await sendChat(payload);
+    } catch {
       // revert optimistic message
       setAllMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setIsBusy(false);
     }
   };
 
@@ -632,11 +578,6 @@ export function ChatPanel() {
 
   const handleCancelChat = async () => {
     if (!diagramId) return;
-
-    if (streamControllerRef.current) {
-      streamControllerRef.current.abort();
-      streamControllerRef.current = null;
-    }
 
     try {
       const result = await cancelChatRequest({ diagramId });
@@ -1039,32 +980,36 @@ export function ChatPanel() {
                 )}
               </div>
             ) : (
-              messages.map((msg: BaseMessage, index: number) =>
-                renderMessage(msg, index)
-              )
+              <>
+                {messages.map((msg: BaseMessage, index: number) =>
+                  renderMessage(msg, index)
+                )}
+                <AnimatePresence>
+                  {isBusy && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.16, 1, 0.3, 1],
+                      }}
+                      className="flex gap-3 mb-4"
+                    >
+                      <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <Bot className="size-5 text-primary-foreground" />
+                      </div>
+                      <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm">
+                        <span className="animate-pulse">
+                          Generating response...
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             )}
 
-            <AnimatePresence>
-              {currentStatus && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{
-                    duration: 0.4,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                  className="flex gap-3 mb-4"
-                >
-                  <div className="size-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                    <Bot className="size-5 text-primary-foreground" />
-                  </div>
-                  <div className="w-fit rounded-lg p-3 bg-muted text-muted-foreground text-sm italic relative overflow-hidden">
-                    <span className="animate-pulse">{currentStatus}</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
             <div ref={messagesEndRef} />
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
