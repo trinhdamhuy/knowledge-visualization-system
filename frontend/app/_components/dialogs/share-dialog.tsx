@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Copy, Mail } from "lucide-react";
+import { Copy, Mail, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,8 @@ import {
 import { FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getShareData, saveShareSettings } from "@/app/_actions/diagram";
+import { inviteUserToDiagram } from "@/app/_actions/diagram/share/invite-user";
+import { removeShare } from "@/app/_actions/diagram/share/remove-share";
 import { Permission } from "@/generated/prisma/enums";
 import { useQueryClient } from "@tanstack/react-query";
 import { diagramKeys } from "@/hooks/use-diagram";
@@ -109,7 +111,7 @@ export function ShareDialog({
     toast.success("Link copied to clipboard");
   };
 
-  const handleInviteByEmail = () => {
+  const handleInviteByEmail = async () => {
     if (!canEdit) {
       toast.error("You don't have permission to invite users");
       return;
@@ -125,10 +127,26 @@ export function ShareDialog({
       return;
     }
 
-    // TODO: Implement email invitation
-    toast.info("Email invitation feature coming soon");
-    setEmailInput("");
-    setInvitePermission(Permission.VIEWER);
+    try {
+      const result = await inviteUserToDiagram(
+        diagramId,
+        emailInput.trim(),
+        invitePermission
+      );
+
+      if (result.success) {
+        toast.success("Invitation sent successfully");
+        setEmailInput("");
+        setInvitePermission(Permission.VIEWER);
+        // Reload share data to show new invite
+        loadShareData();
+      } else {
+        toast.error(result.error || "Failed to send invitation");
+      }
+    } catch (error) {
+      console.error("Failed to invite user:", error);
+      toast.error("Failed to send invitation");
+    }
   };
 
   const handleUpdateUserPermission = (
@@ -140,6 +158,31 @@ export function ShareDialog({
         share.userId === userId ? { ...share, permission } : share
       )
     );
+  };
+
+  const handleRemoveShare = async (userId: string) => {
+    if (!canEdit) {
+      toast.error("You don't have permission to remove users");
+      return;
+    }
+
+    try {
+      const result = await removeShare(diagramId, userId);
+
+      if (result.success) {
+        toast.success("User removed successfully");
+        // Remove from local state
+        setUserShares((prev) =>
+          prev.filter((share) => share.userId !== userId)
+        );
+        // Reload share data to ensure consistency
+        loadShareData();
+      } else {
+        toast.error(result.error || "Failed to remove user");
+      }
+    } catch {
+      toast.error("Failed to remove user");
+    }
   };
 
   const handleSave = async () => {
@@ -348,27 +391,41 @@ export function ShareDialog({
                           </p>
                         </div>
                       </div>
-                      <Select
-                        value={share.permission}
-                        onValueChange={(value) =>
-                          handleUpdateUserPermission(
-                            share.userId,
-                            value as Permission
-                          )
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={Permission.VIEWER}>
-                            View
-                          </SelectItem>
-                          <SelectItem value={Permission.EDITOR}>
-                            Edit
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={share.permission}
+                          onValueChange={(value) =>
+                            handleUpdateUserPermission(
+                              share.userId,
+                              value as Permission
+                            )
+                          }
+                          disabled={!canEdit}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={Permission.VIEWER}>
+                              View
+                            </SelectItem>
+                            <SelectItem value={Permission.EDITOR}>
+                              Edit
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {canEdit && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleRemoveShare(share.userId)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

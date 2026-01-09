@@ -168,8 +168,6 @@ cp .env.example .env
 3. Configure environment variables:
 
 ```env
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-
 # NextAuth base URL (critical for Google OAuth redirect_uri)
 # - local dev: http://localhost:3000
 # - production: https://your-domain.com

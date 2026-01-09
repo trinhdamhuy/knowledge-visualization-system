@@ -5,6 +5,7 @@ import { getCurrentUser } from "../user";
 import { getUserByEmail } from "../user/get";
 import { canEditTeam } from "./permission";
 import { Permission } from "@/generated/prisma/client";
+import { sendTeamInvite } from "../auth/send-invite";
 
 /**
  * Invite a user to a team by email
@@ -71,6 +72,20 @@ async function inviteMember(
         userId: invitedUser.id,
         permission: permission,
       },
+    });
+
+    // Send invitation email
+    const roleName =
+      permission === Permission.OWNER
+        ? "Owner"
+        : permission === Permission.EDITOR
+        ? "Editor"
+        : "Viewer";
+
+    await sendTeamInvite(email, {
+      username: invitedUser.name || email,
+      team: team.name,
+      role: roleName,
     });
 
     return { success: true };
