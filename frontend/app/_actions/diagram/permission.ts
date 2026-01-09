@@ -167,10 +167,15 @@ async function checkLiveblocksRoomAccess(diagramId: string): Promise<{
 async function canEditDiagram(diagramId: string): Promise<boolean> {
   const user = await getCurrentUser();
 
-  // If user is authenticated, check database permissions
+  // If user is authenticated, check database permissions first
   if (user && user.id) {
     const role = await getDiagramRole(diagramId);
-    return role === Permission.OWNER || role === Permission.EDITOR;
+    if (role === Permission.OWNER || role === Permission.EDITOR) {
+      return true;
+    }
+    // If no database permission, check if room is public with write access
+    const roomAccess = await checkLiveblocksRoomAccess(diagramId);
+    return roomAccess?.canEdit ?? false;
   }
 
   // If user is not authenticated, check Liveblocks room defaultAccesses
@@ -187,10 +192,15 @@ async function canEditDiagram(diagramId: string): Promise<boolean> {
 async function canViewDiagram(diagramId: string): Promise<boolean> {
   const user = await getCurrentUser();
 
-  // If user is authenticated, check database permissions
+  // If user is authenticated, check database permissions first
   if (user && user.id) {
     const role = await getDiagramRole(diagramId);
-    return role !== null;
+    if (role !== null) {
+      return true;
+    }
+    // If no database permission, check if room is public
+    const roomAccess = await checkLiveblocksRoomAccess(diagramId);
+    return roomAccess?.canView ?? false;
   }
 
   // If user is not authenticated, check Liveblocks room defaultAccesses

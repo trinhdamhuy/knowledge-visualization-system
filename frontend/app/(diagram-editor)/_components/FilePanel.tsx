@@ -174,13 +174,18 @@ export function FilePanel() {
       const savedFile = await uploadAndCreateFile(file, diagramId, diagramId);
       if (savedFile) {
         toast.success("File uploaded successfully");
-        refetchFile();
+        try {
+          await refetchFile();
+        } catch (refetchError) {
+          console.error("Failed to refetch after upload:", refetchError);
+          // Don't show error to user, file is already uploaded
+        }
       } else {
         toast.error("Failed to upload file");
       }
     } catch (error) {
       console.error("Failed to upload file:", error);
-      toast.error("Failed to upload file");
+      toast.error("Failed to upload file. Please try again.");
     }
 
     if (fileInputRef.current) {
@@ -197,11 +202,6 @@ export function FilePanel() {
     }
 
     const fileUrlToDelete = storeFileUrl;
-    setCurrentFileType(null);
-    setFileContent(null);
-    setStoreSignedFileUrl(null);
-    setFileError(null);
-    clearFile();
 
     try {
       console.log("Deleting file:", fileUrlToDelete);
@@ -211,21 +211,48 @@ export function FilePanel() {
 
       console.log("Delete result:", deleted, "Type:", typeof deleted);
 
-      const refetchResult = await refetchFile();
-      const fileAfterDelete = refetchResult.data;
-
+      // Only clear state after successful deletion
       if (deleted === true) {
+        setCurrentFileType(null);
+        setFileContent(null);
+        setStoreSignedFileUrl(null);
+        setFileError(null);
+        clearFile();
         toast.success("File removed successfully");
+
+        // Refetch after clearing state
+        try {
+          await refetchFile();
+        } catch (refetchError) {
+          console.error("Failed to refetch after delete:", refetchError);
+          // Don't show error to user, file is already deleted
+        }
       } else {
-        if (!fileAfterDelete) {
-          toast.success("File removed successfully");
-        } else {
-          console.warn("Delete file returned false but file still exists");
+        // Check if file still exists
+        try {
+          const refetchResult = await refetchFile();
+          const fileAfterDelete = refetchResult.data;
+
+          if (!fileAfterDelete) {
+            // File was deleted but API returned false
+            setCurrentFileType(null);
+            setFileContent(null);
+            setStoreSignedFileUrl(null);
+            setFileError(null);
+            clearFile();
+            toast.success("File removed successfully");
+          } else {
+            console.warn("Delete file returned false but file still exists");
+            toast.error("Failed to remove file");
+          }
+        } catch (refetchError) {
+          console.error("Failed to check file status:", refetchError);
           toast.error("Failed to remove file");
         }
       }
     } catch (error) {
       console.error("Failed to remove file:", error);
+      toast.error("Failed to remove file. Please try again.");
     }
 
     if (fileInputRef.current) {

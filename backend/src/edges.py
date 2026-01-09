@@ -2,6 +2,7 @@
 
 from typing import Literal, Dict
 from pydantic import BaseModel, Field
+from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.documents import Document
@@ -26,23 +27,72 @@ def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
     return non_empty
 
 
+def convert_signed_url_to_public_url(signed_url: str) -> str:
+    """Convert Supabase signed URL to public URL.
+
+    Args:
+        signed_url: Signed URL with query parameters
+                   (e.g., https://...storage.supabase.co/storage/v1/s3/knovion/path/file.pdf?...)
+
+    Returns:
+        Public URL without query parameters
+        (e.g., https://...supabase.co/storage/v1/object/public/knovion/path/file.pdf)
+    """
+    if not signed_url:
+        return ""
+
+    parsed = urlparse(signed_url)
+
+    # Extract domain (thay .storage. bằng .)
+    # Ví dụ: tzkowpupfbfxgcdufhei.storage.supabase.co -> tzkowpupfbfxgcdufhei.supabase.co
+    netloc = parsed.netloc
+    if ".storage.supabase.co" in netloc:
+        netloc = netloc.replace(".storage.supabase.co", ".supabase.co")
+
+    # Extract path và tìm phần sau /s3/knovion/
+    path = parsed.path
+    if "/s3/knovion/" in path:
+        # Lấy phần sau /s3/knovion/
+        knovion_index = path.find("/s3/knovion/")
+        file_path = path[knovion_index + len("/s3/knovion/") :]
+        # Tạo public URL path
+        public_path = f"/storage/v1/object/public/knovion/{file_path}"
+    else:
+        # Nếu không có /s3/knovion/, giữ nguyên path nhưng bỏ query
+        public_path = path
+
+    # Tạo public URL (không có query parameters)
+    public_url = f"{parsed.scheme}://{netloc}{public_path}"
+
+    return public_url
+
+
 async def load_file(state: State):
     """Load a file into documents."""
 
     writer = get_stream_writer()
     writer({"current_status": "Loading file..."})
 
-    file_url = state["file_url"]
-    if file_url.endswith(".txt"):
+    signed_file_url = state["file_url"]
+
+    file_url = convert_signed_url_to_public_url(signed_file_url)
+
+    parsed_url = urlparse(file_url)
+    file_path = parsed_url.path
+    file_extension = file_path.lower().split(".")[-1] if "." in file_path else ""
+
+    if file_extension == "txt":
         loader = TextLoader(file_url)
-    elif file_url.endswith(".pdf"):
+    elif file_extension == "pdf":
         loader = PyPDFLoader(file_url)
     else:
         writer({"current_status": "Can not load file"})
         return {"context": []}
     try:
         documents = await loader.aload()
+
         documents = _filter_non_empty_documents(documents)
+
         if not documents:
             writer(
                 {
@@ -50,8 +100,9 @@ async def load_file(state: State):
                 }
             )
             return {"context": []}
+
         return {"context": documents}
-    except Exception:  # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         writer({"current_status": "Can not load file"})
         return {"context": []}
 
@@ -77,13 +128,16 @@ async def add_documents(state: State):
         writer({"current_status": "No text content found to embed (empty documents)."})
         return {"context": []}
 
+    # Convert signed URL sang public URL để lưu vào database
+    public_file_url = convert_signed_url_to_public_url(file_url) if file_url else None
+
     # Option B:
     # - If reloading and the same file_url already exists in store -> skip embedding.
     # - If reloading and file_url is new -> delete existing docs for diagram_id, then add new docs.
-    if need_initialize_data and file_url:
+    if need_initialize_data and public_file_url:
         try:
             existing_count = await count_by_filter(
-                {"diagram_id": diagram_id, "file_url": file_url}
+                {"diagram_id": diagram_id, "file_name": public_file_url}
             )
             if existing_count > 0:
                 writer(
@@ -108,8 +162,8 @@ async def add_documents(state: State):
         if doc.metadata is None:
             doc.metadata = {}
         doc.metadata["diagram_id"] = diagram_id
-        if file_url:
-            doc.metadata["file_url"] = file_url
+        if public_file_url:
+            doc.metadata["file_url"] = public_file_url
 
     await vector_store.aadd_documents(context)
 
@@ -162,16 +216,19 @@ async def retrieve_documents(state: State):
     file_url = state.get("file_url")
     vector_store = get_vector_store()
 
-    # Prefer filtering by both diagram_id + file_url to avoid mixing old/new file data.
-    # Backward-compatible fallback: if older rows don't have file_url yet, fall back to diagram_id only.
+    # Convert signed URL sang public URL để filter
+    public_file_url = convert_signed_url_to_public_url(file_url) if file_url else None
+
+    # Prefer filtering by both diagram_id + file_name to avoid mixing old/new file data.
+    # Backward-compatible fallback: if older rows don't have file_name yet, fall back to diagram_id only.
     filter_dict: dict = {"diagram_id": diagram_id}
-    if file_url:
-        filter_dict["file_url"] = file_url
+    if public_file_url:
+        filter_dict["file_url"] = public_file_url
 
     retrieved_docs = await vector_store.asimilarity_search(
         question, k=5, filter=filter_dict
     )
-    if file_url and len(retrieved_docs) == 0:
+    if public_file_url and len(retrieved_docs) == 0:
         retrieved_docs = await vector_store.asimilarity_search(
             question, k=5, filter={"diagram_id": diagram_id}
         )

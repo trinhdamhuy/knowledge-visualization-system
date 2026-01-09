@@ -223,9 +223,8 @@ async def chat(
     request: ChatRequest,
 ):
     """
-    Legacy endpoint kept for compatibility; it now runs the flow without broadcasting.
+    Non-streaming chat endpoint that runs the workflow and returns the final result.
     """
-    # Fallback: run the graph once (non-streaming) and ignore chunks
     diagram_id = request.diagram_id
     user_id = request.user_id
     app.state.cancel_flags[diagram_id] = False
@@ -239,6 +238,7 @@ async def chat(
     graph_state = await app.state.graph.aget_state(config)
     state = graph_state.values
 
+    context = state.get("context", [])
     input_dict = State(
         messages=[
             HumanMessage(
@@ -251,20 +251,24 @@ async def chat(
         ],
         diagram_id=diagram_id,
         file_url=request.file_url,
-        context=state.get("context", []),
+        context=context,
         need_initialize_data=request.need_initialize_data,
     )
 
-    async for _ in app.state.graph.astream(
+    await app.state.graph.ainvoke(
         input_dict,
         config=config,
-        stream_mode="custom",
-    ):
-        if app.state.cancel_flags.get(diagram_id, False):
-            break
+    )
+
+    if app.state.cancel_flags.get(diagram_id, False):
+        app.state.cancel_flags[diagram_id] = False
+        return BaseResponse(status=200, message="Chat request cancelled")
 
     app.state.cancel_flags[diagram_id] = False
-    return BaseResponse(status=200, message="Chat request processed (no broadcast)")
+    return BaseResponse(
+        status=200,
+        message="Chat request processed successfully",
+    )
 
 
 async def stream_chat_events(
