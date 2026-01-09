@@ -14,7 +14,13 @@ type SignedURLResponse = Promise<
 
 export async function getS3Client() {
   return new S3Client({
+    forcePathStyle: true,
     region: process.env.AWS_REGION!,
+    endpoint: process.env.AWS_ENDPOINT!,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
   });
 }
 
@@ -72,35 +78,26 @@ async function uploadFileToS3(
 
 async function deleteFileFromS3(fileName: string): Promise<boolean> {
   // Use proper URL parsing instead of string replacement to prevent exploitation
-  let s3Key: string;
-
   try {
+    let s3Key: string;
     if (fileName.startsWith("https://")) {
       const url = new URL(fileName);
-      // Extract the pathname and remove the leading slash
       s3Key = url.pathname.substring(1);
+    } else {
+      s3Key = fileName;
+    }
 
-      // Validate that this is actually an S3 URL from our bucket
-      const expectedHostname = `${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`;
-      if (url.hostname !== expectedHostname) {
-        console.error(
-          `Invalid S3 hostname: ${url.hostname}, expected: ${expectedHostname}`
-        );
-        return false;
-      }
-    } else return false;
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.AWS_BUCKET,
+      Key: s3Key,
+    });
+
+    const result = await (await getS3Client()).send(command);
+    return result.$metadata.httpStatusCode === 204;
   } catch (error) {
     console.error(`Failed to parse S3 URL: ${fileName}`, error);
     return false;
   }
-
-  const command = new DeleteObjectCommand({
-    Bucket: process.env.AWS_BUCKET,
-    Key: s3Key,
-  });
-
-  const result = await (await getS3Client()).send(command);
-  return result.$metadata.httpStatusCode === 204;
 }
 
 async function deleteFilesFromS3(fileNames: string[]): Promise<boolean[]> {
@@ -126,15 +123,6 @@ async function getSignedFileUrl(
     if (fileUrl.startsWith("https://")) {
       const url = new URL(fileUrl);
       s3Key = url.pathname.substring(1);
-
-      // Validate hostname
-      const expectedHostname = `${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`;
-      if (url.hostname !== expectedHostname) {
-        console.error(
-          `Invalid S3 hostname: ${url.hostname}, expected: ${expectedHostname}`
-        );
-        return null;
-      }
     } else {
       s3Key = fileUrl;
     }
