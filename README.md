@@ -179,12 +179,22 @@ AUTH_SECRET=your_auth_secret
 AUTH_GOOGLE_ID=your_google_oauth_client_id
 AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
 
+DISABLE_ERD=true
+
 DATABASE_URL=postgresql://user:password@localhost:5432/knowledge_viz
 
-AWS_BUCKET=your_s3_bucket_name
-AWS_REGION=your_aws_region
+AWS_ENDPOINT=
+AWS_BUCKET=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
 
-DISABLE_ERD=true
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=
+
+LIVEBLOCKS_SECRET_KEY=
+
+RESEND_API_KEY=
 ```
 
 #### Google OAuth Redirect URI (important)

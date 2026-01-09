@@ -45,6 +45,7 @@ export function useUploadFile(): UseUploadFileResult {
     const fileUrl = (await presignRes.json()) as {
       url: string;
       publicUrl: string;
+      token?: string;
       key?: string;
     };
 
@@ -63,12 +64,10 @@ export function useUploadFile(): UseUploadFileResult {
     }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", fileUrl.url, true);
-      xhr.setRequestHeader(
-        "Content-Type",
-        file.type && file.type.trim().length > 0
-          ? file.type
-          : "application/octet-stream"
-      );
+
+      // Supabase signed upload expects a multipart/form-data body
+      // (same shape as `uploadToSignedUrl` in `@supabase/storage-js`)
+      xhr.setRequestHeader("x-upsert", "false");
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -90,7 +89,10 @@ export function useUploadFile(): UseUploadFileResult {
         reject(new Error("Network error during file upload"));
       };
 
-      xhr.send(file);
+      const form = new FormData();
+      form.append("cacheControl", "3600");
+      form.append("", file);
+      xhr.send(form);
     });
 
     if (!response.ok) {

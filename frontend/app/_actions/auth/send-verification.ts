@@ -5,7 +5,7 @@ import { getEnv } from "@/lib/get-env";
 import { Resend } from "resend";
 
 export async function sendVerificationCode(email: string) {
-  const { resendApiKey } = getEnv();
+  const resendApiKey = getEnv("RESEND_API_KEY");
   const resend = new Resend(resendApiKey);
   try {
     if (!email) {

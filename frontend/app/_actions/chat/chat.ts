@@ -22,7 +22,7 @@ async function sendChatRequest(request: ChatRequest): Promise<boolean> {
     return false;
   }
 
-  const { backendUrl: BACKEND_URL } = getEnv();
+  const BACKEND_URL = getEnv("BACKEND_URL");
 
   try {
     const response = await fetch(`${BACKEND_URL}/api/chat`, {
@@ -58,7 +58,7 @@ async function cancelChatRequest(diagramId: string): Promise<boolean> {
     return false;
   }
 
-  const { backendUrl: BACKEND_URL } = getEnv();
+  const BACKEND_URL = getEnv("BACKEND_URL");
 
   try {
     const response = await fetch(`${BACKEND_URL}/api/chat/cancel`, {
