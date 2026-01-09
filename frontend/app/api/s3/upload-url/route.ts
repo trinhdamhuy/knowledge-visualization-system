@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getS3Client } from "@/lib/file-upload-handler";
 import { auth } from "@/auth";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getEnv } from "@/lib/get-env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,22 +31,20 @@ function generateFileName(fileName: string) {
     : `${sanitizedBaseName}_${timestamp}`;
 }
 
-function sanitizeFolder(folder: string) {
-  return folder
-    .replace(/\\/g, "/")
-    .split("/")
-    .filter((part) => part.length > 0 && part !== "." && part !== "..")
-    .map((part) => part.replace(/[^a-zA-Z0-9._-]/g, "_").substring(0, 100))
-    .join("/");
-}
-
 export async function POST(request: Request) {
   const authData = await auth();
   if (!authData?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const bucketName = getEnv("AWS_BUCKET");
+    const bucket = process.env.AWS_BUCKET;
+    const region = process.env.AWS_REGION;
+    if (!bucket || !region) {
+      return NextResponse.json(
+        { error: "Missing AWS_BUCKET or AWS_REGION" },
+        { status: 500 }
+      );
+    }
 
     const body = (await request.json()) as {
       fileName?: string;
@@ -62,32 +61,24 @@ export async function POST(request: Request) {
     }
 
     const safeName = generateFileName(originalName);
-    const rawFolder = body.folder?.trim();
-    const folder = rawFolder ? sanitizeFolder(rawFolder) : undefined;
+    const folder = body.folder?.trim();
     const key = folder ? `${folder}/${safeName}` : safeName;
+    const contentType =
+      body.fileType && body.fileType.trim().length > 0
+        ? body.fileType
+        : "application/octet-stream";
 
-    const { data, error } = await getSupabaseAdmin()
-      .storage.from(bucketName)
-      .createSignedUploadUrl(key);
-
-    if (error) {
-      console.error("Failed to create signed upload URL", error);
-      return NextResponse.json(
-        { error: "Failed to create signed upload URL" },
-        { status: 500 }
-      );
-    }
-
-    const publicUrl = getSupabaseAdmin()
-      .storage.from(bucketName)
-      .getPublicUrl(data.path).data.publicUrl;
-
-    return NextResponse.json({
-      url: data.signedUrl,
-      token: data.token,
-      publicUrl,
-      key: data.path,
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: contentType,
     });
+
+    const url = await getSignedUrl(await getS3Client(), command, {
+      expiresIn: 3600,
+    });
+
+    return NextResponse.json({ url, key });
   } catch (err) {
     console.error("Failed to create upload URL", err);
     return NextResponse.json(

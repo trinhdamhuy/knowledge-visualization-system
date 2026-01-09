@@ -42,16 +42,7 @@ export function useUploadFile(): UseUploadFileResult {
       };
     }
 
-    const fileUrl = (await presignRes.json()) as {
-      url: string;
-      publicUrl: string;
-      token?: string;
-      key?: string;
-    };
-
-    if (!fileUrl?.url || !fileUrl?.publicUrl) {
-      return { success: false, error: "Invalid upload URL response" };
-    }
+    const fileUrl = (await presignRes.json()) as { url: string; key: string };
 
     // Use XMLHttpRequest to track upload progress
     setUploadProgress(0);
@@ -65,9 +56,12 @@ export function useUploadFile(): UseUploadFileResult {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", fileUrl.url, true);
 
-      // Supabase signed upload expects a multipart/form-data body
-      // (same shape as `uploadToSignedUrl` in `@supabase/storage-js`)
-      xhr.setRequestHeader("x-upsert", "false");
+      // S3 presigned PUT URLs expect the file as raw body with Content-Type header
+      // Set Content-Type to match the file's MIME type
+      xhr.setRequestHeader(
+        "Content-Type",
+        file.type || "application/octet-stream"
+      );
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -89,10 +83,9 @@ export function useUploadFile(): UseUploadFileResult {
         reject(new Error("Network error during file upload"));
       };
 
-      const form = new FormData();
-      form.append("cacheControl", "3600");
-      form.append("", file);
-      xhr.send(form);
+      // Send file directly as body (not FormData)
+      // S3 presigned PUT URLs expect raw file data
+      xhr.send(file);
     });
 
     if (!response.ok) {
@@ -129,7 +122,7 @@ export function useUploadFile(): UseUploadFileResult {
     // Ensure progress bar reaches 100% on success
     setUploadProgress(100);
 
-    return { success: true, data: fileUrl.publicUrl };
+    return { success: true, data: fileUrl.key };
   }
 
   const uploadFileHandler = async (

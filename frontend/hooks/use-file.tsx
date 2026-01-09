@@ -71,11 +71,9 @@ export const useFile = () => {
     },
     onSuccess: (data, variables) => {
       if (data) {
-        // Invalidate files query
         queryClient.invalidateQueries({
           queryKey: fileKeys.byDiagram(variables.diagramId),
         });
-        // Update file store
         setFile(data.fileName, data.fileUrl);
       }
     },
@@ -88,14 +86,14 @@ export const useFile = () => {
     },
     onSuccess: (data) => {
       if (data) {
-        // Invalidate files query for all diagrams (since we don't have diagramId here)
         queryClient.invalidateQueries({
           queryKey: fileKeys.all,
         });
-        // Clear file store
-        clearFile();
-        reset();
       }
+      clearFile();
+    },
+    onError: () => {
+      clearFile();
     },
   });
 
@@ -105,13 +103,11 @@ export const useFile = () => {
     diagramId: string,
     folder?: string
   ): Promise<PrismaFile | null> => {
-    // Upload to S3
     const uploadedUrl = await uploadFileHandler(file, folder);
     if (!uploadedUrl) {
       return null;
     }
 
-    // Get file extension
     const fileExtension = file.name.split(".").pop()?.toLowerCase() || "";
     let fileType = "txt";
     if (fileExtension === "pdf") {
@@ -122,7 +118,6 @@ export const useFile = () => {
       fileType = "txt";
     }
 
-    // Create file record in database
     const result = await createFileMutation.mutateAsync({
       diagramId,
       fileName: file.name,
@@ -140,6 +135,7 @@ export const useFile = () => {
     setFile,
     clearFile,
     uploadProgress,
+    reset,
 
     // Queries
     useFilesByDiagram,
