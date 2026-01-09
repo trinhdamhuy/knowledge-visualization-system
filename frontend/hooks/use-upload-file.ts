@@ -42,15 +42,7 @@ export function useUploadFile(): UseUploadFileResult {
       };
     }
 
-    const fileUrl = (await presignRes.json()) as {
-      url: string;
-      publicUrl: string;
-      key?: string;
-    };
-
-    if (!fileUrl?.url || !fileUrl?.publicUrl) {
-      return { success: false, error: "Invalid upload URL response" };
-    }
+    const fileUrl = (await presignRes.json()) as { url: string; key: string };
 
     // Use XMLHttpRequest to track upload progress
     setUploadProgress(0);
@@ -63,11 +55,12 @@ export function useUploadFile(): UseUploadFileResult {
     }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", fileUrl.url, true);
+
+      // S3 presigned PUT URLs expect the file as raw body with Content-Type header
+      // Set Content-Type to match the file's MIME type
       xhr.setRequestHeader(
         "Content-Type",
-        file.type && file.type.trim().length > 0
-          ? file.type
-          : "application/octet-stream"
+        file.type || "application/octet-stream"
       );
 
       xhr.upload.onprogress = (event) => {
@@ -90,6 +83,8 @@ export function useUploadFile(): UseUploadFileResult {
         reject(new Error("Network error during file upload"));
       };
 
+      // Send file directly as body (not FormData)
+      // S3 presigned PUT URLs expect raw file data
       xhr.send(file);
     });
 
@@ -127,7 +122,7 @@ export function useUploadFile(): UseUploadFileResult {
     // Ensure progress bar reaches 100% on success
     setUploadProgress(100);
 
-    return { success: true, data: fileUrl.publicUrl };
+    return { success: true, data: fileUrl.key };
   }
 
   const uploadFileHandler = async (

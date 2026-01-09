@@ -77,11 +77,8 @@ export async function POST(request: Request) {
     const url = await getSignedUrl(await getS3Client(), command, {
       expiresIn: 3600,
     });
-    const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${encodeURI(
-      key
-    )}`;
 
-    return NextResponse.json({ url, publicUrl, key });
+    return NextResponse.json({ url, key });
   } catch (err) {
     console.error("Failed to create upload URL", err);
     return NextResponse.json(

@@ -35,6 +35,11 @@ async function deleteFileByUrl(fileUrl: string): Promise<boolean> {
       return false;
     }
 
+    // Delete file
+    await prisma.file.delete({
+      where: { id: file.id },
+    });
+
     // Delete from S3
     const deleted = await deleteFileFromS3(fileUrl);
     if (!deleted) {
@@ -42,18 +47,7 @@ async function deleteFileByUrl(fileUrl: string): Promise<boolean> {
     }
 
     // Clear chatbot vector store for this diagram to avoid stale context
-    const storeDeleted = await deleteDiagramStore(file.diagram.id);
-    if (!storeDeleted || storeDeleted.status !== 200) {
-      console.error(
-        `Failed to delete diagram store for diagram ${file.diagram.id} when deleting file by URL ${fileUrl}`
-      );
-      return false;
-    }
-
-    // Delete file
-    await prisma.file.delete({
-      where: { id: file.id },
-    });
+    await deleteDiagramStore(file.diagram.id);
 
     return true;
   } catch (error) {

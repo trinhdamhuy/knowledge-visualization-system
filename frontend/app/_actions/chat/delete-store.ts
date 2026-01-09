@@ -18,7 +18,7 @@ async function deleteDiagramStore(
     return null;
   }
 
-  const { backendUrl: BACKEND_URL } = getEnv();
+  const BACKEND_URL = getEnv("BACKEND_URL");
 
   try {
     const requestBody: DeleteRequest = {

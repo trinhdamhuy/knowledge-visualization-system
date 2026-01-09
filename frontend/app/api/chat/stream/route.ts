@@ -6,12 +6,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const { backendUrl } = getEnv();
+  const BACKEND_URL = getEnv("BACKEND_URL");
   const authData = await auth();
   if (!authData?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const upstream = await fetch(`${backendUrl}/api/chat/stream`, {
+  const upstream = await fetch(`${BACKEND_URL}/api/chat/stream`, {
     method: "POST",
     headers: {
       "Content-Type": request.headers.get("content-type") ?? "application/json",

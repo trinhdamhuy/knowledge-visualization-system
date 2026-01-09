@@ -6,9 +6,9 @@ const withNextIntl = createNextIntlPlugin("./languages/i18n/request.ts");
 const nextConfig: NextConfig = {
   experimental: {
     viewTransition: true,
-    proxyClientMaxBodySize: "50mb",
+    proxyClientMaxBodySize: "20mb",
     serverActions: {
-      bodySizeLimit: "50mb",
+      bodySizeLimit: "20mb",
     },
   },
   images: {
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: `${process.env.AWS_BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com`,
+        hostname: process.env.AWS_ENDPOINT!,
       },
     ],
   },

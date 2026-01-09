@@ -40,15 +40,13 @@ export function FilePanel() {
     fileName,
     fileUrl: storeFileUrl,
     setFile,
+    clearFile,
     useFilesByDiagram,
     uploadAndCreateFile,
     deleteFileByUrlMutation,
     uploadProgress,
+    reset,
   } = useFile();
-
-  // storeFileUrl isn't directly used in this component's render path, but keeping the
-  // destructuring for parity with other panels can be handy. Avoid unused var lint.
-  void storeFileUrl;
 
   // Load file from database
   const { data: latestFile, refetch: refetchFile } = useFilesByDiagram(
@@ -90,29 +88,54 @@ export function FilePanel() {
   // Sync file from query to store - support PDF, TXT, MD
   useEffect(() => {
     if (latestFile && ["pdf", "txt", "md"].includes(latestFile.fileType)) {
-      setFile(latestFile.fileName, latestFile.fileUrl);
-      setCurrentFileUrl(latestFile.fileUrl);
-      setCurrentFileType(latestFile.fileType as "pdf" | "txt" | "md");
-      setHasRetriedSignedUrl(false);
+      if (
+        currentFileUrl !== latestFile.fileUrl ||
+        currentFileType !== latestFile.fileType
+      ) {
+        if (
+          fileName !== latestFile.fileName ||
+          storeFileUrl !== latestFile.fileUrl
+        ) {
+          setFile(latestFile.fileName, latestFile.fileUrl);
+        }
+        setCurrentFileUrl(latestFile.fileUrl);
+        setCurrentFileType(latestFile.fileType as "pdf" | "txt" | "md");
+        setHasRetriedSignedUrl(false);
 
-      refreshSignedUrl(
-        latestFile.fileUrl,
-        latestFile.fileType as "pdf" | "txt" | "md"
-      ).catch((err) => {
-        console.error("Failed to load file:", err);
-        setFileError("Failed to load file content");
-        setFileContent(null);
-        setSignedFileUrl(null);
-      });
+        refreshSignedUrl(
+          latestFile.fileUrl,
+          latestFile.fileType as "pdf" | "txt" | "md"
+        )
+          .then(() => {
+            reset();
+          })
+          .catch((err) => {
+            console.error("Failed to load file:", err);
+            setFileError("Failed to load file content");
+            setFileContent(null);
+            setSignedFileUrl(null);
+          });
+      }
     } else {
-      setCurrentFileUrl(null);
-      setSignedFileUrl(null);
-      setCurrentFileType(null);
-      setFileContent(null);
-      setFileError(null);
-      setHasRetriedSignedUrl(false);
+      if (currentFileUrl !== null || currentFileType !== null) {
+        setCurrentFileUrl(null);
+        setSignedFileUrl(null);
+        setCurrentFileType(null);
+        setFileContent(null);
+        setFileError(null);
+        setHasRetriedSignedUrl(false);
+      }
     }
-  }, [latestFile, refreshSignedUrl, setFile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    latestFile,
+    currentFileUrl,
+    currentFileType,
+    refreshSignedUrl,
+    reset,
+    fileName,
+    storeFileUrl,
+  ]);
 
   const handleFileError = async () => {
     // Common case: signed URL expired. Try to refresh once before surfacing error.
@@ -179,23 +202,37 @@ export function FilePanel() {
       return;
     }
 
+    const fileUrlToDelete = currentFileUrl;
+    setCurrentFileUrl(null);
+    setCurrentFileType(null);
+    setFileContent(null);
+    setSignedFileUrl(null);
+    setFileError(null);
+    clearFile();
+
     try {
+      console.log("Deleting file:", fileUrlToDelete);
       const deleted = await deleteFileByUrlMutation.mutateAsync({
-        fileUrl: currentFileUrl,
+        fileUrl: fileUrlToDelete,
       });
-      if (deleted) {
+
+      console.log("Delete result:", deleted, "Type:", typeof deleted);
+
+      const refetchResult = await refetchFile();
+      const fileAfterDelete = refetchResult.data;
+
+      if (deleted === true) {
         toast.success("File removed successfully");
-        setCurrentFileUrl(null);
-        setCurrentFileType(null);
-        setFileContent(null);
-        setFileError(null);
-        refetchFile();
       } else {
-        toast.error("Failed to remove file");
+        if (!fileAfterDelete) {
+          toast.success("File removed successfully");
+        } else {
+          console.warn("Delete file returned false but file still exists");
+          toast.error("Failed to remove file");
+        }
       }
     } catch (error) {
       console.error("Failed to remove file:", error);
-      toast.error("Failed to remove file");
     }
 
     if (fileInputRef.current) {
