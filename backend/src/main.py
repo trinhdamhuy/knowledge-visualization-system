@@ -325,7 +325,7 @@ async def stream_chat_events(
                 payload = chunk if isinstance(chunk, dict) else {"chunk": str(chunk)}
                 data = json.dumps(payload, ensure_ascii=False)
                 yield f"data: {data}\n\n"
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Avoid hard-closing the SSE connection (frontend sees "failed to pipe response")
             error_payload = {
                 "error": str(e),

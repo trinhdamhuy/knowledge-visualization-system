@@ -1,15 +1,15 @@
 name: knovion
 
 services:
-  cloudflare-tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflare-tunnel
-    command: tunnel run
-    restart: unless-stopped
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    networks:
-      - knovion-network
+  # cloudflare-tunnel:
+  #   image: cloudflare/cloudflared:latest
+  #   container_name: cloudflare-tunnel
+  #   command: tunnel run
+  #   restart: unless-stopped
+  #   environment:
+  #     TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+  #   networks:
+  #     - knovion-network
 
   pgvector:
     image: pgvector/pgvector:pg16
@@ -22,8 +22,6 @@ services:
       - pgvector:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT}:5432"
-    depends_on:
-      - cloudflare-tunnel
     restart: unless-stopped
     networks:
       - knovion-network
@@ -39,12 +37,14 @@ services:
       dockerfile: Dockerfile
     container_name: knovion-chatbot-api
     environment:
-      FRONTEND_URL: http://frontend:3000
+      FRONTEND_URL: http://localhost:3000
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_DB: ${POSTGRES_DB}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
     extra_hosts:
       - "${POSTGRES_HOST}:host-gateway"

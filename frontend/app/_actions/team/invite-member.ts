@@ -83,8 +83,8 @@ async function inviteMember(
         : "Viewer";
 
     await sendTeamInvite(email, {
-      username: invitedUser.name || email,
-      team: team.name,
+      username: user.name || user.email || "",
+      team: team.name || user.name + "'s Team",
       role: roleName,
     });
 

@@ -82,7 +82,10 @@ async function deleteFileFromS3(fileName: string): Promise<boolean> {
     let s3Key: string;
     if (fileName.startsWith("https://")) {
       const url = new URL(fileName);
-      s3Key = url.pathname.substring(1);
+      const pathParts = url.pathname.split("/").filter(Boolean); // Split and remove empty elements
+
+      // Take the last 2 elements (from the second from the bottom to the end)
+      s3Key = pathParts.slice(-2).join("/");
     } else {
       s3Key = fileName;
     }
@@ -95,7 +98,19 @@ async function deleteFileFromS3(fileName: string): Promise<boolean> {
     const result = await (await getS3Client()).send(command);
     return result.$metadata.httpStatusCode === 204;
   } catch (error) {
-    console.error(`Failed to parse S3 URL: ${fileName}`, error);
+    // Log but don't throw - S3 deletion is best-effort
+    // The file might already be deleted or not exist
+    if (
+      error &&
+      typeof error === "object" &&
+      "Code" in error &&
+      error.Code === "NoSuchKey"
+    ) {
+      // File already deleted or doesn't exist - consider this success
+      console.warn(`File already deleted from S3: ${fileName}`);
+      return true;
+    }
+    console.error(`Failed to delete from S3: ${fileName}`, error);
     return false;
   }
 }
@@ -122,7 +137,14 @@ async function getSignedFileUrl(
 
     if (fileUrl.startsWith("https://")) {
       const url = new URL(fileUrl);
-      s3Key = url.pathname.substring(1);
+      const pathParts = url.pathname.split("/").filter(Boolean); // Split and remove empty elements
+
+      // Take the last 2 elements (from the second from the bottom to the end)
+      if (pathParts.length >= 2) {
+        s3Key = pathParts.slice(-2).join("/");
+      } else {
+        s3Key = pathParts[pathParts.length - 1] || "";
+      }
     } else {
       s3Key = fileUrl;
     }

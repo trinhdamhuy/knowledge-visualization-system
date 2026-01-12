@@ -18,6 +18,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { getSignedFileUrl } from "@/lib/file-upload-handler";
+import { useFileStore } from "@/stores/file-store";
 
 export function FilePanel() {
   const params = useParams();
@@ -33,14 +34,16 @@ export function FilePanel() {
   const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   const [hasRetriedSignedUrl, setHasRetriedSignedUrl] = useState(false);
-
+  const isProcessingRef = useRef(false);
   const {
     fileName,
     fileUrl: storeFileUrl,
     signedFileUrl,
+    setSignedFileUrl,
     setFile,
-    setSignedFileUrl: setStoreSignedFileUrl,
     clearFile,
+  } = useFileStore();
+  const {
     useFilesByDiagram,
     uploadAndCreateFile,
     deleteFileByUrlMutation,
@@ -64,7 +67,7 @@ export function FilePanel() {
       if (!signedUrl) {
         throw new Error("Failed to generate signed URL");
       }
-      setStoreSignedFileUrl(signedUrl);
+      setSignedFileUrl(signedUrl);
 
       if (fileType === "txt" || fileType === "md") {
         const res = await fetch(signedUrl);
@@ -80,16 +83,23 @@ export function FilePanel() {
       setFileError(null);
       return signedUrl;
     },
-    [setStoreSignedFileUrl]
+    [setSignedFileUrl]
   );
 
   // Sync file from query to store - support PDF, TXT, MD
   useEffect(() => {
+    // Prevent concurrent runs
+    if (isProcessingRef.current) {
+      return;
+    }
+
     if (latestFile && ["pdf", "txt", "md"].includes(latestFile.fileType)) {
       if (
         storeFileUrl !== latestFile.fileUrl ||
         currentFileType !== latestFile.fileType
       ) {
+        isProcessingRef.current = true;
+
         if (
           fileName !== latestFile.fileName ||
           storeFileUrl !== latestFile.fileUrl
@@ -105,24 +115,37 @@ export function FilePanel() {
         )
           .then(() => {
             reset();
+            isProcessingRef.current = false;
           })
           .catch((err) => {
             console.error("Failed to load file:", err);
             setFileError("Failed to load file content");
             setFileContent(null);
-            setStoreSignedFileUrl(null);
+            setSignedFileUrl(null);
+            isProcessingRef.current = false;
           });
+      } else {
+        // File is already synced, ensure processing flag is reset
+        isProcessingRef.current = false;
       }
     } else {
+      // No file or unsupported file type - clear state
       if (storeFileUrl !== null || currentFileType !== null) {
-        setStoreSignedFileUrl(null);
+        isProcessingRef.current = true;
+        clearFile();
         setCurrentFileType(null);
         setFileContent(null);
         setFileError(null);
         setHasRetriedSignedUrl(false);
+        // Reset flag after clearing - use requestAnimationFrame to ensure state updates are processed
+        requestAnimationFrame(() => {
+          isProcessingRef.current = false;
+        });
+      } else {
+        // Already cleared, ensure processing flag is reset
+        isProcessingRef.current = false;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     latestFile,
     currentFileType,
@@ -130,6 +153,9 @@ export function FilePanel() {
     reset,
     fileName,
     storeFileUrl,
+    setFile,
+    setSignedFileUrl,
+    clearFile,
   ]);
 
   const handleFileError = async () => {
@@ -144,7 +170,7 @@ export function FilePanel() {
     }
 
     setFileError("Failed to load file. The file link may have expired.");
-    setStoreSignedFileUrl(null);
+    setSignedFileUrl(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +204,6 @@ export function FilePanel() {
           await refetchFile();
         } catch (refetchError) {
           console.error("Failed to refetch after upload:", refetchError);
-          // Don't show error to user, file is already uploaded
         }
       } else {
         toast.error("Failed to upload file");
@@ -215,20 +240,16 @@ export function FilePanel() {
       if (deleted === true) {
         setCurrentFileType(null);
         setFileContent(null);
-        setStoreSignedFileUrl(null);
+        setSignedFileUrl(null);
         setFileError(null);
         clearFile();
         toast.success("File removed successfully");
-
-        // Refetch after clearing state
         try {
           await refetchFile();
         } catch (refetchError) {
           console.error("Failed to refetch after delete:", refetchError);
-          // Don't show error to user, file is already deleted
         }
       } else {
-        // Check if file still exists
         try {
           const refetchResult = await refetchFile();
           const fileAfterDelete = refetchResult.data;
@@ -237,7 +258,7 @@ export function FilePanel() {
             // File was deleted but API returned false
             setCurrentFileType(null);
             setFileContent(null);
-            setStoreSignedFileUrl(null);
+            setSignedFileUrl(null);
             setFileError(null);
             clearFile();
             toast.success("File removed successfully");
@@ -377,7 +398,7 @@ export function FilePanel() {
                     </Button>
                   </div>
                 </div>
-              ) : signedFileUrl && currentFileType === "pdf" ? (
+              ) : signedFileUrl !== null && currentFileType === "pdf" ? (
                 <iframe
                   src={
                     pdfPage && pdfPage > 0
