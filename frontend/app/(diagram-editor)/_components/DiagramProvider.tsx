@@ -38,12 +38,24 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
       nodeIds: [],
       edgeIds: [],
     };
-    // Only copy nodes, not edges
+    // Copy nodes and edges
     if (selection.nodeIds.length === 0) {
       return;
     }
-    copySelected(selection.nodeIds, []); // Don't copy edges
-  }, [currentUser, copySelected]);
+    // Calculate edges that connect selected nodes (where both source and target are selected)
+    const connectedEdgeIds = edges
+      .filter(
+        (edge) =>
+          selection.nodeIds.includes(edge.source) &&
+          selection.nodeIds.includes(edge.target)
+      )
+      .map((edge) => edge.id);
+    // Combine with explicitly selected edges
+    const allEdgeIds = Array.from(
+      new Set([...connectedEdgeIds, ...selection.edgeIds])
+    );
+    copySelected(selection.nodeIds, allEdgeIds);
+  }, [currentUser, copySelected, edges]);
 
   // Handle cut
   const handleCut = useCallback(() => {
@@ -51,16 +63,28 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
       nodeIds: [],
       edgeIds: [],
     };
-    // Only cut nodes, not edges
+    // Cut nodes and edges
     if (selection.nodeIds.length === 0) {
       return;
     }
 
-    // First, copy nodes to clipboard
-    copySelected(selection.nodeIds, []); // Don't copy edges
-
-    // Also delete edges connected to deleted nodes
+    // Calculate edges that connect selected nodes (where both source and target are selected)
     const connectedEdgeIds = edges
+      .filter(
+        (edge) =>
+          selection.nodeIds.includes(edge.source) &&
+          selection.nodeIds.includes(edge.target)
+      )
+      .map((edge) => edge.id);
+    // Combine with explicitly selected edges
+    const allEdgeIds = Array.from(
+      new Set([...connectedEdgeIds, ...selection.edgeIds])
+    );
+    // First, copy nodes and edges to clipboard
+    copySelected(selection.nodeIds, allEdgeIds);
+
+    // Also delete edges connected to deleted nodes (where either source or target is selected)
+    const edgesToDelete = edges
       .filter(
         (edge) =>
           selection.nodeIds.includes(edge.source) ||
@@ -69,10 +93,10 @@ export function DiagramProvider({ children }: DiagramProviderProps) {
       .map((edge) => edge.id);
 
     // Delete nodes and edges in a single operation (creates only one undo entry)
-    if (selection.nodeIds.length > 0 || connectedEdgeIds.length > 0) {
+    if (selection.nodeIds.length > 0 || edgesToDelete.length > 0) {
       deleteNodesAndEdges({
         nodeIds: selection.nodeIds,
-        edgeIds: connectedEdgeIds,
+        edgeIds: edgesToDelete,
       });
     }
 

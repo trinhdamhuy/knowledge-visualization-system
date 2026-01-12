@@ -1,5 +1,7 @@
 """Edges for the chatbot workflow."""
 
+import os
+import tempfile
 from typing import Literal, Dict
 from pydantic import BaseModel, Field
 
@@ -11,6 +13,7 @@ from langgraph.config import get_stream_writer
 from src.schemas.states import State
 from src.models.chat_model import model
 from src.models.vector_store import get_vector_store, delete_by_filter, count_by_filter
+from src.models.s3_client import get_s3_client
 
 
 def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
@@ -27,22 +30,64 @@ def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
 
 
 async def load_file(state: State):
-    """Load a file into documents."""
+    """Load a file into documents.
 
+    Downloads file from Supabase storage, processes it locally, then deletes the temporary file.
+    """
     writer = get_stream_writer()
-    writer({"current_status": "Loading file..."})
 
     file_url = state["file_url"]
-    if file_url.endswith(".txt"):
-        loader = TextLoader(file_url)
-    elif file_url.endswith(".pdf"):
-        loader = PyPDFLoader(file_url)
-    else:
+
+    if not file_url:
+        writer({"current_status": "File URL not provided"})
+        return {"context": []}
+
+    # Determine file type
+    if not (file_url.endswith(".txt") or file_url.endswith(".pdf")):
         writer({"current_status": "Can not load file"})
         return {"context": []}
+
+    # Get the key (file_url is the key like "folder/name.ext")
+    key = file_url
+
+    # Create temporary file
+    temp_file = None
     try:
+        # Get file extension to create temp file with correct extension
+        file_ext = os.path.splitext(key)[1] or ".tmp"
+
+        # Create temporary file
+        temp_fd, temp_file = tempfile.mkstemp(suffix=file_ext)
+        os.close(temp_fd)  # Close file descriptor, we'll use the path
+
+        writer({"current_status": "Downloading file from storage..."})
+
+        # Download file from Supabase storage
+        supabase = get_s3_client()
+        response = supabase.storage.from_("knovion").download(key)
+
+        if response is None:
+            writer({"current_status": "Failed to download file from storage"})
+            return {"context": []}
+
+        # Write downloaded content to temporary file
+        with open(temp_file, "wb+") as f:
+            f.write(response)
+
+        writer({"current_status": "Processing file..."})
+
+        # Load file from local path
+        if file_url.endswith(".txt"):
+            loader = TextLoader(temp_file)
+        elif file_url.endswith(".pdf"):
+            loader = PyPDFLoader(temp_file)
+        else:
+            writer({"current_status": "Can not load file"})
+            return {"context": []}
+
         documents = await loader.aload()
         documents = _filter_non_empty_documents(documents)
+
         if not documents:
             writer(
                 {
@@ -50,10 +95,20 @@ async def load_file(state: State):
                 }
             )
             return {"context": []}
+
         return {"context": documents}
-    except Exception:  # pylint: disable=broad-exception-caught
-        writer({"current_status": "Can not load file"})
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        writer({"current_status": f"Can not load file: {str(e)}"})
         return {"context": []}
+    finally:
+        # Clean up: delete temporary file
+        if temp_file and os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception:  # pylint: disable=broad-exception-caught
+                # Best effort cleanup - log but don't fail
+                pass
 
 
 async def add_documents(state: State):

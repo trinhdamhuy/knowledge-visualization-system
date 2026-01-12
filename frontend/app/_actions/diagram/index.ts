@@ -9,4 +9,6 @@ export * from "./copy";
 export * from "./paste";
 export { getShareData } from "./share/get-share-data";
 export { saveShareSettings } from "./share/save-share-settings";
+export { inviteUserToDiagram } from "./share/invite-user";
+export { removeShare } from "./share/remove-share";
 export { getSharedDiagrams } from "./shared";

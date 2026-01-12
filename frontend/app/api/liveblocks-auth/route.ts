@@ -99,17 +99,78 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // User is authenticated - proceed with normal permission check
+    // User is authenticated - check room defaultAccesses first, then database permission
     const userId = authSession.user.id!;
     const userName = authSession.user.name ?? "Anonymous";
     const userImage = authSession.user.image ?? "";
 
-    // Check user's permission for this diagram (room)
-    // Room is private by default - only owner has access unless explicitly shared
+    // First, check if room is public (has defaultAccesses)
+    let roomInfo;
+    try {
+      roomInfo = await liveblocks.getRoom(room);
+    } catch (error) {
+      console.error("Error getting room info:", error);
+      roomInfo = undefined;
+    }
+
+    const hasDefaultAccesses =
+      roomInfo?.defaultAccesses && roomInfo.defaultAccesses.length > 0;
+    const defaultAccesses =
+      hasDefaultAccesses && roomInfo
+        ? Array.isArray(roomInfo.defaultAccesses)
+          ? roomInfo.defaultAccesses
+          : []
+        : [];
+
+    // Check user's permission for this diagram (room) from database
     const userRole = await getDiagramRole(room);
 
-    if (!userRole) {
-      // User has no permission to access this room
+    // If user has database permission, use that (higher priority)
+    if (userRole) {
+      // User has permission from database - proceed with normal flow
+    } else if (hasDefaultAccesses) {
+      // User has no database permission, but room is public - use defaultAccesses
+      // This allows authenticated users to access public rooms
+      const hasWrite = defaultAccesses.some(
+        (perm: string) => perm === "room:write"
+      );
+      const hasRead = defaultAccesses.some(
+        (perm: string) => perm === "room:read"
+      );
+
+      if (hasWrite) {
+        // Edit access from defaultAccesses
+        const liveblocksSession = liveblocks.prepareSession(userId, {
+          userInfo: {
+            name: userName,
+            avatar: userImage,
+          },
+        });
+        liveblocksSession.allow(room, liveblocksSession.FULL_ACCESS);
+        const { status, body } = await liveblocksSession.authorize();
+        return new Response(body, { status });
+      } else if (hasRead) {
+        // View access from defaultAccesses
+        const liveblocksSession = liveblocks.prepareSession(userId, {
+          userInfo: {
+            name: userName,
+            avatar: userImage,
+          },
+        });
+        liveblocksSession.allow(room, liveblocksSession.READ_ACCESS);
+        const { status, body } = await liveblocksSession.authorize();
+        return new Response(body, { status });
+      } else {
+        // No access even though defaultAccesses exists
+        return NextResponse.json(
+          {
+            error: "Forbidden: You don't have permission to access this room",
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // User has no permission to access this room (neither database nor public)
       return NextResponse.json(
         { error: "Forbidden: You don't have permission to access this room" },
         { status: 403 }
