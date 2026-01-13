@@ -11,10 +11,11 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
 
 from src.schemas.states import State
-from src.models.chat_model import model
 from src.models.vector_store import get_vector_store, delete_by_filter, count_by_filter
 from src.models.s3_client import get_s3_client
+from src.models.chat_model import get_chat_model
 
+model = get_chat_model()
 
 def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
     """Remove documents with empty/whitespace-only content.

@@ -2,6 +2,9 @@ FROM node:20
 
 WORKDIR /app
 
+ARG AWS_ENDPOINT
+ENV AWS_ENDPOINT=${AWS_ENDPOINT}
+
 # Copy package files
 COPY package*.json ./
 
@@ -12,7 +15,7 @@ RUN npm i --legacy-peer-deps
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npx prisma generate && npm run build
 
 # Expose port
 EXPOSE 3000

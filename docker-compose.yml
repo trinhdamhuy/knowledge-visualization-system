@@ -13,7 +13,7 @@ services:
 
   pgvector:
     image: pgvector/pgvector:pg16
-    container_name: knovion-chat-store
+    container_name: knovion-vector-store
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -32,10 +32,10 @@ services:
       retries: 5
 
   backend:
+    container_name: knovion-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: knovion-chatbot-api
     environment:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -45,7 +45,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
     extra_hosts:
       - "${POSTGRES_HOST}:host-gateway"
     ports:
@@ -78,12 +78,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    volumes:
+      - database:/var/lib/postgresql
 
   frontend:
+    container_name: knovion-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: knovion-frontend
+      args:
+        AWS_ENDPOINT: ${AWS_ENDPOINT}
     ports:
       - "3000:3000"
     depends_on:
@@ -99,8 +103,7 @@ services:
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
       DISABLE_ERD: ${DISABLE_ERD}
-      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@database:${DATABASE_PORT}/${DATABASE_NAME}
-      AWS_ENDPOINT: ${AWS_ENDPOINT}
+      DATABASE_URL: postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@database:${DATABASE_PORT}/${DATABASE_NAME}
       AWS_BUCKET: ${AWS_BUCKET}
       AWS_REGION: ${AWS_REGION}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
@@ -116,7 +119,7 @@ networks:
 
 volumes:
   pgvector:
-    name: knovion-chat-store
+    name: knovion-vector-store
     external: true
   database:
     name: knovion-database
