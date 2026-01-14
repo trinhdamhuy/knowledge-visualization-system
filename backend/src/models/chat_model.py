@@ -1,22 +1,23 @@
 """Chat model configuration for the chatbot."""
 
 import os
-import getpass
-from dotenv import load_dotenv
 
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
 load_dotenv()
 
-if not os.environ.get("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter your OpenAI API key: ")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY environment variable not set")
 
-_model = ChatOpenAI(
-    model="gpt-5-nano",
-    temperature=0.5,
+_chat_model = ChatGoogleGenerativeAI(
+    api_key=GOOGLE_API_KEY,
+    model="gemini-2.5-flash-lite",
+    temperature=0.3,
 )
 
 
-def get_chat_model() -> ChatOpenAI:
+def get_chat_model() -> ChatGoogleGenerativeAI:
     """Get the chat model."""
-    return _model
+    return _chat_model

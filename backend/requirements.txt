@@ -5,9 +5,8 @@ langchain-text-splitters
 langchain-postgres
 langchain-core
 langchain-community
-langchain-openai
-langchain-huggingface
-sentence_transformers
+langchain-google-genai
+langchain-ollama
 pypdf
 langgraph
 langgraph-checkpoint-postgres

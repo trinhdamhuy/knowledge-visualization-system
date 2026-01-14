@@ -10,12 +10,14 @@ from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
 
+from src.models.text_splitter import get_text_splitter
 from src.schemas.states import State
 from src.models.vector_store import get_vector_store, delete_by_filter, count_by_filter
 from src.models.s3_client import get_s3_client
 from src.models.chat_model import get_chat_model
 
 model = get_chat_model()
+
 
 def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
     """Remove documents with empty/whitespace-only content.
@@ -97,7 +99,14 @@ async def load_file(state: State):
             )
             return {"context": []}
 
-        return {"context": documents}
+        writer({"current_status": "Splitting documents into chunks..."})
+        text_splitter = get_text_splitter()
+        split_documents = []
+        for doc in documents:
+            chunks = text_splitter.split_documents([doc])
+            split_documents.extend(chunks)
+
+        return {"context": split_documents}
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         writer({"current_status": f"Can not load file: {str(e)}"})
@@ -265,7 +274,6 @@ async def grade_documents(
 
     # Check if no documents were retrieved
     if not context_docs or len(context_docs) == 0:
-        # Clear context to ensure generate_answer uses NO_RELEVANT_DATA_PROMPT
         return "no_relevant_data"
 
     # Find the original user message to check rewrite count
@@ -276,13 +284,11 @@ async def grade_documents(
             break
 
     # Prevent infinite loop: limit to 1 rewrite attempt
-    # Check if rewritten_question already exists in additional_kwargs
     if (
         original_message
         and original_message.additional_kwargs
         and "rewritten_question" in original_message.additional_kwargs
     ):
-        # Already rewritten once, force generate_answer
         return "no_relevant_data"
 
     context = "\n".join([doc.page_content for doc in context_docs])

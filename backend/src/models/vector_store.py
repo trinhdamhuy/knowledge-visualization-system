@@ -90,7 +90,7 @@ async def initialize_table():
     # Only create the table if it does not exist yet
     await pg_engine.ainit_vectorstore_table(
         table_name=TABLE_NAME,
-        vector_size=3072,
+        vector_size=1024,
         metadata_columns=[Column("diagram_id", "TEXT"), Column("file_url", "TEXT")],
     )
 

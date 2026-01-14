@@ -128,7 +128,7 @@ async def lifespan(fastapi_app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(lifespan=lifespan, title="Chatbot API", description="API for the chatbot")
 
-# Add CORS middleware (allow all origins for development)
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],
@@ -342,7 +342,7 @@ async def stream_chat_events(
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    Stream chat response per-request (no Liveblocks broadcast).
+    Stream chat response per-request.
     """
     event_generator = await stream_chat_events(request, app.state)
     return StreamingResponse(event_generator, media_type="text/event-stream")

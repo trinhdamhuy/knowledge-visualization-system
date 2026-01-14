@@ -1,12 +1,16 @@
 """Embeddings configuration for the chatbot."""
 
-from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+import os
+from langchain_ollama import OllamaEmbeddings
 
-_embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-mpnet-base-v2"
-)
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
+if not OLLAMA_BASE_URL:
+    raise ValueError("OLLAMA_BASE_URL environment variable not set")
 
 
-def get_embeddings() -> HuggingFaceEmbeddings:
+def get_embeddings() -> OllamaEmbeddings:
     """Get the embeddings model."""
-    return _embeddings
+    return OllamaEmbeddings(
+        model="mxbai-embed-large",
+        base_url=OLLAMA_BASE_URL,
+    )
