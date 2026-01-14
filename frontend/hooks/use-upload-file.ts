@@ -42,7 +42,7 @@ export function useUploadFile(): UseUploadFileResult {
       };
     }
 
-    const fileUrl = (await presignRes.json()) as { url: string; key: string };
+    const { url, key } = await presignRes.json();
 
     // Use XMLHttpRequest to track upload progress
     setUploadProgress(0);
@@ -54,7 +54,7 @@ export function useUploadFile(): UseUploadFileResult {
       responseText: string;
     }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("PUT", fileUrl.url, true);
+      xhr.open("PUT", url, true);
 
       // S3 presigned PUT URLs expect the file as raw body with Content-Type header
       // Set Content-Type to match the file's MIME type
@@ -102,7 +102,7 @@ export function useUploadFile(): UseUploadFileResult {
       console.error("File Name:", file.name);
       console.error("File Size:", file.size);
       console.error("File Type:", file.type);
-      console.error("Signed URL:", fileUrl.url);
+      console.error("Signed URL:", url);
 
       // Note: Response headers are not available via XHR in a simple way here
 
@@ -122,7 +122,7 @@ export function useUploadFile(): UseUploadFileResult {
     // Ensure progress bar reaches 100% on success
     setUploadProgress(100);
 
-    return { success: true, data: fileUrl.key };
+    return { success: true, data: key };
   }
 
   const uploadFileHandler = async (

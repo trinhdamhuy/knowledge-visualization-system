@@ -622,7 +622,6 @@ export function ChatPanel() {
         toast.success("Chat history deleted successfully");
       } else {
         toast.error("Failed to delete chat history");
-        toast.error("Failed to delete diagram store");
       }
     } catch (error) {
       console.error("Failed to delete chat history:", error);

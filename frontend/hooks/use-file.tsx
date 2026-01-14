@@ -30,7 +30,14 @@ interface DeleteFileByUrlParams {
 
 export const useFile = () => {
   const queryClient = useQueryClient();
-  const { fileName, fileUrl, setFile, clearFile } = useFileStore();
+  const {
+    fileName,
+    fileUrl,
+    signedFileUrl,
+    setFile,
+    setSignedFileUrl,
+    clearFile,
+  } = useFileStore();
   const { uploadFileHandler, uploadProgress, reset } = useUploadFile();
 
   // Query: Get files by diagram ID
@@ -132,7 +139,9 @@ export const useFile = () => {
     // State
     fileName,
     fileUrl,
+    signedFileUrl,
     setFile,
+    setSignedFileUrl,
     clearFile,
     uploadProgress,
     reset,

@@ -18,6 +18,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { getSignedFileUrl } from "@/lib/file-upload-handler";
+import { useFileStore } from "@/stores/file-store";
 
 export function FilePanel() {
   const params = useParams();
@@ -26,8 +27,6 @@ export function FilePanel() {
   const { displayMode } = useChatPanelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [currentFileUrl, setCurrentFileUrl] = useState<string | null>(null);
-  const [signedFileUrl, setSignedFileUrl] = useState<string | null>(null);
   const [currentFileType, setCurrentFileType] = useState<
     "pdf" | "txt" | "md" | null
   >(null);
@@ -35,12 +34,16 @@ export function FilePanel() {
   const [width, setWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   const [hasRetriedSignedUrl, setHasRetriedSignedUrl] = useState(false);
-
+  const isProcessingRef = useRef(false);
   const {
     fileName,
     fileUrl: storeFileUrl,
+    signedFileUrl,
+    setSignedFileUrl,
     setFile,
     clearFile,
+  } = useFileStore();
+  const {
     useFilesByDiagram,
     uploadAndCreateFile,
     deleteFileByUrlMutation,
@@ -60,14 +63,12 @@ export function FilePanel() {
 
   const refreshSignedUrl = useCallback(
     async (fileUrl: string, fileType: "pdf" | "txt" | "md") => {
-      // Keep signed URL TTL at 1 day (project policy); we still refresh on iframe error when it expires.
       const signedUrl = await getSignedFileUrl(fileUrl, 3600 * 24);
       if (!signedUrl) {
         throw new Error("Failed to generate signed URL");
       }
       setSignedFileUrl(signedUrl);
 
-      // Load text content for TXT and MD files
       if (fileType === "txt" || fileType === "md") {
         const res = await fetch(signedUrl);
         if (!res.ok) {
@@ -82,23 +83,29 @@ export function FilePanel() {
       setFileError(null);
       return signedUrl;
     },
-    []
+    [setSignedFileUrl]
   );
 
   // Sync file from query to store - support PDF, TXT, MD
   useEffect(() => {
+    // Prevent concurrent runs
+    if (isProcessingRef.current) {
+      return;
+    }
+
     if (latestFile && ["pdf", "txt", "md"].includes(latestFile.fileType)) {
       if (
-        currentFileUrl !== latestFile.fileUrl ||
+        storeFileUrl !== latestFile.fileUrl ||
         currentFileType !== latestFile.fileType
       ) {
+        isProcessingRef.current = true;
+
         if (
           fileName !== latestFile.fileName ||
           storeFileUrl !== latestFile.fileUrl
         ) {
           setFile(latestFile.fileName, latestFile.fileUrl);
         }
-        setCurrentFileUrl(latestFile.fileUrl);
         setCurrentFileType(latestFile.fileType as "pdf" | "txt" | "md");
         setHasRetriedSignedUrl(false);
 
@@ -108,41 +115,54 @@ export function FilePanel() {
         )
           .then(() => {
             reset();
+            isProcessingRef.current = false;
           })
           .catch((err) => {
             console.error("Failed to load file:", err);
             setFileError("Failed to load file content");
             setFileContent(null);
             setSignedFileUrl(null);
+            isProcessingRef.current = false;
           });
+      } else {
+        // File is already synced, ensure processing flag is reset
+        isProcessingRef.current = false;
       }
     } else {
-      if (currentFileUrl !== null || currentFileType !== null) {
-        setCurrentFileUrl(null);
-        setSignedFileUrl(null);
+      // No file or unsupported file type - clear state
+      if (storeFileUrl !== null || currentFileType !== null) {
+        isProcessingRef.current = true;
+        clearFile();
         setCurrentFileType(null);
         setFileContent(null);
         setFileError(null);
         setHasRetriedSignedUrl(false);
+        // Reset flag after clearing - use requestAnimationFrame to ensure state updates are processed
+        requestAnimationFrame(() => {
+          isProcessingRef.current = false;
+        });
+      } else {
+        // Already cleared, ensure processing flag is reset
+        isProcessingRef.current = false;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     latestFile,
-    currentFileUrl,
     currentFileType,
     refreshSignedUrl,
     reset,
     fileName,
     storeFileUrl,
+    setFile,
+    setSignedFileUrl,
+    clearFile,
   ]);
 
   const handleFileError = async () => {
-    // Common case: signed URL expired. Try to refresh once before surfacing error.
-    if (currentFileUrl && currentFileType && !hasRetriedSignedUrl) {
+    if (storeFileUrl && currentFileType && !hasRetriedSignedUrl) {
       try {
         setHasRetriedSignedUrl(true);
-        await refreshSignedUrl(currentFileUrl, currentFileType);
+        await refreshSignedUrl(storeFileUrl, currentFileType);
         return;
       } catch (err) {
         console.error("Failed to refresh signed URL:", err);
@@ -180,13 +200,17 @@ export function FilePanel() {
       const savedFile = await uploadAndCreateFile(file, diagramId, diagramId);
       if (savedFile) {
         toast.success("File uploaded successfully");
-        refetchFile();
+        try {
+          await refetchFile();
+        } catch (refetchError) {
+          console.error("Failed to refetch after upload:", refetchError);
+        }
       } else {
         toast.error("Failed to upload file");
       }
     } catch (error) {
       console.error("Failed to upload file:", error);
-      toast.error("Failed to upload file");
+      toast.error("Failed to upload file. Please try again.");
     }
 
     if (fileInputRef.current) {
@@ -195,20 +219,14 @@ export function FilePanel() {
   };
 
   const handleRemoveFile = async () => {
-    if (!currentFileUrl || !diagramId || !canEdit) {
+    if (!storeFileUrl || !diagramId || !canEdit) {
       if (!canEdit) {
         toast.error("You don't have permission to delete files");
       }
       return;
     }
 
-    const fileUrlToDelete = currentFileUrl;
-    setCurrentFileUrl(null);
-    setCurrentFileType(null);
-    setFileContent(null);
-    setSignedFileUrl(null);
-    setFileError(null);
-    clearFile();
+    const fileUrlToDelete = storeFileUrl;
 
     try {
       console.log("Deleting file:", fileUrlToDelete);
@@ -218,21 +236,44 @@ export function FilePanel() {
 
       console.log("Delete result:", deleted, "Type:", typeof deleted);
 
-      const refetchResult = await refetchFile();
-      const fileAfterDelete = refetchResult.data;
-
+      // Only clear state after successful deletion
       if (deleted === true) {
+        setCurrentFileType(null);
+        setFileContent(null);
+        setSignedFileUrl(null);
+        setFileError(null);
+        clearFile();
         toast.success("File removed successfully");
+        try {
+          await refetchFile();
+        } catch (refetchError) {
+          console.error("Failed to refetch after delete:", refetchError);
+        }
       } else {
-        if (!fileAfterDelete) {
-          toast.success("File removed successfully");
-        } else {
-          console.warn("Delete file returned false but file still exists");
+        try {
+          const refetchResult = await refetchFile();
+          const fileAfterDelete = refetchResult.data;
+
+          if (!fileAfterDelete) {
+            // File was deleted but API returned false
+            setCurrentFileType(null);
+            setFileContent(null);
+            setSignedFileUrl(null);
+            setFileError(null);
+            clearFile();
+            toast.success("File removed successfully");
+          } else {
+            console.warn("Delete file returned false but file still exists");
+            toast.error("Failed to remove file");
+          }
+        } catch (refetchError) {
+          console.error("Failed to check file status:", refetchError);
           toast.error("Failed to remove file");
         }
       }
     } catch (error) {
       console.error("Failed to remove file:", error);
+      toast.error("Failed to remove file. Please try again.");
     }
 
     if (fileInputRef.current) {
@@ -289,7 +330,7 @@ export function FilePanel() {
       </CardHeader>
       <CardContent className="relative flex-1 flex flex-col gap-3 min-h-0 overflow-hidden p-0">
         {/* Overlay when file error occurs (e.g., signed URL expired) */}
-        {fileError && currentFileUrl && (
+        {fileError && storeFileUrl && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3 p-6 bg-card border rounded-lg shadow-lg max-w-sm text-center">
               <FileText className="size-8 mx-auto mb-1 opacity-70" />
@@ -312,7 +353,7 @@ export function FilePanel() {
             </div>
           </div>
         )}
-        {currentFileUrl && fileName ? (
+        {storeFileUrl && fileName ? (
           <>
             <div className="shrink-0 flex items-center gap-2">
               <Badge
@@ -357,7 +398,7 @@ export function FilePanel() {
                     </Button>
                   </div>
                 </div>
-              ) : signedFileUrl && currentFileType === "pdf" ? (
+              ) : signedFileUrl !== null && currentFileType === "pdf" ? (
                 <iframe
                   src={
                     pdfPage && pdfPage > 0
@@ -376,7 +417,7 @@ export function FilePanel() {
                       : "pdf-page-0"
                   }
                 />
-              ) : currentFileUrl &&
+              ) : storeFileUrl &&
                 (currentFileType === "txt" || currentFileType === "md") ? (
                 <div className="h-full overflow-auto p-4">
                   {fileContent !== null ? (
@@ -415,7 +456,7 @@ export function FilePanel() {
               onChange={handleFileChange}
               disabled={deleteFileByUrlMutation.isPending || !canEdit}
             />
-            {uploadProgress > 0 && (!currentFileUrl || !signedFileUrl) ? (
+            {uploadProgress > 0 && (!storeFileUrl || !signedFileUrl) ? (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-6">
                 <p className="text-xs text-muted-foreground">
                   Uploading file... {uploadProgress}%

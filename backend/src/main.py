@@ -27,9 +27,7 @@ from src.schemas import (
 )
 from src.edges import (
     add_documents,
-    grade_documents,
     load_file,
-    rewrite_question,
     generate_answer,
     retrieve_documents,
     route_workflow,
@@ -85,8 +83,6 @@ async def lifespan(fastapi_app: FastAPI):
         workflow.add_node("load_file", load_file)
         workflow.add_node("add_documents", add_documents)
         workflow.add_node("retrieve_documents", retrieve_documents)
-        workflow.add_node("grade_documents", grade_documents)
-        workflow.add_node("rewrite_question", rewrite_question)
         workflow.add_node("generate_answer", generate_answer)
 
         # Route from START based on need_initialize_data
@@ -99,21 +95,12 @@ async def lifespan(fastapi_app: FastAPI):
             },
         )
 
-        # Reload flow: load_file -> add_documents -> retrieve_documents
+        # Reload flow: load_file -> add_documents -> retrieve_documents -> generate_answer
         workflow.add_edge("load_file", "add_documents")
         workflow.add_edge("add_documents", "retrieve_documents")
 
-        # Chat flow: retrieve_documents -> grade_documents -> (rewrite_question -> retrieve_documents)? -> generate_answer -> END
-        workflow.add_conditional_edges(
-            "retrieve_documents",
-            grade_documents,
-            {
-                "generate_answer": "generate_answer",
-                "rewrite_question": "rewrite_question",
-                "no_relevant_data": "generate_answer",
-            },
-        )
-        workflow.add_edge("rewrite_question", "retrieve_documents")
+        # Chat flow: retrieve_documents -> generate_answer -> END
+        workflow.add_edge("retrieve_documents", "generate_answer")
         workflow.add_edge("generate_answer", END)
 
         fastapi_app.state.graph = workflow.compile(
@@ -128,7 +115,7 @@ async def lifespan(fastapi_app: FastAPI):
 # Initialize FastAPI app
 app = FastAPI(lifespan=lifespan, title="Chatbot API", description="API for the chatbot")
 
-# Add CORS middleware (allow all origins for development)
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],
@@ -223,9 +210,8 @@ async def chat(
     request: ChatRequest,
 ):
     """
-    Legacy endpoint kept for compatibility; it now runs the flow without broadcasting.
+    Non-streaming chat endpoint that runs the workflow and returns the final result.
     """
-    # Fallback: run the graph once (non-streaming) and ignore chunks
     diagram_id = request.diagram_id
     user_id = request.user_id
     app.state.cancel_flags[diagram_id] = False
@@ -239,6 +225,7 @@ async def chat(
     graph_state = await app.state.graph.aget_state(config)
     state = graph_state.values
 
+    context = state.get("context", [])
     input_dict = State(
         messages=[
             HumanMessage(
@@ -251,20 +238,24 @@ async def chat(
         ],
         diagram_id=diagram_id,
         file_url=request.file_url,
-        context=state.get("context", []),
+        context=context,
         need_initialize_data=request.need_initialize_data,
     )
 
-    async for _ in app.state.graph.astream(
+    await app.state.graph.ainvoke(
         input_dict,
         config=config,
-        stream_mode="custom",
-    ):
-        if app.state.cancel_flags.get(diagram_id, False):
-            break
+    )
+
+    if app.state.cancel_flags.get(diagram_id, False):
+        app.state.cancel_flags[diagram_id] = False
+        return BaseResponse(status=200, message="Chat request cancelled")
 
     app.state.cancel_flags[diagram_id] = False
-    return BaseResponse(status=200, message="Chat request processed (no broadcast)")
+    return BaseResponse(
+        status=200,
+        message="Chat request processed successfully",
+    )
 
 
 async def stream_chat_events(
@@ -321,7 +312,7 @@ async def stream_chat_events(
                 payload = chunk if isinstance(chunk, dict) else {"chunk": str(chunk)}
                 data = json.dumps(payload, ensure_ascii=False)
                 yield f"data: {data}\n\n"
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Avoid hard-closing the SSE connection (frontend sees "failed to pipe response")
             error_payload = {
                 "error": str(e),
@@ -338,7 +329,7 @@ async def stream_chat_events(
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    Stream chat response per-request (no Liveblocks broadcast).
+    Stream chat response per-request.
     """
     event_generator = await stream_chat_events(request, app.state)
     return StreamingResponse(event_generator, media_type="text/event-stream")

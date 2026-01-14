@@ -1,35 +1,39 @@
-# Knowledge Visualization System
+## Knowledge Visualization System
 
 A full-stack application that enables users to create, visualize, and interact with knowledge diagrams through AI-powered chat assistance. The system combines a FastAPI backend for intelligent document processing with a Next.js frontend for collaborative diagram editing.
 
-## 📋 Overview
+### 📋 Overview
 
 This project provides a collaborative platform for knowledge management and visualization through interactive diagrams. Users can upload documents, chat with an AI assistant to extract insights, and create visual representations of complex information using mind maps and flowcharts.
 
-## 🏗️ Architecture
+### 🏗️ High‑Level Architecture
 
-The project is organized into two main directories:
+The project is organized into two main directories plus a root‑level Docker Compose setup:
 
-### `backend/`
+- **`backend/`**: FastAPI + LangChain/LangGraph service for AI chat, retrieval and document processing
+- **`frontend/`**: Next.js app for diagram editing, collaboration, authentication and file management
+- **`docker-compose.yml`** (root): Orchestrates all services (backend, frontend, pgvector, main database, Ollama, Cloudflare tunnel)
+
+#### `backend/`
 
 The backend API handles AI-powered chat functionality and document processing. Built with FastAPI and LangChain, it provides:
 
 - **AI Chat Engine**: RAG (Retrieval-Augmented Generation) pipeline for context-aware responses
 - **Document Processing**: PDF and text file parsing with intelligent chunking
 - **Vector Storage**: PGVector-based semantic search for document retrieval
-- **Workflow Management**: LangGraph-powered conversational workflows
-- **Real-time Streaming**: Server-sent events for live chat responses
+- **Workflow Management**: LangGraph-powered conversational workflows with PostgreSQL checkpointing
+- **Non‑streaming Chat API**: `/api/chat`, `/api/chat-history`, and deletion endpoints for history & vector store
 
-### `frontend/`
+#### `frontend/`
 
 The web application provides the user interface for diagram creation and collaboration. Built with Next.js and React, it offers:
 
-- **Diagram Editor**: Interactive canvas for creating mind maps and flowcharts using React Flow
+- **Diagram Editor**: Interactive canvas for creating mind maps and flowcharts using React Flow (`@xyflow/react`)
 - **Real-time Collaboration**: Multi-user editing with Liveblocks
 - **Authentication**: Secure user management with NextAuth.js (Google OAuth)
-- **File Management**: AWS S3 integration for document storage
+- **File Management**: AWS S3-compatible storage (frontend) and Supabase Storage (backend) for document upload & retrieval
 - **Team Workspaces**: Organize diagrams in folders and teams with permission controls
-- **Internationalization**: Multi-language support (English, Japanese)
+- **Internationalization**: Multi-language support (English, Japanese, Vietnamese)
 
 ## ✨ Key Features
 
@@ -39,23 +43,24 @@ The web application provides the user interface for diagram creation and collabo
 - **Visual Diagrams**: Create mind maps and flowcharts from AI-generated insights
 - **Real-time Collaboration**: Multiple users can edit diagrams simultaneously
 - **Team Management**: Share diagrams and folders with granular permissions (Owner, Editor, Viewer)
-- **Cloud Storage**: Secure document storage with AWS S3
+- **Cloud Storage**: Secure document storage with AWS S3 (frontend) and Supabase Storage (backend)
 - **Responsive Design**: Modern UI with dark mode support
-- **Multilingual**: Interface available in multiple languages
+- **Multilingual**: Interface available in multiple languages (EN/JA/VI)
 
 ## 🛠️ Tech Stack
 
 ### Backend
 
 - **Framework**: FastAPI (async Python web framework)
-- **AI/ML**:
-  - LangChain (LLM orchestration)
-  - LangGraph (workflow management)
-  - Google Generative AI (Gemini models)
-  - Cohere (embeddings and reranking)
-- **Database**: PostgreSQL with PGVector extension
-- **Document Processing**: PyPDF, Unstructured
-- **Storage**: Boto3 (AWS S3)
+- **AI/ML & Orchestration**:
+  - LangChain (`langchain-core`, `langchain-community`)
+  - LangGraph (workflow management, PostgreSQL checkpoint/store)
+  - Google Generative AI (Gemini models) via `langchain-google-genai`
+  - Ollama via `langchain-ollama` (local models, configured through `OLLAMA_BASE_URL`)
+- **Vector Store**: PostgreSQL with PGVector extension (`langchain-postgres`)
+- **Document Processing**: `pypdf`, `unstructured`
+- **Storage**: Supabase Storage (`supabase` client) for file downloads
+- **Other Services**: HTTP client (`httpx`) for external API calls
 - **Deployment**: Docker & Docker Compose
 
 ### Frontend
@@ -63,19 +68,21 @@ The web application provides the user interface for diagram creation and collabo
 - **Framework**: Next.js 16 (React 19, App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS 4
-- **Diagram Library**: React Flow (xyflow)
+- **Diagram Library**: React Flow (`@xyflow/react`)
 - **Collaboration**: Liveblocks
 - **Authentication**: NextAuth.js 5
 - **ORM**: Prisma (PostgreSQL)
 - **Forms**: React Hook Form with Zod validation
-- **UI Components**: Radix UI, shadcn/ui
-- **Animations**: Framer Motion, GSAP
+- **UI Components**: Radix UI, shadcn/ui, custom components
+- **Animations**: Framer Motion, GSAP, `motion`
 - **State Management**: Zustand
 - **Markdown**: React Markdown with syntax highlighting
+- **Storage**: AWS SDK (`@aws-sdk/client-s3`) for S3 file uploads
+- **i18n**: `next-intl` with language messages in `frontend/languages/messages`
 
 ## 🏛️ System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                         Client Layer                        │
 │                    (Next.js Frontend)                       │
@@ -88,22 +95,31 @@ The web application provides the user interface for diagram creation and collabo
                ▼                  ▼                ▼
 ┌──────────────────────┐  ┌──────────────────┐  ┌─────────────┐
 │  Liveblocks API      │  │  FastAPI Backend │  │  AWS S3     │
-│  (Collaboration)     │  │  (AI Chat)       │  │  (Storage)  │
+│  (Collaboration)     │  │  (AI Chat + RAG) │  │  (Frontend) │
 └──────────────────────┘  └────────┬─────────┘  └─────────────┘
                                    │
                      ┌─────────────┴──────────────┐
                      ▼                            ▼
           ┌────────────────────┐      ┌─────────────────────┐
-          │  PostgreSQL        │      │  Google Gemini AI   │
-          │  (Prisma ORM)      │      │  (LLM)              │
+          │  PostgreSQL        │      │  LLM Providers      │
+          │  (App DB, Prisma)  │      │  (Gemini, Ollama)   │
           └────────────────────┘      └─────────────────────┘
-                     │
-                     ▼
-          ┌────────────────────┐
-          │  PGVector          │
-          │  (Vector Search)   │
-          └────────────────────┘
+                     │                            │
+                     ▼                            ▼
+          ┌────────────────────┐      ┌─────────────────────┐
+          │  PGVector          │      │  Supabase Storage   │
+          │  (Vector Search)   │      │  (Backend)          │
+          └────────────────────┘      └─────────────────────┘
 ```
+
+Root‑level `docker-compose.yml` wires these together with additional services:
+
+- **pgvector**: dedicated PostgreSQL instance with PGVector for embeddings
+- **database**: main PostgreSQL instance for the app (Prisma)
+- **backend**: FastAPI + LangGraph service
+- **frontend**: Next.js app
+- **ollama**: local model server used by the backend
+- **cloudflare-tunnel**: optional public exposure via Cloudflare
 
 ## 📦 Installation
 
@@ -112,12 +128,69 @@ The web application provides the user interface for diagram creation and collabo
 - **Node.js** 20+ and npm/yarn/pnpm
 - **Python** 3.10+
 - **Docker** 20.10+ and Docker Compose 2.0+
-- **PostgreSQL** 16+ (or use Docker)
-- **AWS Account** (for S3 storage)
+- (Optional for local, if not using Docker) **PostgreSQL** 16+ with PGVector extension
+- **AWS Account** (for S3 storage - used by frontend for file uploads)
+- **Supabase Account** (for Supabase Storage - used by backend for file downloads)
 - **Google Cloud Account** (for OAuth and Gemini AI)
 - **Liveblocks Account** (for real-time collaboration)
+- (Optional) **Cloudflare Account** (for tunnel)
 
-### Backend Setup
+### Root `.env` for Docker Compose
+
+At the project root, create a `.env` file to configure services used by `docker-compose.yml`:
+
+```env
+# Vector store (pgvector service)
+POSTGRES_USER=vector_user
+POSTGRES_PASSWORD=vector_password
+POSTGRES_DB=vector_db
+POSTGRES_PORT=5433
+PGVECTOR_DATA_DIR=./.data/pgvector
+POSTGRES_HOST=pgvector
+
+# Application database (database service)
+DATABASE_USER=app_user
+DATABASE_PASSWORD=app_password
+DATABASE_NAME=app_db
+DATABASE_PORT=5434
+DATABASE_DATA_DIR=./.data/database
+
+# Frontend / auth
+FRONTEND_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+AUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3000
+AUTH_SECRET=your_auth_secret
+AUTH_GOOGLE_ID=your_google_oauth_client_id
+AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
+DISABLE_ERD=true
+
+# S3 / object storage (used by frontend for file uploads)
+AWS_ENDPOINT=
+AWS_BUCKET=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+
+# Liveblocks & email
+LIVEBACKS_SECRET_KEY=
+RESEND_API_KEY=
+
+# LLM providers
+GOOGLE_API_KEY=your_google_api_key
+OLLAMA_DATA_DIR=./.data/ollama
+
+# Backend integrations (Supabase Storage for file downloads)
+SUPABASE_URL=
+SUPABASE_KEY=
+
+# Cloudflare tunnel (optional)
+TUNNEL_TOKEN=
+```
+
+> **Lưu ý**: Giá trị cụ thể có thể thay đổi tuỳ môi trường; hãy cập nhật lại cho phù hợp với hạ tầng của bạn.
+
+### Backend Setup (local development)
 
 1. Navigate to the backend directory:
 
@@ -125,33 +198,30 @@ The web application provides the user interface for diagram creation and collabo
 cd backend
 ```
 
-2. Create a `.env` file based on `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-3. Configure environment variables:
+2. Create a `.env` file in `backend/` (if you don't already have one) with at least:
 
 ```env
 FRONTEND_URL=http://localhost:3000
 
-POSTGRES_USER=your_db_user
-POSTGRES_PASSWORD=your_db_password
+POSTGRES_USER=vector_user
+POSTGRES_PASSWORD=vector_password
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=knowledge_viz
+POSTGRES_DB=vector_db
 
 GOOGLE_API_KEY=your_google_api_key
+OLLAMA_BASE_URL=http://localhost:11434
+SUPABASE_URL=
+SUPABASE_KEY=
 ```
 
-4. Install dependencies:
+3. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Frontend Setup
+### Frontend Setup (local development)
 
 1. Navigate to the frontend directory:
 
@@ -159,21 +229,12 @@ pip install -r requirements.txt
 cd frontend
 ```
 
-2. Create a `.env` file based on `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-3. Configure environment variables:
+2. Create a `.env` file in `frontend/` with at least:
 
 ```env
-NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-
 # NextAuth base URL (critical for Google OAuth redirect_uri)
-# - local dev: http://localhost:3000
-# - production: https://your-domain.com
 AUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3000
 
 AUTH_SECRET=your_auth_secret
 AUTH_GOOGLE_ID=your_google_oauth_client_id
@@ -181,7 +242,7 @@ AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
 
 DISABLE_ERD=true
 
-DATABASE_URL=postgresql://user:password@localhost:5432/knowledge_viz
+DATABASE_URL=postgresql://app_user:app_password@localhost:5434/app_db
 
 AWS_ENDPOINT=
 AWS_BUCKET=
@@ -189,28 +250,20 @@ AWS_REGION=
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=
-
 LIVEBLOCKS_SECRET_KEY=
-
 RESEND_API_KEY=
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+BACKEND_URL=http://localhost:8000
 ```
 
-#### Google OAuth Redirect URI (important)
-
-In Google Cloud Console → OAuth 2.0 Client ID, add **Authorized redirect URIs** that match your `AUTH_URL`:
-
-- `http://localhost:3000/api/auth/callback/google` (dev)
-- `https://your-domain.com/api/auth/callback/google` (prod)
-
-4. Install dependencies:
+3. Install dependencies:
 
 ```bash
 npm install
 ```
 
-5. Generate Prisma client and run migrations:
+4. Generate Prisma client and run migrations:
 
 ```bash
 npx prisma generate
@@ -219,35 +272,27 @@ npx prisma migrate dev
 
 ## 🚀 Running the Application
 
-### Option 1: Docker (Recommended for Backend)
+### Option 1: Full stack with Docker (recommended)
 
-#### Backend with Docker
+From the project root:
 
 ```bash
-cd backend
 docker-compose up --build
 ```
 
-The API will be available at:
+When all services are healthy:
 
-- API Base URL: `http://localhost:8000`
-- API Documentation: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- **Frontend**: `http://localhost:3000`
+- **Backend API**: `http://localhost:8000`
+  - Swagger docs: `http://localhost:8000/docs`
+  - ReDoc: `http://localhost:8000/redoc`
+- **Ollama**: `http://localhost:11434` (inside Docker network, or via host if mapped)
 
-#### Frontend (Local Development)
-
-```bash
-cd frontend
-npm run dev
-```
-
-The web app will be available at `http://localhost:3000`
-
-### Option 2: Local Development
+### Option 2: Local development (backend & frontend separately)
 
 #### Backend (without Docker)
 
-1. Ensure PostgreSQL with PGVector extension is running
+1. Ensure PostgreSQL with PGVector extension is running and matches your backend `.env`
 2. Start the FastAPI server:
 
 ```bash
@@ -262,13 +307,14 @@ cd frontend
 npm run dev
 ```
 
+The web app will be available at `http://localhost:3000`.
+
 ### Production Build
 
-#### Backend
+#### Backend (Docker)
 
 ```bash
-cd backend
-docker-compose up -d --build
+docker-compose up -d --build backend pgvector database ollama
 ```
 
 #### Frontend
@@ -281,39 +327,49 @@ npm start
 
 ## 📁 Folder Structure
 
+### Root
+
+```text
+.
+├── backend/              # FastAPI + LangGraph backend
+├── frontend/             # Next.js 16 frontend
+├── docker-compose.yml    # Orchestration for all services
+└── README.md
+```
+
 ### Backend
 
-```
+```text
 backend/
 ├── src/
-│   ├── models/          # Data models (vector store, chat, text splitter)
-│   ├── schemas/         # Pydantic schemas (requests, responses, states)
-│   ├── edges.py         # LangGraph workflow nodes
-│   └── main.py          # FastAPI application entry point
-├── requirements.txt     # Python dependencies
-├── Dockerfile          # Docker configuration
-├── docker-compose.yml  # Multi-container setup
-└── .env.example        # Environment variables template
+│   ├── models/           # Data models (vector store, chat, embeddings, text splitter)
+│   ├── schemas/          # Pydantic schemas (requests, responses, states)
+│   ├── edges.py          # LangGraph workflow nodes & RAG pipeline
+│   └── main.py           # FastAPI application entry point
+├── requirements.txt      # Python dependencies
+└── Dockerfile            # Backend Docker configuration
 ```
 
 ### Frontend
 
-```
+```text
 frontend/
 ├── app/
-│   ├── (auth)/         # Authentication pages
-│   ├── (main)/         # Main application pages
+│   ├── (auth)/           # Authentication pages
+│   ├── (main)/           # Main application pages
 │   ├── (diagram-editor)/ # Diagram editing interface
-│   ├── _actions/       # Server actions (file, folder, team, diagram)
-│   ├── _components/    # Shared React components
-│   └── api/            # API routes (NextAuth, Liveblocks)
-├── components/         # Reusable UI components
-├── prisma/            # Database schema and migrations
-├── lib/               # Utility functions
-├── hooks/             # Custom React hooks
-├── stores/            # Zustand state stores
-├── types/             # TypeScript type definitions
-└── public/            # Static assets
+│   ├── _actions/         # Server actions (file, folder, team, diagram, chat)
+│   ├── _components/      # Shared React components
+│   └── api/              # API routes (NextAuth, Liveblocks, S3, chat proxy)
+├── components/           # Reusable UI components & sections
+├── prisma/               # Database schema
+├── lib/                  # Utility functions & configuration
+├── hooks/                # Custom React hooks
+├── stores/               # Zustand state stores
+├── languages/            # i18n setup & message catalogs
+├── types/                # TypeScript type definitions
+├── public/               # Static assets
+└── Dockerfile            # Frontend Docker configuration
 ```
 
 ## 💡 Usage Examples
@@ -322,8 +378,8 @@ frontend/
 
 1. Create a new diagram in the web interface
 2. Upload a PDF or text file
-3. Ask questions about the document:
-   ```
+3. Ask questions about the document, for example:
+   ```text
    User: "Summarize the key concepts in this document"
    AI: [Provides summary based on document content]
    ```
@@ -332,11 +388,11 @@ frontend/
 
 1. Upload a document to a diagram
 2. Ask the AI to create a mind map:
-   ```
+   ```text
    User: "Create a mind map of the main topics"
    AI: [Generates structured mind map data]
    ```
-3. Visualize the generated structure in the diagram editor
+3. Visualize and refine the generated structure in the diagram editor
 
 ### 3. Collaborate in Real-time
 
