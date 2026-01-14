@@ -27,9 +27,7 @@ from src.schemas import (
 )
 from src.edges import (
     add_documents,
-    grade_documents,
     load_file,
-    rewrite_question,
     generate_answer,
     retrieve_documents,
     route_workflow,
@@ -85,8 +83,6 @@ async def lifespan(fastapi_app: FastAPI):
         workflow.add_node("load_file", load_file)
         workflow.add_node("add_documents", add_documents)
         workflow.add_node("retrieve_documents", retrieve_documents)
-        workflow.add_node("grade_documents", grade_documents)
-        workflow.add_node("rewrite_question", rewrite_question)
         workflow.add_node("generate_answer", generate_answer)
 
         # Route from START based on need_initialize_data
@@ -99,21 +95,12 @@ async def lifespan(fastapi_app: FastAPI):
             },
         )
 
-        # Reload flow: load_file -> add_documents -> retrieve_documents
+        # Reload flow: load_file -> add_documents -> retrieve_documents -> generate_answer
         workflow.add_edge("load_file", "add_documents")
         workflow.add_edge("add_documents", "retrieve_documents")
 
-        # Chat flow: retrieve_documents -> grade_documents -> (rewrite_question -> retrieve_documents)? -> generate_answer -> END
-        workflow.add_conditional_edges(
-            "retrieve_documents",
-            grade_documents,
-            {
-                "generate_answer": "generate_answer",
-                "rewrite_question": "rewrite_question",
-                "no_relevant_data": "generate_answer",
-            },
-        )
-        workflow.add_edge("rewrite_question", "retrieve_documents")
+        # Chat flow: retrieve_documents -> generate_answer -> END
+        workflow.add_edge("retrieve_documents", "generate_answer")
         workflow.add_edge("generate_answer", END)
 
         fastapi_app.state.graph = workflow.compile(

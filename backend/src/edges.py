@@ -5,7 +5,7 @@ import tempfile
 from typing import Literal, Dict
 from pydantic import BaseModel, Field
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
@@ -182,23 +182,8 @@ async def add_documents(state: State):
 
 
 def get_question_for_retrieval(state: State) -> str:
-    """Get the question to use for retrieval: rewritten question if available, otherwise original question."""
-    # Find the original user message (first HumanMessage)
-    original_message = None
-    for msg in state["messages"]:
-        if msg.__class__.__name__ == "HumanMessage":
-            original_message = msg
-            break
-
-    if (
-        original_message
-        and original_message.additional_kwargs
-        and "rewritten_question" in original_message.additional_kwargs
-    ):
-        # Use rewritten question if available
-        return original_message.additional_kwargs["rewritten_question"]
-
-    # Fallback to last message content
+    """Get the question to use for retrieval (uses the user's question directly)."""
+    # Always use the content of the last message as the query question
     return state["messages"][-1].content
 
 
@@ -241,133 +226,9 @@ async def retrieve_documents(state: State):
             question, k=5, filter={"diagram_id": diagram_id}
         )
     if len(retrieved_docs) == 0:
-        # Clear context and return signal for no relevant data
-        # This will be handled by grade_documents which checks for empty context
+        # No relevant documents found, return empty context for generate_answer to handle with NO_RELEVANT_DATA_PROMPT
         return {"context": []}
     return {"context": retrieved_docs}
-
-
-GRADE_PROMPT = (
-    "You are a grader assessing relevance of a retrieved document to a user question. \n"
-    "Context: \n\n {context} \n\n"
-    "Here is the user question: \n\n {question} \n\n"
-    "If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n"
-    "Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."
-)
-
-
-class GradeDocuments(BaseModel):
-    """Grade documents using a binary score for relevance check."""
-
-    binary_score: str = Field(
-        default="",
-        description="Relevance score: 'yes' if relevant, or 'no' if not relevant",
-    )
-
-
-async def grade_documents(
-    state: State,
-) -> Literal["generate_answer", "rewrite_question", "no_relevant_data"]:
-    """Run LLM to grade relevance and store the result in the state."""
-    question = get_question_for_retrieval(state)
-    context_docs = state["context"]
-
-    # Check if no documents were retrieved
-    if not context_docs or len(context_docs) == 0:
-        return "no_relevant_data"
-
-    # Find the original user message to check rewrite count
-    original_message = None
-    for msg in state["messages"]:
-        if msg.__class__.__name__ == "HumanMessage":
-            original_message = msg
-            break
-
-    # Prevent infinite loop: limit to 1 rewrite attempt
-    if (
-        original_message
-        and original_message.additional_kwargs
-        and "rewritten_question" in original_message.additional_kwargs
-    ):
-        return "no_relevant_data"
-
-    context = "\n".join([doc.page_content for doc in context_docs])
-
-    prompt = GRADE_PROMPT.format(question=question, context=context)
-    response = await model.with_structured_output(GradeDocuments).ainvoke(
-        [{"role": "user", "content": prompt}]
-    )
-    score = response.binary_score
-
-    if score == "yes":
-        return "generate_answer"
-
-    writer = get_stream_writer()
-    writer({"current_status": "Cannot find relevant documents"})
-    return "rewrite_question"
-
-
-REWRITE_PROMPT = (
-    "Look at the input and try to reason about the underlying semantic intent / meaning. \n"
-    + "Here is the initial question: \n\n {question} \n\n"
-    + "Formulate an improved question: \n\n"
-)
-
-
-async def rewrite_question(state: State):
-    """Rewrite the original user question and store it in additional_kwargs of the original message."""
-    writer = get_stream_writer()
-    writer({"current_status": "Rewriting question..."})
-
-    # Find the original user message (first HumanMessage)
-    original_message = None
-    original_index = -1
-    for i, msg in enumerate(state["messages"]):
-        if msg.__class__.__name__ == "HumanMessage":
-            original_message = msg
-            original_index = i
-            break
-
-    if not original_message:
-        # Fallback: use last message
-        original_message = state["messages"][-1]
-        original_index = len(state["messages"]) - 1
-
-    # Get the original question
-    original_question = original_message.content
-
-    # Rewrite the question
-    prompt = REWRITE_PROMPT.format(question=original_question)
-    response = await model.ainvoke([{"role": "user", "content": prompt}])
-    rewritten_question = response.content
-
-    # Update the original message's additional_kwargs with rewritten_question
-    updated_additional_kwargs = (
-        original_message.additional_kwargs.copy()
-        if original_message.additional_kwargs
-        else {}
-    )
-    updated_additional_kwargs["rewritten_question"] = rewritten_question
-
-    # Create updated HumanMessage with new additional_kwargs
-    # Preserve all other attributes from original message
-    updated_message = HumanMessage(
-        content=original_message.content,
-        additional_kwargs=updated_additional_kwargs,
-        response_metadata=(
-            original_message.response_metadata
-            if hasattr(original_message, "response_metadata")
-            else None
-        ),
-        id=original_message.id if hasattr(original_message, "id") else None,
-        name=original_message.name if hasattr(original_message, "name") else None,
-    )
-
-    # Create new messages list with updated message
-    updated_messages = list(state["messages"])
-    updated_messages[original_index] = updated_message
-
-    return {"messages": updated_messages}
 
 
 ANSWER_PROMPT = (
@@ -603,10 +464,6 @@ async def generate_answer(state: State):
     # Logic:
     # - If no context documents, use NO_RELEVANT_DATA_PROMPT
     # - If context documents exist, generate answer with context
-    # Note: Rewrite logic is already handled in grade_documents:
-    #   - If documents are not relevant and not yet rewritten -> rewrite_question
-    #   - If documents are not relevant and already rewritten -> no_relevant_data -> generate_answer (with empty context)
-    #   - If documents are relevant -> generate_answer (with context)
     if not context_docs or len(context_docs) == 0:
         # No documents found - use no relevant data prompt
         prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
