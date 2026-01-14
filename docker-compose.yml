@@ -44,6 +44,22 @@ services:
     networks:
       - knovion-network
 
+  ollama-pull-model:
+    image: curlimages/curl
+    container_name: ollama-pull-model
+    command: >
+      sh -c "
+      echo 'Waiting for Ollama service...' &&
+      until curl -s http://ollama:11434/api/tags > /dev/null; do
+        sleep 2
+      done &&
+      echo 'Pulling mxbai-embed-large model...' &&
+      curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"mxbai-embed-large\"}'"
+    depends_on:
+      - ollama
+    networks:
+      - knovion-network
+
   backend:
     container_name: knovion-backend
     build:
@@ -63,8 +79,12 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - ollama
-      - pgvector
+      ollama:
+        condition: service_started
+      ollama-pull-model:
+        condition: service_completed_successfully
+      pgvector:
+        condition: service_started
     restart: unless-stopped
     networks:
       - knovion-network
@@ -113,6 +133,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
       RESEND_API_KEY: ${RESEND_API_KEY}
+    command: >
+      sh -c "npx prisma db push && npm start"
     networks:
       - knovion-network
 
