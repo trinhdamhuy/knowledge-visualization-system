@@ -8,11 +8,16 @@ This project provides a collaborative platform for knowledge management and visu
 
 ### 🏗️ High‑Level Architecture
 
-The project is organized into two main directories plus a root‑level Docker Compose setup:
+The project is organized into three main components:
 
 - **`backend/`**: FastAPI + LangChain/LangGraph service for AI chat, retrieval and document processing
 - **`frontend/`**: Next.js app for diagram editing, collaboration, authentication and file management
-- **`docker-compose.yml`** (root): Orchestrates all services (backend, frontend, pgvector, main database, Ollama, Cloudflare tunnel)
+- **`nginx/`**: Nginx configuration for Reverse Proxy, Load Balancing and HTTPS
+
+**Infrastructure Services:**
+
+- **`docker-compose.yml`** (root): Orchestrates all services (backend, frontend, nginx, pgvector, main database, Ollama, Cloudflare tunnel)
+- **`scripts/`**: Utility scripts (e.g., `run-ollama.sh` for starting Ollama service with model pre-loading)
 
 #### `backend/`
 
@@ -46,6 +51,8 @@ The web application provides the user interface for diagram creation and collabo
 - **Cloud Storage**: Secure document storage with AWS S3 (frontend) and Supabase Storage (backend)
 - **Responsive Design**: Modern UI with dark mode support
 - **Multilingual**: Interface available in multiple languages (EN/JA/VI)
+- **Secure Access**: HTTPS enabled with Nginx Reverse Proxy and Cloudflare Tunnel
+- **Scalable**: Frontend load balancing with Nginx and Docker Replicas
 
 ## 🛠️ Tech Stack
 
@@ -80,6 +87,12 @@ The web application provides the user interface for diagram creation and collabo
 - **Storage**: AWS SDK (`@aws-sdk/client-s3`) for S3 file uploads
 - **i18n**: `next-intl` with language messages in `frontend/languages/messages`
 
+### Infrastructure
+
+- **Reverse Proxy**: Nginx (handling HTTPS, Gzip, Header security)
+- **Load Balancing**: Nginx + Docker DNS Round Robin
+- **Tunneling**: Cloudflare Tunnel (expose local service to internet securely)
+
 ## 🏛️ System Architecture
 
 ```text
@@ -93,33 +106,31 @@ The web application provides the user interface for diagram creation and collabo
 └──────────────┬──────────────────┬────────────────┬──────────┘
                │                  │                │
                ▼                  ▼                ▼
-┌──────────────────────┐  ┌──────────────────┐  ┌─────────────┐
-│  Liveblocks API      │  │  FastAPI Backend │  │  AWS S3     │
-│  (Collaboration)     │  │  (AI Chat + RAG) │  │  (Frontend) │
-└──────────────────────┘  └────────┬─────────┘  └─────────────┘
-                                   │
-                     ┌─────────────┴──────────────┐
-                     ▼                            ▼
-          ┌────────────────────┐      ┌─────────────────────┐
-          │  PostgreSQL        │      │  LLM Providers      │
-          │  (App DB, Prisma)  │      │  (Gemini, Ollama)   │
-          └────────────────────┘      └─────────────────────┘
-                     │                            │
-                     ▼                            ▼
-          ┌────────────────────┐      ┌─────────────────────┐
-          │  PGVector          │      │  Supabase Storage   │
-          │  (Vector Search)   │      │  (Backend)          │
-          └────────────────────┘      └─────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Nginx (Reverse Proxy)                    │
+│           (HTTPS, Load Balancing, Security Headers)         │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+               ┌──────────────┴──────────────┐
+               ▼                             ▼
+┌──────────────────────┐      ┌─────────────────────────────┐
+│  Frontend Replicas   │      │      FastAPI Backend        │
+│  (Next.js x3)        │      │      (AI Chat + RAG)        │
+└──────────────────────┘      └──────────────┬──────────────┘
+                                             │
+                       ┌─────────────────────┴────────────────┐
+                       ▼                                      ▼
+            ┌────────────────────┐                 ┌─────────────────────┐
+            │  PostgreSQL        │                 │  LLM Providers      │
+            │  (App DB, Prisma)  │                 │  (Gemini, Ollama)   │
+            └────────────────────┘                 └─────────────────────┘
+                       │                                      │
+                       ▼                                      ▼
+            ┌────────────────────┐                 ┌─────────────────────┐
+            │  PGVector          │                 │  Supabase Storage   │
+            │  (Vector Search)   │                 │  (Backend)          │
+            └────────────────────┘                 └─────────────────────┘
 ```
-
-Root‑level `docker-compose.yml` wires these together with additional services:
-
-- **pgvector**: dedicated PostgreSQL instance with PGVector for embeddings
-- **database**: main PostgreSQL instance for the app (Prisma)
-- **backend**: FastAPI + LangGraph service
-- **frontend**: Next.js app
-- **ollama**: local model server used by the backend
-- **cloudflare-tunnel**: optional public exposure via Cloudflare
 
 ## 📦 Installation
 
@@ -133,7 +144,7 @@ Root‑level `docker-compose.yml` wires these together with additional services:
 - **Supabase Account** (for Supabase Storage - used by backend for file downloads)
 - **Google Cloud Account** (for OAuth and Gemini AI)
 - **Liveblocks Account** (for real-time collaboration)
-- (Optional) **Cloudflare Account** (for tunnel)
+- **Cloudflare Account** (optional, for tunnel)
 
 ### Root `.env` for Docker Compose
 
@@ -156,10 +167,9 @@ DATABASE_PORT=5434
 DATABASE_DATA_DIR=./.data/database
 
 # Frontend / auth
-FRONTEND_URL=http://localhost:3000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-AUTH_URL=http://localhost:3000
-NEXTAUTH_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost  # Access via Nginx (port 80/443)
+AUTH_URL=http://localhost             # Access via Nginx
+NEXTAUTH_URL=http://localhost         # Access via Nginx
 AUTH_SECRET=your_auth_secret
 AUTH_GOOGLE_ID=your_google_oauth_client_id
 AUTH_GOOGLE_SECRET=your_google_oauth_client_secret
@@ -173,7 +183,7 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 
 # Liveblocks & email
-LIVEBACKS_SECRET_KEY=
+LIVEBLOCKS_SECRET_KEY=
 RESEND_API_KEY=
 
 # LLM providers
@@ -188,7 +198,28 @@ SUPABASE_KEY=
 TUNNEL_TOKEN=
 ```
 
-> **Lưu ý**: Giá trị cụ thể có thể thay đổi tuỳ môi trường; hãy cập nhật lại cho phù hợp với hạ tầng của bạn.
+> **Note**: `NEXT_PUBLIC_APP_URL`, `AUTH_URL`, `NEXTAUTH_URL` should point to `http://localhost` (or your domain) because Nginx handles port 80/443.
+
+### SSL Certificate Setup
+
+Before running Nginx, you need to set up SSL certificates in `nginx/ssl/`.
+
+**Option 1: Self-signed (Local Development)**
+Run this command to generate a self-signed certificate:
+
+```bash
+mkdir -p nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/key.pem \
+  -out nginx/ssl/cert.pem \
+  -subj "/C=VN/ST=HCM/L=HCM/O=Knovion/CN=localhost"
+```
+
+**Option 2: Cloudflare Origin Certificate (Production)**
+
+1. Go to Cloudflare Dashboard -> SSL/TLS -> Origin Server.
+2. Create Certificate.
+3. Save as `cert.pem` and `key.pem` in `nginx/ssl/`.
 
 ### Backend Setup (local development)
 
@@ -277,16 +308,26 @@ npx prisma migrate dev
 From the project root:
 
 ```bash
-docker-compose up --build
+docker-compose up -d --build
 ```
 
 When all services are healthy:
 
-- **Frontend**: `http://localhost:3000`
-- **Backend API**: `http://localhost:8000`
+- **Web App**: `https://localhost` (Nginx handles HTTPS)
+  - Accepts self-signed cert warning on local.
+- **Backend API**: `http://localhost:8000` (Direct access) or `https://localhost/api/backend` (via Nginx)
   - Swagger docs: `http://localhost:8000/docs`
-  - ReDoc: `http://localhost:8000/redoc`
-- **Ollama**: `http://localhost:11434` (inside Docker network, or via host if mapped)
+- **Ollama**: `http://localhost:11434`
+
+### Scaling Frontend
+
+To scale the frontend to multiple instances (e.g., 3 replicas) for load balancing:
+
+```bash
+docker-compose up -d --scale frontend=3
+```
+
+Nginx will automatically load balance requests between these instances.
 
 ### Option 2: Local development (backend & frontend separately)
 
@@ -309,22 +350,6 @@ npm run dev
 
 The web app will be available at `http://localhost:3000`.
 
-### Production Build
-
-#### Backend (Docker)
-
-```bash
-docker-compose up -d --build backend pgvector database ollama
-```
-
-#### Frontend
-
-```bash
-cd frontend
-npm run build
-npm start
-```
-
 ## 📁 Folder Structure
 
 ### Root
@@ -333,6 +358,9 @@ npm start
 .
 ├── backend/              # FastAPI + LangGraph backend
 ├── frontend/             # Next.js 16 frontend
+├── nginx/                # Nginx configuration & SSL
+│   ├── ssl/              # Certificate files (gitignored)
+│   └── nginx.conf        # Nginx config file
 ├── docker-compose.yml    # Orchestration for all services
 └── README.md
 ```
