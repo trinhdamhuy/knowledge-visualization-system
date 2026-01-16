@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - nginx
     networks:
       - knovion-network
 
@@ -33,6 +35,8 @@ services:
       - "11434:11434"
     volumes:
       - ${OLLAMA_DATA_DIR}:/root/.ollama
+      - ./scripts/run-ollama.sh:/run-ollama.sh
+    entrypoint: ["/bin/bash", "/run-ollama.sh"]
     deploy:
       resources:
         reservations:
@@ -44,29 +48,13 @@ services:
     networks:
       - knovion-network
 
-  ollama-pull-model:
-    image: curlimages/curl
-    container_name: ollama-pull-model
-    command: >
-      sh -c "
-      echo 'Waiting for Ollama service...' &&
-      until curl -s http://ollama:11434/api/tags > /dev/null; do
-        sleep 2
-      done &&
-      echo 'Pulling mxbai-embed-large model...' &&
-      curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"mxbai-embed-large\"}'"
-    depends_on:
-      - ollama
-    networks:
-      - knovion-network
-
   backend:
     container_name: knovion-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      FRONTEND_URL: http://nginx:80
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST: ${POSTGRES_HOST}
@@ -81,8 +69,6 @@ services:
     depends_on:
       ollama:
         condition: service_started
-      ollama-pull-model:
-        condition: service_completed_successfully
       pgvector:
         condition: service_started
     restart: unless-stopped
@@ -105,23 +91,24 @@ services:
       - ${DATABASE_DATA_DIR}:/var/lib/postgresql
 
   frontend:
-    container_name: knovion-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         AWS_ENDPOINT: ${AWS_ENDPOINT}
-    ports:
-      - "3000:3000"
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
     depends_on:
       - database
       - backend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       BACKEND_URL: http://backend:8000
-      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      AUTH_URL: ${AUTH_URL:-http://localhost}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
@@ -133,8 +120,24 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       LIVEBLOCKS_SECRET_KEY: ${LIVEBLOCKS_SECRET_KEY}
       RESEND_API_KEY: ${RESEND_API_KEY}
-    command: >
-      sh -c "npx prisma db push && npm start"
+    networks:
+      - knovion-network
+
+  nginx:
+    image: nginx:latest
+    container_name: knovion-nginx
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME}
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"      # HTTP (redirect to HTTPS)
+      - "443:443"    # HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # ← Mount SSL certificates
+    restart: unless-stopped
     networks:
       - knovion-network
 
