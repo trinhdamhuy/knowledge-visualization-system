@@ -75,6 +75,9 @@ export function ChatPanel() {
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   const hasRestoredFromCacheRef = useRef(false);
   const streamControllerRef = useRef<AbortController | null>(null);
+  const currentMessageIdRef = useRef<string | null>(null);
+  const lastInputMessageRef = useRef<string>("");
+  const lastOutputMessageRef = useRef<string>("");
 
   // Default prompt suggestions (detailed prompts)
   const defaultPrompts = [
@@ -115,12 +118,7 @@ export function ChatPanel() {
     !!diagramId && !!fileUrl
   );
 
-  const {
-    useChatHistory,
-    deleteChatHistory,
-    cancelChatRequest,
-    deleteDiagramStore,
-  } = useChat();
+  const { useChatHistory, deleteChatHistory, cancelChatRequest } = useChat();
   const [isBusy, setIsBusy] = useState(false);
   const { importMindmapData, nodes, edges } = useDiagramSync();
   const queryClient = useQueryClient();
@@ -514,12 +512,53 @@ export function ChatPanel() {
           if (line.startsWith("event: stream_complete")) {
             setIsBusy(false);
             setCurrentStatus(null);
+            currentMessageIdRef.current = null; // Clear message ID on completion
+
             if (diagramId) {
               setMessagesOffset(0);
               queryClient.invalidateQueries({
                 queryKey: chatKeys.history(diagramId, userId),
               });
-              refetchHistory();
+              refetchHistory().then(() => {
+                // Wait for messages to be updated from refetch
+                setTimeout(() => {
+                  // Calculate and update token usage after stream completes
+                  if (userId && lastInputMessageRef.current) {
+                    // Try to get messages from multiple sources
+                    // 1. Try from query cache first (most up-to-date)
+                    const cachedHistory = queryClient.getQueryData<{
+                      messages: BaseMessage[];
+                    }>([...chatKeys.history(diagramId, userId), 10, 0]);
+
+                    // 2. Fallback to allMessages state
+                    const messages = cachedHistory?.messages || allMessages;
+
+                    // Get the latest AI message
+                    const latestAIMessage = messages
+                      .filter((m) => m.type === "ai")
+                      .pop();
+
+                    const outputContent = latestAIMessage?.content
+                      ? typeof latestAIMessage.content === "string"
+                        ? latestAIMessage.content
+                        : JSON.stringify(latestAIMessage.content)
+                      : "";
+
+                    // Only update if we have output content
+                    if (lastInputMessageRef.current) {
+                      // Clear input ref after updating
+                      lastInputMessageRef.current = "";
+                    } else {
+                      console.warn("No output content found for token calculation", {
+                        hasOutput: !!outputContent,
+                        hasInput: !!lastInputMessageRef.current,
+                        messagesCount: messages.length,
+                        aiMessagesCount: messages.filter((m) => m.type === "ai").length,
+                      });
+                    }
+                  }
+                }, 500); // Wait 500ms for messages to be updated from refetch
+              });
             }
             continue;
           }
@@ -545,6 +584,13 @@ export function ChatPanel() {
         console.error("Stream error:", error);
         toast.error("Failed to stream response");
         setIsBusy(false);
+        // Remove optimistic message on error
+        if (currentMessageIdRef.current) {
+          setAllMessages((prev) =>
+            prev.filter((m) => m.id !== currentMessageIdRef.current)
+          );
+          currentMessageIdRef.current = null;
+        }
       }
     } finally {
       streamControllerRef.current = null;
@@ -569,13 +615,14 @@ export function ChatPanel() {
     const mindmapData: MindmapData | null =
       nodes.length > 0
         ? {
-            nodes: nodes,
-            edges: edges,
-          }
+          nodes: nodes,
+          edges: edges,
+        }
         : null;
 
     // Optimistically show user message
     const tempId = `temp-${Date.now()}`;
+    currentMessageIdRef.current = tempId;
     const optimisticMessage: BaseMessage = {
       id: tempId,
       type: "human",
@@ -601,13 +648,22 @@ export function ChatPanel() {
       need_initialize_data: needInitializeData,
     };
 
+    // Store input message for token calculation
+    lastInputMessageRef.current = messageContent;
+    lastOutputMessageRef.current = "";
+
     try {
       await streamChat(payload);
     } catch (error) {
       console.error("Failed to send message:", error);
       toast.error("Failed to send message");
       // revert optimistic message
-      setAllMessages((prev) => prev.filter((m) => m.id !== tempId));
+      if (currentMessageIdRef.current) {
+        setAllMessages((prev) =>
+          prev.filter((m) => m.id !== currentMessageIdRef.current)
+        );
+        currentMessageIdRef.current = null;
+      }
       setIsBusy(false);
     }
   };
@@ -615,10 +671,28 @@ export function ChatPanel() {
   const handleDeleteChat = async () => {
     if (!diagramId) return;
 
+    // Cancel any ongoing stream
+    if (streamControllerRef.current) {
+      streamControllerRef.current.abort();
+      streamControllerRef.current = null;
+    }
+
+    // Clear all temporary messages and reset state
+    setAllMessages([]);
+    currentMessageIdRef.current = null;
+    setCurrentStatus(null);
+    setIsBusy(false);
+    setMessagesOffset(0);
+    setHasMoreMessages(false);
+    hasRestoredFromCacheRef.current = false;
+
     try {
       const result = await deleteChatHistory({ diagramId });
-      const storeResult = await deleteDiagramStore({ diagramId });
-      if (result && storeResult) {
+      if (result) {
+        // Invalidate queries to refresh from server
+        queryClient.invalidateQueries({
+          queryKey: chatKeys.history(diagramId, userId),
+        });
         toast.success("Chat history deleted successfully");
       } else {
         toast.error("Failed to delete chat history");
@@ -637,11 +711,22 @@ export function ChatPanel() {
       streamControllerRef.current = null;
     }
 
+    // Reset UI state immediately
+    setIsBusy(false);
+    setCurrentStatus(null);
+
+    // Remove optimistic message if exists
+    if (currentMessageIdRef.current) {
+      setAllMessages((prev) =>
+        prev.filter((m) => m.id !== currentMessageIdRef.current)
+      );
+      currentMessageIdRef.current = null;
+    }
+
     try {
       const result = await cancelChatRequest({ diagramId });
       if (result) {
         toast.success("Chat request cancelled");
-        setIsBusy(false);
       } else {
         toast.error("Failed to cancel chat request");
       }
@@ -733,7 +818,7 @@ export function ChatPanel() {
     const isAI = message.type === "ai";
     const userInfo =
       message.additional_kwargs?.user_id &&
-      userCache[message.additional_kwargs.user_id as string]
+        userCache[message.additional_kwargs.user_id as string]
         ? userCache[message.additional_kwargs.user_id as string]
         : null;
 
@@ -745,10 +830,10 @@ export function ChatPanel() {
       typeof message.content === "string"
         ? message.content
         : Array.isArray(message.content)
-        ? message.content
+          ? message.content
             .map((c) => (typeof c === "string" ? c : JSON.stringify(c)))
             .join("")
-        : String(message.content);
+          : String(message.content);
 
     return (
       <div
@@ -779,9 +864,8 @@ export function ChatPanel() {
         )}
 
         <div
-          className={`w-fit rounded-lg max-w-[80%] ${
-            isHuman && "bg-primary text-primary-foreground px-3 py-2"
-          }`}
+          className={`w-fit rounded-lg max-w-[80%] ${isHuman && "bg-primary text-primary-foreground px-3 py-2"
+            }`}
         >
           {isAI ? (
             <div className="markdown-content">
@@ -1107,6 +1191,12 @@ export function ChatPanel() {
                     <span className="truncate max-w-[200px]">{fileName}</span>
                   </Badge>
                 )}
+                {/* {userId && (
+                  <CircularProgress
+                    value={tokenUsage?.tokensUsed || 0}
+                    max={tokenUsage?.weeklyTokenLimit || 10000}
+                  />
+                )} */}
                 {isBusy ? (
                   <Button
                     variant="secondary"

@@ -1,0 +1,185 @@
+# Coding Rules for Knowledge Visualization Project
+
+## Language and Conventions
+
+### Language
+- **Code comments**: Must be written in English
+- **Documentation**: Can support multiple languages (EN/JA/VI) but prioritize English
+- **Variable/function names**: Use English (camelCase for JS/TS, snake_case for Python)
+
+### Frontend (Next.js + TypeScript)
+- **Framework**: Next.js 16 with App Router
+- **Language**: TypeScript strict mode
+- **Styling**: Tailwind CSS 4
+- **State Management**: Zustand for global state, React hooks for local state
+- **Forms**: React Hook Form with Zod validation
+- **UI Components**: 
+  - Prefer shadcn/ui components
+  - Radix UI primitives
+  - Custom components in `components/`
+- **File Structure**:
+  - Server Actions: `app/_actions/`
+  - Shared Components: `app/_components/`
+  - Reusable Components: `components/`
+  - API Routes: `app/api/`
+  - Hooks: `hooks/`
+  - Stores: `stores/`
+  - Types: `types/`
+  - Utils: `lib/`
+
+### Backend (FastAPI + Python)
+- **Framework**: FastAPI with async/await
+- **AI/ML**: LangChain, LangGraph
+- **Vector Store**: PGVector (PostgreSQL extension)
+- **File Structure**:
+  - Models: `src/models/`
+  - Schemas: `src/schemas/`
+  - Workflow Nodes: `src/edges.py`
+  - Main App: `src/main.py`
+- **Code Style**: 
+  - Type hints required
+  - Docstrings for all functions
+  - Async functions for I/O operations
+
+## Design Patterns
+
+### Frontend
+- **Server Components**: Prefer Server Components when possible
+- **Client Components**: Only use "use client" when interactivity is needed
+- **Server Actions**: Use for mutations and data fetching
+- **Error Handling**: Try-catch with proper error messages
+- **Loading States**: Use Suspense and loading.tsx
+
+### Backend
+- **RAG Pipeline**: LangGraph workflow with state management
+- **Vector Search**: PGVector for semantic search
+- **Document Processing**: Async processing with chunking
+- **Error Handling**: FastAPI exception handlers
+
+## Database
+
+### Prisma Schema
+- **Naming**: camelCase for model names, snake_case for database fields
+- **Relations**: Explicit relations with proper onDelete cascades
+- **Indexes**: Add indexes for frequently queried fields
+- **Enums**: Use enums for fixed values
+
+### Migrations
+- Run `npx prisma migrate dev` after schema changes
+- Generate Prisma client: `npx prisma generate`
+
+## Code Quality
+
+### Best Practices
+1. **Clean Code**: 
+   - Keep functions concise, single responsibility
+   - Avoid code duplication
+   - Use meaningful variable names
+   
+2. **Type Safety**:
+   - TypeScript strict mode
+   - Zod schemas for validation
+   - Type hints in Python
+
+3. **Performance**:
+   - Lazy loading for components
+   - Optimize database queries
+   - Use caching when needed
+
+4. **Security**:
+   - Validate input data
+   - Sanitize user inputs
+   - Proper authentication checks
+   - Use environment variables for secrets
+
+### Testing
+- Unit tests for utility functions
+- Integration tests for API endpoints
+- E2E tests for critical flows
+
+## Git Workflow
+
+### Commit Messages
+- Format: `type(scope): message`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+- Example: `feat(diagram): add export to PNG feature`
+
+### Branch Naming
+- Feature: `feature/description`
+- Bugfix: `fix/description`
+- Hotfix: `hotfix/description`
+
+## Dependencies
+
+### Frontend
+- Don't add unnecessary dependencies
+- Prefer well-maintained packages
+- Check bundle size impact
+
+### Backend
+- Use official LangChain packages
+- Update dependencies regularly
+- Check for security vulnerabilities
+
+## Environment Variables
+
+- Never commit `.env` files
+- Use `.env.example` as template
+- Document all environment variables in README
+
+## AI Assistant Guidelines
+
+When working with AI:
+1. **Context**: Always provide full context about the feature/module being worked on
+2. **Code Review**: Review generated code before committing
+3. **Testing**: Test changes thoroughly before merging
+4. **Documentation**: Update documentation when changing API/schema
+5. **Consistency**: Maintain consistency with current codebase
+
+## Specific Project Rules
+
+### Diagram Editor
+- Use React Flow (`@xyflow/react`) for diagram rendering
+- Liveblocks for real-time collaboration
+- Zustand stores for diagram state
+
+### AI Chat
+- LangGraph workflow with PostgreSQL checkpointing
+- RAG pipeline with PGVector
+- Support streaming and non-streaming responses
+
+### File Management
+- AWS S3 for frontend uploads
+- Supabase Storage for backend downloads
+- Proper file type validation
+
+### Authentication
+- NextAuth.js with Google OAuth
+- Prisma adapter for session management
+- Proper permission checks
+
+## Performance Considerations
+
+1. **Frontend**:
+   - Code splitting
+   - Image optimization
+   - Lazy loading
+   - Memoization when needed
+
+2. **Backend**:
+   - Async operations
+   - Connection pooling
+   - Caching strategies
+   - Efficient database queries
+
+3. **Database**:
+   - Proper indexes
+   - Query optimization
+   - Connection pooling
+
+## Error Handling
+
+- Frontend: User-friendly error messages
+- Backend: Proper HTTP status codes
+- Logging: Structured logging for debugging
+- Monitoring: Track errors and performance metrics

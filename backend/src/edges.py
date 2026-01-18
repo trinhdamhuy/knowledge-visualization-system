@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from langchain_core.messages import AIMessage
 from langchain_core.documents import Document
+from langchain_core.runnables import RunnableConfig
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langgraph.config import get_stream_writer
 
@@ -17,6 +18,20 @@ from src.models.s3_client import get_s3_client
 from src.models.chat_model import get_chat_model
 
 model = get_chat_model()
+
+
+class CancellationError(Exception):
+    """Exception raised when the operation is cancelled."""
+
+
+def check_cancellation(config: RunnableConfig, diagram_id: str):
+    """Check if the operation has been cancelled."""
+    if not config or "configurable" not in config:
+        return
+
+    cancel_flags = config["configurable"].get("cancel_flags")
+    if cancel_flags and cancel_flags.get(diagram_id):
+        raise CancellationError("Operation cancelled by user")
 
 
 def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
@@ -32,11 +47,12 @@ def _filter_non_empty_documents(documents: list[Document]) -> list[Document]:
     return non_empty
 
 
-async def load_file(state: State):
+async def load_file(state: State, config: RunnableConfig):
     """Load a file into documents.
 
     Downloads file from Supabase storage, processes it locally, then deletes the temporary file.
     """
+    check_cancellation(config, state["diagram_id"])
     writer = get_stream_writer()
 
     file_url = state["file_url"]
@@ -56,6 +72,8 @@ async def load_file(state: State):
     # Create temporary file
     temp_file = None
     try:
+        check_cancellation(config, state["diagram_id"])
+
         # Get file extension to create temp file with correct extension
         file_ext = os.path.splitext(key)[1] or ".tmp"
 
@@ -72,6 +90,8 @@ async def load_file(state: State):
         if response is None:
             writer({"current_status": "Failed to download file from storage"})
             return {"context": []}
+
+        check_cancellation(config, state["diagram_id"])
 
         # Write downloaded content to temporary file
         with open(temp_file, "wb+") as f:
@@ -91,6 +111,8 @@ async def load_file(state: State):
         documents = await loader.aload()
         documents = _filter_non_empty_documents(documents)
 
+        check_cancellation(config, state["diagram_id"])
+
         if not documents:
             writer(
                 {
@@ -106,8 +128,13 @@ async def load_file(state: State):
             chunks = text_splitter.split_documents([doc])
             split_documents.extend(chunks)
 
+        check_cancellation(config, state["diagram_id"])
+
         return {"context": split_documents}
 
+    except CancellationError:
+        writer({"current_status": "Operation cancelled"})
+        raise
     except Exception as e:  # pylint: disable=broad-exception-caught
         writer({"current_status": f"Can not load file: {str(e)}"})
         return {"context": []}
@@ -117,12 +144,12 @@ async def load_file(state: State):
             try:
                 os.remove(temp_file)
             except Exception:  # pylint: disable=broad-exception-caught
-                # Best effort cleanup - log but don't fail
                 pass
 
 
-async def add_documents(state: State):
+async def add_documents(state: State, config: RunnableConfig):
     """Add documents to the vector store."""
+    check_cancellation(config, state["diagram_id"])
 
     writer = get_stream_writer()
     writer({"current_status": "Adding documents..."})
@@ -147,6 +174,7 @@ async def add_documents(state: State):
     # - If reloading and file_url is new -> delete existing docs for diagram_id, then add new docs.
     if need_initialize_data and file_url:
         try:
+            check_cancellation(config, diagram_id)
             existing_count = await count_by_filter(
                 {"diagram_id": diagram_id, "file_url": file_url}
             )
@@ -160,6 +188,8 @@ async def add_documents(state: State):
 
             writer({"current_status": "New file detected. Clearing old store data..."})
             await delete_by_filter(filter_dict={"diagram_id": diagram_id})
+        except CancellationError:
+            raise
         except Exception as exc:  # pylint: disable=broad-exception-caught
             # Best-effort: proceed to add documents even if the check/cleanup fails.
             writer(
@@ -167,6 +197,8 @@ async def add_documents(state: State):
                     "current_status": f"Warning: store check/cleanup failed, continuing: {exc}"
                 }
             )
+
+    check_cancellation(config, diagram_id)
 
     # Add metadata directly to each document instead of passing separately
     for doc in context:
@@ -181,14 +213,9 @@ async def add_documents(state: State):
     return {"context": context}
 
 
-def get_question_for_retrieval(state: State) -> str:
-    """Get the question to use for retrieval (uses the user's question directly)."""
-    # Always use the content of the last message as the query question
-    return state["messages"][-1].content
-
-
-async def retrieve_documents(state: State):
+async def retrieve_documents(state: State, config: RunnableConfig):
     """Retrieve documents from the vector store."""
+    check_cancellation(config, state["diagram_id"])
 
     writer = get_stream_writer()
 
@@ -207,7 +234,7 @@ async def retrieve_documents(state: State):
     # Normal chat flow: use similarity search
     writer({"current_status": "Searching for relevant documents..."})
 
-    question = get_question_for_retrieval(state)
+    question = state["messages"][-1].content
     diagram_id = state["diagram_id"]
     file_url = state.get("file_url")
     vector_store = get_vector_store()
@@ -217,6 +244,8 @@ async def retrieve_documents(state: State):
     filter_dict: dict = {"diagram_id": diagram_id}
     if file_url:
         filter_dict["file_url"] = file_url
+
+    check_cancellation(config, diagram_id)
 
     retrieved_docs = await vector_store.asimilarity_search(
         question, k=5, filter=filter_dict
@@ -247,41 +276,68 @@ ANSWER_PROMPT = (
     "- Break long paragraphs into shorter, readable chunks\n"
     "- Use proper spacing between sections for readability\n"
     "\n"
-    "REFERENCE LINKS WITH HOVERCARD:\n"
+    "REFERENCE LINKS WITH HOVERCARD (REQUIRED FORMAT: BOTH PDF AND NODE):\n"
     "When referring to specific pages in the PDF or nodes in the mindmap, use reference links with hash-based format:\n"
-    "- For both page and node: [**text content**](#node/node-1766205361492#pdf/26) - combine with multiple hash fragments\n"
-    "- For PDF page references: [**text content**](#pdf/26) where 26 is an ACTUAL page number from metadata (integer)\n"
-    "- For node references: [**text content**](#node/node-1766205361492) where node-1766205361492 is an ACTUAL node ID\n"
+    "- MANDATORY FORMAT: Always combine both PDF page and node references: [**text content**](#pdf/26#node/node-1766205361492)\n"
+    "- Format: #pdf/<pageNumber>#node/<nodeId> where both page number and node ID are REQUIRED when available\n"
+    "- PDF page number: Use ACTUAL page number from metadata (integer, e.g., 26)\n"
+    "- Node ID: Use ACTUAL node ID from mindmap (e.g., node-1766205361492)\n"
     "\n"
     "CRITICAL FORMATTING RULES:\n"
-    "- The text inside the square brackets MUST be wrapped in **bold** markdown: [**text content**](#pdf/26#node/node-1766205361492) or [**text content**](#pdf/26)\n"
+    "- The text inside the square brackets MUST be wrapped in **bold** markdown: [**text content**](#pdf/26#node/node-1766205361492)\n"
     "- The text content should be natural, readable keywords or short phrases that flow naturally in the sentence\n"
-    "- Use hash-based format: #pdf/<pageNumber> for PDF pages, #node/<nodeId> for nodes\n"
-    "- When combining both, use multiple hash fragments: #node/<nodeId>#pdf/<pageNumber>\n"
+    "- Use hash-based format with multiple fragments: #pdf/<pageNumber>#node/<nodeId>\n"
+    "- PDF page MUST come first, then node ID: #pdf/<pageNumber>#node/<nodeId>\n"
+    "- CRITICAL: AVOID TEXT DUPLICATION - NEVER write a title/heading separately when you also use a reference link for the same title.\n"
+    "  * WRONG: '**Introduction** [**Introduction**](#pdf/26#node/node-1766205361492) explains...' - title is duplicated\n"
+    "  * WRONG: '**Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' - title is duplicated\n"
+    "  * WRONG: 'The Introduction section in the [**Introduction**](#pdf/26#node/node-1766205361492) explains...' - 'Introduction' is duplicated\n"
+    "  * WRONG: 'The Methodology chapter discusses the [**Methodology**](#pdf/52#node/node-1766205361492) approach...' - 'Methodology' is duplicated\n"
+    "  * CORRECT: '[**Introduction**](#pdf/26#node/node-1766205361492) explains...' - use ONLY the ref link, no separate title\n"
+    "  * CORRECT: '[**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' - use ONLY the ref link, no separate title\n"
+    "  * CORRECT: 'The [**Introduction**](#pdf/26#node/node-1766205361492) section explains...' - use only the ref link\n"
+    "  * CORRECT: 'The [**Methodology**](#pdf/52#node/node-1766205361492) chapter discusses the approach...' - use only the ref link\n"
     "- Example format: 'The [**Introduction**](#pdf/26#node/node-1766205361492) concept is important.'\n"
-    "- Example with both: 'The [**Key findings**](#node/node-1766205361492#pdf/26) are explained in detail.'\n"
-    "- NOT: 'The **Text** ([page 26](#pdf/26#node/node-1766205361492))' - this is WRONG\n"
-    "- CORRECT: 'The [**Text**](#pdf/26#node/node-1766205361492) concept is important.'\n"
+    "- NOT: 'The **Text** ([page 26](#pdf/26))' - this is WRONG\n"
+    "- NOT: 'The [**Text**](#pdf/26)' - missing node reference, this is WRONG\n"
+    "- CORRECT: 'The [**Introduction**](#pdf/26#node/node-1766205361492) concept is important.'\n"
     "\n"
     "USAGE GUIDELINES:\n"
-    "- ALWAYS use reference links when you have page numbers from document metadata - this is MANDATORY, not optional\n"
+    "- MANDATORY: When both page numbers and node IDs are available, you MUST ALWAYS combine them: [**text content**](#pdf/<pageNumber>#node/<nodeId>)\n"
+    "- Only create reference links for HIGH-IMPORTANCE content such as:\n"
+    "  * Document titles, chapter titles, section headings\n"
+    "  * Major topics and key concepts\n"
+    "  * Important sections from table of contents\n"
+    "  * Main themes and primary subjects\n"
+    "- DO NOT create links for:\n"
+    "  * Minor details, examples, or supporting information\n"
+    "  * Regular sentences or paragraphs\n"
+    "  * Low-level subsections or footnotes\n"
+    "- CRITICAL RULE: AVOID TEXT DUPLICATION - The reference link MUST REPLACE the title/heading, not supplement it.\n"
+    "  * If you want to mention a title/heading that has a reference, you MUST use the reference link format and NOT write the title separately.\n"
+    "  * NEVER write: '**Title** [**Title**](#pdf/26#node/node-123)' - this creates duplication.\n"
+    "  * ALWAYS write: '[**Title**](#pdf/26#node/node-123)' - the reference link IS the title.\n"
+    "  * In bullet points: Use '- [**Title**](#pdf/26#node/node-123) description...' NOT '- **Title** [**Title**](#pdf/26#node/node-123) description...'\n"
+    "  * The reference link text should BE the text itself, not an additional reference to it.\n"
+    "  * If you use [**Introduction**](#pdf/26#node/node-123) in a sentence, do NOT write 'Introduction' again anywhere in that sentence or bullet point.\n"
+    "- When page numbers are available in document metadata, you MUST include page references in your response\n"
     "- When node IDs are provided (from existing or newly generated mindmap), you MUST include node references in your response\n"
-    "- Embed references naturally within your sentences using format: [**text content**](#node/<nodeId>#pdf/<pageNumber>) or [**text content**](#pdf/<pageNumber>)\n"
-    "- The text should be keywords or short phrases, like: 'According to the [**Introduction**](#node/node-1766205361492#pdf/26) node, this concept is important'\n"
-    "- Or: 'See [**this section**](#node/node-1766205361492#pdf/26) for more details'\n"
-    "- When page numbers are available in document metadata, you MUST include at least one page reference in your response\n"
-    "- If node IDs are provided to you, you MUST include node references in your response - this is MANDATORY when node IDs are available\n"
-    "- When both page numbers and node IDs are available, combine them: [**text content**](#node/<nodeId>#pdf/<pageNumber>)\n"
+    "- Embed references naturally within your sentences using format: [**text content**](#pdf/<pageNumber>#node/<nodeId>)\n"
+    "- The text should be keywords or short phrases representing titles/headings, like: 'According to [**Introduction**](#pdf/26#node/node-1766205361492), this concept is important'\n"
+    "- Or: 'See [**Chapter 3**](#pdf/45#node/node-1766205361492) for more details'\n"
     "- The text inside brackets should be bold: [**text content**] not just [text content]\n"
     "\n"
-    "CRITICAL: If node IDs are provided to you in the prompt, you MUST include node references in your response. Do not skip node references when node IDs are available.\n"
-    "\n"
-    "Examples:\n"
-    "- 'The concept is represented by the [**Introduction**](#pdf/26#node/node-1766205361492) node in the mindmap.'\n"
-    "- 'For comprehensive information, see [**this section**](#pdf/26#node/node-1766205361492) which covers this topic.'\n"
-    "- 'According to [**the document**](#pdf/26), the main principles are...'\n"
-    "- 'The [**Text**](#node/node-1766205361492#pdf/26) pattern combines both references.'\n"
-    "- 'The [**Text**](#node/node-1766205361492#pdf/26) pattern is explained in detail.'\n"
+    "Examples (showing proper usage without text duplication):\n"
+    "- 'According to [**Introduction**](#pdf/26#node/node-1766205361492), the main principles are...' (NOT: 'According to Introduction, the [**Introduction**](#pdf/26#node/node-1766205361492) section...')\n"
+    "- 'For comprehensive information, see [**Chapter 3**](#pdf/45#node/node-1766205361492) which covers this topic.' (NOT: 'See Chapter 3 in the [**Chapter 3**](#pdf/45#node/node-1766205361492) section...')\n"
+    "- 'The [**Methodology**](#pdf/52#node/node-1766205361492) section explains the research approach.' (NOT: 'The Methodology section in [**Methodology**](#pdf/52#node/node-1766205361492) explains...')\n"
+    "- 'The [**Results**](#pdf/78#node/node-1766205361492) show significant findings.' (NOT: 'The Results chapter in [**Results**](#pdf/78#node/node-1766205361492) shows...')\n"
+    "- In bullet points:\n"
+    "  * CORRECT: '- [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers fundamental algorithms like Naive Bayes and Nearest Neighbors.'\n"
+    "  * WRONG: '- **Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (title duplicated)\n"
+    "  * WRONG: '- **Basic Algorithms** Basic Algorithms covers...' (title duplicated without ref)\n"
+    "  * CORRECT: '- [**Applications**](#pdf/45#node/node-1766205361492) highlights various real-world uses of machine learning.'\n"
+    "  * WRONG: '- **Applications** [**Applications**](#pdf/45#node/node-1766205361492) highlights...' (title duplicated)\n"
     "\n"
     "User request:\n"
     "{request}\n"
@@ -436,8 +492,9 @@ class MindmapData(BaseModel):
     )
 
 
-async def generate_answer(state: State):
+async def generate_answer(state: State, config: RunnableConfig):
     """Generate an answer and optionally mindmap data based on user request."""
+    check_cancellation(config, state["diagram_id"])
 
     # Get the latest HumanMessage (user's most recent question)
     # Find the last HumanMessage in the messages list
@@ -467,6 +524,7 @@ async def generate_answer(state: State):
     if not context_docs or len(context_docs) == 0:
         # No documents found - use no relevant data prompt
         prompt = NO_RELEVANT_DATA_PROMPT.format(request=request)
+        check_cancellation(config, state["diagram_id"])
         response = await model.with_structured_output(GenerateAnswer).ainvoke(
             [{"role": "user", "content": prompt}]
         )
@@ -484,7 +542,34 @@ async def generate_answer(state: State):
         else:
             context_parts.append(content)
     context = "\n\n".join(context_parts)
-    prompt = ANSWER_PROMPT.format(request=request, context=context)
+
+    # Check if this is a full file load - store once to avoid repeated calls
+    need_initialize_data = state.get("need_initialize_data", False)
+
+    # Add special instructions for full file loads
+    if need_initialize_data:
+        prompt = (
+            f"{ANSWER_PROMPT.format(request=request, context=context)}\n\n"
+            "SPECIAL INSTRUCTIONS FOR FULL DOCUMENT LOAD:\n"
+            "- You are processing the ENTIRE document content.\n"
+            "- MANDATORY FORMAT: Always use BOTH PDF page and node references together: [**text**](#pdf/<pageNumber>#node/<nodeId>)\n"
+            "- Focus on creating reference links based on the TABLE OF CONTENTS if available.\n"
+            "- HOW TO IDENTIFY TABLE OF CONTENTS: Look for sections titled 'Table of Contents', 'Contents', or lists showing chapter/section names with page numbers.\n"
+            "- Only create reference links for HIGH-IMPORTANCE content such as:\n"
+            "  * Document titles, chapter titles, section headings\n"
+            "  * Major topics and key concepts from table of contents\n"
+            "  * Main themes and primary subjects\n"
+            "- DO NOT create links for minor subsections, examples, or supporting details.\n"
+            "- When you see a table of contents, map each major section to its page number and corresponding node ID, then use both in your response.\n"
+            "- Format: [**Section Name**](#pdf/<pageNumber>#node/<nodeId>) - both are REQUIRED when available.\n"
+            "- CRITICAL: AVOID TEXT DUPLICATION - Use the reference link AS the title, not alongside it.\n"
+            "  * WRONG: '**Chapter 1** [**Chapter 1**](#pdf/5#node/node-123) discusses...'\n"
+            "  * CORRECT: '[**Chapter 1**](#pdf/5#node/node-123) discusses...'\n"
+        )
+    else:
+        prompt = ANSWER_PROMPT.format(request=request, context=context)
+
+    check_cancellation(config, state["diagram_id"])
 
     # Generate answer
     response = await model.with_structured_output(GenerateAnswer).ainvoke(
@@ -494,6 +579,8 @@ async def generate_answer(state: State):
     mindmap_dict = None
 
     try:
+        check_cancellation(config, state["diagram_id"])
+
         # Prepare context for mindmap generation
         # Use the 'context' variable which already includes [Page X] markers
         full_context = context
@@ -512,6 +599,7 @@ async def generate_answer(state: State):
                 "Document content:\n"
                 f"{full_context[:100000]}\n"  # Limit to first 100k chars for summary
             )
+            check_cancellation(config, state["diagram_id"])
             summary_response = await model.ainvoke(
                 [{"role": "user", "content": summary_prompt}]
             )
@@ -547,16 +635,57 @@ async def generate_answer(state: State):
                     node_info_list.append(node_id)
 
             node_ids_str = "\n".join(node_info_list)
-            answer_prompt_with_nodes = (
-                f"{prompt}\n\n"
-                f"Available nodes from existing mindmap (you can reference these using hash format [**text content**](#node/node-id)):\n"
-                f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
-                f"\n"
-                f"{node_ids_str}\n"
-                f"\n"
-                f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above.\n"
-                f"Format example: [**Introduction**](#node/node-1766205361492)\n"
-            )
+
+            # Use the stored need_initialize_data variable (already set above)
+            if need_initialize_data:
+                # For full file loads, require both PDF and node references
+                answer_prompt_with_nodes = (
+                    f"{prompt}\n\n"
+                    f"Available nodes from existing mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"MANDATORY FORMAT (FULL DOCUMENT LOAD):\n"
+                    f"- You MUST ALWAYS combine both PDF page and node references: [**text**](#pdf/<pageNumber>#node/<nodeId>)\n"
+                    f"- Only create links for HIGH-IMPORTANCE content: titles, headings, major sections from table of contents\n"
+                    f"- Skip minor subsections, examples, or supporting details\n"
+                    f"- PDF page must come first, then node ID: #pdf/<pageNumber>#node/<nodeId>\n"
+                    f"- CRITICAL: AVOID TEXT DUPLICATION - The reference link MUST REPLACE the title/heading, not supplement it.\n"
+                    f"  * NEVER write: '**Title** [**Title**](#pdf/26#node/node-123)' - this creates duplication.\n"
+                    f"  * ALWAYS write: '[**Title**](#pdf/26#node/node-123)' - the reference link IS the title.\n"
+                    f"  * In bullet points: Use '- [**Title**](#pdf/26#node/node-123) description...' NOT '- **Title** [**Title**](#pdf/26#node/node-123) description...'\n"
+                    f"  * Use the reference link AS the text itself, not as an additional reference to text written separately.\n"
+                    f"\n"
+                    f"Format example (REQUIRED): [**Introduction**](#pdf/26#node/node-1766205361492)\n"
+                    f"Correct: 'The [**Introduction**](#pdf/26#node/node-1766205361492) section explains...'\n"
+                    f"Correct: '[**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (in bullet points)\n"
+                    f"Wrong: 'The Introduction section in [**Introduction**](#pdf/26#node/node-1766205361492) explains...' (duplicated text)\n"
+                    f"Wrong: '**Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (title duplicated)\n"
+                )
+            else:
+                # For normal chat, require both PDF and node references
+                answer_prompt_with_nodes = (
+                    f"{prompt}\n\n"
+                    f"Available nodes from existing mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"MANDATORY FORMAT:\n"
+                    f"- You MUST ALWAYS combine both PDF page and node references when both are available: [**text**](#pdf/<pageNumber>#node/<nodeId>)\n"
+                    f"- Use the EXACT node IDs shown above - do not modify or abbreviate them.\n"
+                    f"- Only create links for HIGH-IMPORTANCE content: titles, headings, major topics\n"
+                    f"- PDF page must come first, then node ID: #pdf/<pageNumber>#node/<nodeId>\n"
+                    f"- CRITICAL: AVOID TEXT DUPLICATION - The reference link MUST REPLACE the title/heading, not supplement it.\n"
+                    f"  * NEVER write: '**Title** [**Title**](#pdf/26#node/node-123)' - this creates duplication.\n"
+                    f"  * ALWAYS write: '[**Title**](#pdf/26#node/node-123)' - the reference link IS the title.\n"
+                    f"  * In bullet points: Use '- [**Title**](#pdf/26#node/node-123) description...' NOT '- **Title** [**Title**](#pdf/26#node/node-123) description...'\n"
+                    f"  * Use the reference link AS the text itself, not as an additional reference to text written separately.\n"
+                    f"\n"
+                    f"Format example (REQUIRED): [**Introduction**](#pdf/26#node/node-1766205361492)\n"
+                    f"Correct: 'The [**Introduction**](#pdf/26#node/node-1766205361492) section explains...'\n"
+                    f"Correct: '[**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (in bullet points)\n"
+                    f"Wrong: 'The Introduction section in [**Introduction**](#pdf/26#node/node-1766205361492) explains...' (duplicated text)\n"
+                    f"Wrong: '**Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (title duplicated)\n"
+                )
+            check_cancellation(config, state["diagram_id"])
             # Re-generate answer with node context
             response = await model.with_structured_output(GenerateAnswer).ainvoke(
                 [{"role": "user", "content": answer_prompt_with_nodes}]
@@ -564,7 +693,7 @@ async def generate_answer(state: State):
 
         # Generate mindmap data
         # Add instruction to create more nodes when reloading from full PDF
-        need_initialize_data = state.get("need_initialize_data", False)
+        # Use the stored need_initialize_data variable (already set above)
         mindmap_prompt_base = MINDMAP_PROMPT.format(
             request=request,
             context=mindmap_context,
@@ -583,6 +712,8 @@ async def generate_answer(state: State):
             )
         else:
             mindmap_prompt = mindmap_prompt_base
+
+        check_cancellation(config, state["diagram_id"])
 
         mindmap_response = await model.with_structured_output(MindmapData).ainvoke(
             [{"role": "user", "content": mindmap_prompt}]
@@ -624,26 +755,66 @@ async def generate_answer(state: State):
                     node_info_list.append(node_id)
 
             node_ids_str = "\n".join(node_info_list)
-            final_prompt = (
-                f"{prompt}\n\n"
-                f"IMPORTANT: A mindmap has just been generated with the following nodes. "
-                f"You MUST include references to these nodes in your response using the hash-based format [**text**](#node/node-id).\n"
-                f"Use the EXACT node IDs shown below - do not modify or abbreviate them.\n"
-                f"\n"
-                f"Available nodes from the generated mindmap:\n"
-                f"{node_ids_str}\n"
-                f"\n"
-                f"CRITICAL: When referencing nodes, use the EXACT node ID as shown above. "
-                f"For example, if a node ID is 'node-1766205361492', use exactly '#node/node-1766205361492' in your reference link.\n"
-                f"\n"
-                f"Also include page references when available. Combine both when relevant: [**text**](#node/<nodeId>#pdf/<pageNumber>).\n"
-                f"Format examples:\n"
-                f"- Node only: [**Introduction**](#node/node-1766205361492)\n"
-                f"- Page only: [**Page 26**](#pdf/26)\n"
-                f"- Both: [**Introduction**](#node/node-1766205361492#pdf/26)\n"
-                f"\n"
-                f"Make sure to reference multiple nodes throughout your response to help users navigate the mindmap."
-            )
+
+            # Use the stored need_initialize_data variable (already set above)
+            if need_initialize_data:
+                # For full file loads, require both PDF and node references
+                final_prompt = (
+                    f"{prompt}\n\n"
+                    f"IMPORTANT: A mindmap has just been generated with the following nodes.\n"
+                    f"\n"
+                    f"Available nodes from the generated mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"MANDATORY FORMAT (FULL DOCUMENT LOAD):\n"
+                    f"- You MUST ALWAYS combine both PDF page and node references: [**text**](#pdf/<pageNumber>#node/<nodeId>)\n"
+                    f"- Only create links for HIGH-IMPORTANCE content: titles, headings, major sections from table of contents\n"
+                    f"- Skip minor subsections, examples, or supporting details\n"
+                    f"- PDF page must come first, then node ID: #pdf/<pageNumber>#node/<nodeId>\n"
+                    f"- Use the EXACT node IDs shown above - do not modify or abbreviate them.\n"
+                    f"- CRITICAL: AVOID TEXT DUPLICATION - The reference link MUST REPLACE the title/heading, not supplement it.\n"
+                    f"  * NEVER write: '**Title** [**Title**](#pdf/26#node/node-123)' - this creates duplication.\n"
+                    f"  * ALWAYS write: '[**Title**](#pdf/26#node/node-123)' - the reference link IS the title.\n"
+                    f"  * In bullet points: Use '- [**Title**](#pdf/26#node/node-123) description...' NOT '- **Title** [**Title**](#pdf/26#node/node-123) description...'\n"
+                    f"  * Use the reference link AS the text itself, not as an additional reference to text written separately.\n"
+                    f"\n"
+                    f"Format example (REQUIRED): [**Introduction**](#pdf/26#node/node-1766205361492)\n"
+                    f"Correct: 'The [**Introduction**](#pdf/26#node/node-1766205361492) section explains...'\n"
+                    f"Correct: '[**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (in bullet points)\n"
+                    f"Wrong: 'The Introduction section in [**Introduction**](#pdf/26#node/node-1766205361492) explains...' (duplicated text)\n"
+                    f"Wrong: '**Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (title duplicated)\n"
+                    f"\n"
+                    f"Make sure to reference both PDF pages and nodes throughout your response, especially for major sections from the table of contents."
+                )
+            else:
+                # For normal chat, require both PDF and node references
+                final_prompt = (
+                    f"{prompt}\n\n"
+                    f"IMPORTANT: A mindmap has just been generated with the following nodes.\n"
+                    f"\n"
+                    f"Available nodes from the generated mindmap:\n"
+                    f"{node_ids_str}\n"
+                    f"\n"
+                    f"MANDATORY FORMAT:\n"
+                    f"- You MUST ALWAYS combine both PDF page and node references when both are available: [**text**](#pdf/<pageNumber>#node/<nodeId>)\n"
+                    f"- Use the EXACT node IDs shown above - do not modify or abbreviate them.\n"
+                    f"- Only create links for HIGH-IMPORTANCE content: titles, headings, major topics\n"
+                    f"- PDF page must come first, then node ID: #pdf/<pageNumber>#node/<nodeId>\n"
+                    f"- CRITICAL: AVOID TEXT DUPLICATION - The reference link MUST REPLACE the title/heading, not supplement it.\n"
+                    f"  * NEVER write: '**Title** [**Title**](#pdf/26#node/node-123)' - this creates duplication.\n"
+                    f"  * ALWAYS write: '[**Title**](#pdf/26#node/node-123)' - the reference link IS the title.\n"
+                    f"  * In bullet points: Use '- [**Title**](#pdf/26#node/node-123) description...' NOT '- **Title** [**Title**](#pdf/26#node/node-123) description...'\n"
+                    f"  * Use the reference link AS the text itself, not as an additional reference to text written separately.\n"
+                    f"\n"
+                    f"Format example (REQUIRED): [**Introduction**](#pdf/26#node/node-1766205361492)\n"
+                    f"Correct: 'The [**Introduction**](#pdf/26#node/node-1766205361492) section explains...'\n"
+                    f"Correct: '[**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (in bullet points)\n"
+                    f"Wrong: 'The Introduction section in [**Introduction**](#pdf/26#node/node-1766205361492) explains...' (duplicated text)\n"
+                    f"Wrong: '**Basic Algorithms** [**Basic Algorithms**](#pdf/26#node/node-1766205361492) covers...' (title duplicated)\n"
+                    f"\n"
+                    f"Make sure to reference both PDF pages and nodes throughout your response to help users navigate."
+                )
+            check_cancellation(config, state["diagram_id"])
             response = await model.with_structured_output(GenerateAnswer).ainvoke(
                 [{"role": "user", "content": final_prompt}]
             )
@@ -911,8 +1082,13 @@ MINDMAP_PROMPT = (
     "\n"
     "14. PAGE ASSIGNMENT STRATEGY (MANDATORY):\n"
     "    - AI MUST perform a check: 'On which page does the information for node [Node Name] first or most prominently appear?'\n"
+    "    - For full document loads: Prioritize page numbers from TABLE OF CONTENTS when available.\n"
+    "    - When table of contents is present, use the page numbers listed for major sections/chapters.\n"
+    "    - For major sections: Use the page number from table of contents.\n"
+    "    - For minor subsections: Still assign page numbers, but they are less critical for navigation.\n"
     "    - Never leave pageReference empty. If the information is a summary, AI must assign the page number of the corresponding chapter or main section in the document.\n"
     "    - Example: If the node is 'Protein Structure' and this information is primarily described on page 15, pageReference MUST be 15.\n"
+    "    - Example: If table of contents shows 'Chapter 3: Methodology' starts at page 45, use pageReference 45 for the Methodology node.\n"
     "\n"
     "User request:\n"
     "{request}\n"
@@ -961,14 +1137,19 @@ class SummarizeDocuments(BaseModel):
 
 async def summarize_documents(
     state: State,
+    config: RunnableConfig,
 ):
     """Summarize the documents."""
+    check_cancellation(config, state["diagram_id"])
 
     writer = get_stream_writer()
     writer({"current_status": "Summarizing documents..."})
 
     documents = "\n".join([doc.page_content for doc in state["context"]])
     prompt = SUMMARIZE_PROMPT.format(documents=documents)
+
+    check_cancellation(config, state["diagram_id"])
+
     response = await model.with_structured_output(SummarizeDocuments).ainvoke(
         [{"role": "user", "content": prompt}]
     )
@@ -986,12 +1167,14 @@ async def summarize_documents(
 
 async def route_workflow(
     state: State,
+    config: RunnableConfig,
 ) -> Literal["load_file", "retrieve_documents"]:
     """
     Decide workflow branch based on need_initialize_data.
     - need_initialize_data = True -> load_file (reload from file)
     - need_initialize_data = False -> retrieve_documents (normal chat)
     """
+    check_cancellation(config, state["diagram_id"])
 
     writer = get_stream_writer()
     writer({"current_status": "Calculating how the workflow should proceed..."})

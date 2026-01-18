@@ -11,6 +11,6 @@ if not OLLAMA_BASE_URL:
 def get_embeddings() -> OllamaEmbeddings:
     """Get the embeddings model."""
     return OllamaEmbeddings(
-        model="mxbai-embed-large",
         base_url=OLLAMA_BASE_URL,
+        model="mxbai-embed-large",
     )

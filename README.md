@@ -43,6 +43,7 @@ The web application provides the user interface for diagram creation and collabo
 ## ✨ Key Features
 
 - **AI-Powered Chat**: Interact with an intelligent chatbot to analyze uploaded documents
+- **Token Usage Tracking**: Weekly token limit tracking with visual progress indicator
 - **Document Upload**: Support for PDF and text files with automatic processing
 - **Knowledge Extraction**: RAG-based retrieval for accurate, context-aware answers
 - **Visual Diagrams**: Create mind maps and flowcharts from AI-generated insights

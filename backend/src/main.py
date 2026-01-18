@@ -220,6 +220,7 @@ async def chat(
     config: RunnableConfig = {
         "configurable": {
             "thread_id": thread_id,
+            "cancel_flags": app.state.cancel_flags,
         }
     }
     graph_state = await app.state.graph.aget_state(config)
@@ -275,6 +276,7 @@ async def stream_chat_events(
     config: RunnableConfig = {
         "configurable": {
             "thread_id": thread_id,
+            "cancel_flags": app_state.cancel_flags,
         }
     }
     graph_state = await app_state.graph.aget_state(config)
