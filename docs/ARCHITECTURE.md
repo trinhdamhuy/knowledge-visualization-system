@@ -102,7 +102,8 @@ backend/
 │   ├── edges.py            # LangGraph workflow nodes
 │   ├── models/             # Data models
 │   │   ├── vector_store.py # PGVector integration
-│   │   ├── chat_model.py   # LLM model config
+│   │   ├── chat_model.py   # LLM model config (Gemini)
+│   │   ├── embeddings.py   # Embeddings model config (HuggingFace)
 │   │   └── ...
 │   └── schemas/            # Pydantic schemas
 │       ├── requests.py     # Request models
@@ -153,7 +154,7 @@ START
    - Metadata extraction (diagram_id, file_url)
 
 3. **Embedding**:
-   - Generate embeddings with embedding model
+   - Generate embeddings with HuggingFace Endpoint Embeddings (`mixedbread-ai/mxbai-embed-large-v1`)
    - Store in PGVector with metadata
 
 4. **Retrieval**:

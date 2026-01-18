@@ -64,7 +64,7 @@ The web application provides the user interface for diagram creation and collabo
   - LangChain (`langchain-core`, `langchain-community`)
   - LangGraph (workflow management, PostgreSQL checkpoint/store)
   - Google Generative AI (Gemini models) via `langchain-google-genai`
-  - Ollama via `langchain-ollama` (local models, configured through `OLLAMA_BASE_URL`)
+  - HuggingFace Endpoint Embeddings via `langchain-huggingface` (for document embeddings)
 - **Vector Store**: PostgreSQL with PGVector extension (`langchain-postgres`)
 - **Document Processing**: `pypdf`, `unstructured`
 - **Storage**: Supabase Storage (`supabase` client) for file downloads
@@ -144,6 +144,7 @@ The web application provides the user interface for diagram creation and collabo
 - **AWS Account** (for S3 storage - used by frontend for file uploads)
 - **Supabase Account** (for Supabase Storage - used by backend for file downloads)
 - **Google Cloud Account** (for OAuth and Gemini AI)
+- **HuggingFace Account** (for embeddings API - used by backend for document embeddings)
 - **Liveblocks Account** (for real-time collaboration)
 - **Cloudflare Account** (optional, for tunnel)
 
@@ -189,6 +190,7 @@ RESEND_API_KEY=
 
 # LLM providers
 GOOGLE_API_KEY=your_google_api_key
+HUGGINGFACE_API_KEY=your_huggingface_api_key
 OLLAMA_DATA_DIR=./.data/ollama
 
 # Backend integrations (Supabase Storage for file downloads)
@@ -242,6 +244,7 @@ POSTGRES_PORT=5432
 POSTGRES_DB=vector_db
 
 GOOGLE_API_KEY=your_google_api_key
+HUGGINGFACE_API_KEY=your_huggingface_api_key
 OLLAMA_BASE_URL=http://localhost:11434
 SUPABASE_URL=
 SUPABASE_KEY=

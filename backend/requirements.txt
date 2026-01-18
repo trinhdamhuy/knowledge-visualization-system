@@ -1,12 +1,11 @@
 fastapi[standard]
 langchain
-langchain_postgres
 langchain-text-splitters
 langchain-postgres
 langchain-core
 langchain-community
 langchain-google-genai
-langchain-ollama
+langchain-huggingface
 pypdf
 langgraph
 langgraph-checkpoint-postgres

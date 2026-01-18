@@ -58,7 +58,7 @@ RESEND_API_KEY=
 # LLM Providers
 # ============================================
 GOOGLE_API_KEY=your_google_api_key
-OLLAMA_DATA_DIR=./.data/ollama
+HUGGINGFACE_API_KEY=your_huggingface_api_key
 
 # ============================================
 # Backend Integrations
@@ -126,6 +126,7 @@ POSTGRES_DB=vector_db
 
 # LLM Providers
 GOOGLE_API_KEY=your_google_api_key
+HUGGINGFACE_API_KEY=your_huggingface_api_key
 OLLAMA_BASE_URL=http://localhost:11434
 
 # Supabase Storage
@@ -183,9 +184,20 @@ SUPABASE_KEY=
 
 ### Google API Key
 
-- **Description**: API key for Google Gemini
+- **Description**: API key for Google Gemini (used for chat/LLM)
 - **How to get**: https://makersuite.google.com/app/apikey
-- **Required**: Yes (for AI features)
+- **Required**: Yes (for AI chat features)
+
+### HuggingFace API Key
+
+- **Description**: API key for HuggingFace Endpoint Embeddings (used for document embeddings)
+- **How to get**: 
+  1. Go to https://huggingface.co/
+  2. Create an account or sign in
+  3. Go to Settings → Access Tokens
+  4. Create a new token with "Read" permissions
+- **Required**: Yes (for document embeddings and vector search)
+- **Model**: `mixedbread-ai/mxbai-embed-large-v1` (configured in backend)
 
 ### Supabase
 
