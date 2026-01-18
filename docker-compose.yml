@@ -28,26 +28,6 @@ services:
     networks:
       - knovion-network
 
-  ollama:
-    image: ollama/ollama
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ${OLLAMA_DATA_DIR}:/root/.ollama
-      - ./scripts/run-ollama.sh:/run-ollama.sh
-    entrypoint: ["/bin/bash", "/run-ollama.sh"]
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    restart: unless-stopped
-    networks:
-      - knovion-network
-
   backend:
     container_name: knovion-backend
     build:
@@ -63,12 +43,10 @@ services:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_KEY: ${SUPABASE_KEY}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      OLLAMA_BASE_URL: http://ollama:11434
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY}
     ports:
       - "8000:8000"
     depends_on:
-      ollama:
-        condition: service_started
       pgvector:
         condition: service_started
     restart: unless-stopped

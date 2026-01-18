@@ -1,16 +1,19 @@
 """Embeddings configuration for the chatbot."""
 
 import os
-from langchain_ollama import OllamaEmbeddings
+from dotenv import load_dotenv
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
-if not OLLAMA_BASE_URL:
-    raise ValueError("OLLAMA_BASE_URL environment variable not set")
+load_dotenv()
+
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+if not HUGGINGFACE_API_KEY:
+    raise ValueError("HUGGINGFACE_API_KEY environment variable not set")
 
 
-def get_embeddings() -> OllamaEmbeddings:
+def get_embeddings() -> HuggingFaceEndpointEmbeddings:
     """Get the embeddings model."""
-    return OllamaEmbeddings(
-        base_url=OLLAMA_BASE_URL,
-        model="mxbai-embed-large",
+    return HuggingFaceEndpointEmbeddings(
+        huggingfacehub_api_token=HUGGINGFACE_API_KEY,
+        model="mixedbread-ai/mxbai-embed-large-v1",
     )
