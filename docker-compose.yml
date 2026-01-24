@@ -1,18 +1,6 @@
 name: knovion
 
 services:
-  cloudflare-tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflare-tunnel
-    command: tunnel run
-    restart: unless-stopped
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-    depends_on:
-      - nginx
-    networks:
-      - knovion-network
-
   pgvector:
     image: pgvector/pgvector:pg16
     container_name: knovion-vector-store
@@ -69,6 +57,7 @@ services:
       - ${DATABASE_DATA_DIR}:/var/lib/postgresql
 
   frontend:
+    profiles: ["production"]
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -77,7 +66,7 @@ services:
     deploy:
       replicas: 3
       restart_policy:
-        condition: on-failure
+        condition: unless-stopped
     depends_on:
       - database
       - backend
@@ -102,6 +91,7 @@ services:
       - knovion-network
 
   nginx:
+    profiles: ["production"]
     image: nginx:latest
     container_name: knovion-nginx
     environment:
@@ -119,6 +109,19 @@ services:
     networks:
       - knovion-network
 
+  cloudflare-tunnel:
+    profiles: ["production"]
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare-tunnel
+    command: tunnel run
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+    networks:
+      - knovion-network
+      
 networks:
   knovion-network:
     driver: bridge
